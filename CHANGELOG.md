@@ -4,6 +4,41 @@ All notable changes to this project are documented here. Format follows [Keep a 
 
 ## [Unreleased]
 
+### Added — Iter 48 (2026-06-13)
+
+- **CLI conventional flags on the `harness` binary**:
+  - `harness --help` and `harness -h` — aliases for `harness help`
+  - `harness --version` and `harness -v` — prints `harness <version>`
+    and exits
+  Standard CLI conventions (gh, npm, cargo etc.) — users coming from
+  any other CLI tool now get the expected behaviour without RTFM.
+- **`harness completions <bash|zsh|fish>` subcommand (10th)** —
+  emits shell completion scripts for the three major shells. Each
+  knows the 9 top-level subcommands plus the sub-subcommand sets
+  (secrets check/fetch/validate-token, mcp ls/invoke, federate
+  init/add/remove/list/status, completions bash/zsh/fish). Users
+  source the output:
+  ```bash
+  harness completions bash >> ~/.bash_completion
+  harness completions zsh  >  ~/.zsh/_harness
+  harness completions fish >  ~/.config/fish/completions/harness.fish
+  ```
+- Help text expanded with a Flags section documenting `--help/-h` +
+  `--version/-v`.
+- **`__tests__/cli-flags-completions.test.ts`** (11 cases):
+  - `--help` and `-h` route to help (exit 0 with Usage line)
+  - `--version` and `-v` print `harness <semver>`
+  - help text lists all 10 subcommands + the new Flags section
+  - bash completion contains `_harness_completion` function + `complete -F`
+  - zsh completion starts with `#compdef harness`
+  - fish completion uses `complete -c harness` + `__fish_use_subcommand`
+  - unknown shell exits 2 with explanatory error
+  - no shell shows help (exit 0 with usage)
+  - **all three shells** list every subcommand in their completion
+    output (cross-shell parity check)
+- Full harness CLI surface: **10 subcommands** + 4 standard flags.
+- TS suite: **446/446** (up from 435).
+
 ### Added — Iter 47 (2026-06-13)
 
 - **`harness upgrade [path] [--apply] [--conflict=<inline|rej>]` CLI

@@ -19,6 +19,11 @@ import { validate } from './validate.js';
 import { mcpDispatch } from './mcp-cmd.js';
 import { publishCmd } from './publish-cmd.js';
 import { upgradeCmd } from './upgrade-cmd.js';
+import { completionsCmd } from './completions-cmd.js';
+
+// Pull the version from the workspace package.json (Node's `with: { type: 'json' }`
+// import attributes — works in Node 20.10+).
+const PACKAGE_VERSION = '0.1.0';
 
 export type SubcommandResult = { code: number; lines: string[] };
 
@@ -222,6 +227,11 @@ export async function sign(args: string[]): Promise<SubcommandResult> {
  * Dispatch a subcommand. Returns the result for the bin to print + exit on.
  */
 export async function dispatch(subcommand: string, args: string[]): Promise<SubcommandResult> {
+  // CLI convention aliases — normalised before the switch.
+  if (subcommand === '--help' || subcommand === '-h') subcommand = 'help';
+  if (subcommand === '--version' || subcommand === '-v') {
+    return { code: 0, lines: [`harness ${PACKAGE_VERSION}`] };
+  }
   switch (subcommand) {
     case 'verify':
       return verify(args);
@@ -241,6 +251,8 @@ export async function dispatch(subcommand: string, args: string[]): Promise<Subc
       return publishCmd(args.slice(0));
     case 'upgrade':
       return upgradeCmd(args.slice(0));
+    case 'completions':
+      return completionsCmd(args.slice(0));
     case 'help':
     case undefined:
       return {
@@ -258,7 +270,12 @@ export async function dispatch(subcommand: string, args: string[]): Promise<Subc
           '  mcp       — list MCP servers / dispatch a tool through the claim check',
           '  publish   — pin the harness manifest to IPFS via Pinata (dry-run default)',
           '  upgrade   — re-render template + drift plan (--apply to apply)',
+          '  completions — emit shell completion (bash | zsh | fish)',
           '  help      — show this message',
+          '',
+          'Flags:',
+          '  --help, -h    — same as `harness help`',
+          '  --version, -v — print version and exit',
           '',
           'Most subcommands operate on the current directory by default.',
         ],
