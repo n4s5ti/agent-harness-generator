@@ -28,6 +28,7 @@ export type TemplateId = (typeof TEMPLATES)[number];
 export interface CliArgs {
   name?: string;
   template?: string;
+  templatePackage?: string;
   hosts?: string[];
   yes?: boolean;
   force?: boolean;
@@ -42,6 +43,8 @@ export function parseArgs(argv: string[]): CliArgs {
     if (!a) continue;
     if (a === '--template' || a === '-t') {
       out.template = argv[++i];
+    } else if (a === '--template-package') {
+      out.templatePackage = argv[++i];
     } else if (a === '--host' || a === '-h') {
       const v = argv[++i];
       if (v) (out.hosts ??= []).push(v);

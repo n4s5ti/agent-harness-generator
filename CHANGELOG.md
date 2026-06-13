@@ -4,6 +4,41 @@ All notable changes to this project are documented here. Format follows [Keep a 
 
 ## [Unreleased]
 
+### Added — Iter 15 (2026-06-13)
+
+- **`@ruflo/vertical-base` shared contract** for `@ruflo/vertical-*` packs
+  (per ADR-013):
+  - `VerticalPack`, `VerticalManifest`, `TemplateFileEntry`,
+    `TemplateVar` interfaces
+  - `readVerticalManifest(packRoot)` — reads + validates `manifest.json`
+  - `validateVerticalManifest()` — throws descriptive errors on shape
+    issues (missing id/description, missing src/dst/render, duplicate
+    var names)
+  - `verifyTemplateFilesPresent()` — pre-publish check for dangling
+    references
+  - 11 new TS test cases
+- **`@ruflo/vertical-trading` standalone pack** — first concrete pack
+  in the new pattern:
+  - `templates/manifest.json` declares 10 files + 3 vars (name +
+    description + host — host choices include all 6 host adapters,
+    including the new RVM)
+  - `load()` returns `{ manifest, templateRoot }` for the
+    create-agent-harness external-template loader to consume
+  - README documents the 5-agent pipeline + paper-mode-default + circuit
+    breakers + Kelly multiplier + risk disclosure
+  - 5 new TS test cases (templateRoot non-empty, manifest exists, load()
+    returns valid, file-presence check, host choices include all 6)
+- **External-template loader in CLI**
+  (`packages/create-agent-harness/src/external-template.ts`):
+  - `loadExternalTemplate(packageName)` dynamic-imports the pack package,
+    calls its `.load()`, returns `{ manifest, templateRoot }`
+  - Actionable error messages on missing package (`Did you forget to
+    install it?`) + missing `load()` export + malformed result
+  - CLI now accepts `--template-package @ruflo/vertical-trading` to use
+    an external pack instead of a bundled template
+  - 2 new TS test cases (empty packageName rejected, missing package
+    error message contains install hint)
+
 ### Added — Iter 14 (2026-06-13)
 
 - **`@ruflo/sdk` convenience helpers** for harness authors:

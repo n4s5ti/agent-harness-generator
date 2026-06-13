@@ -1,0 +1,49 @@
+{
+  "name": "@ruflo/vertical-trading",
+  "version": "0.1.0",
+  "description": "Trading harness vertical pack — paper-mode-default, circuit breakers, fractional-Kelly position sizing, 5-agent pipeline (market-watcher / signal-gen / risk-checker / executor / postmortem)",
+  "homepage": "https://github.com/ruvnet/agent-harness-generator",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/ruvnet/agent-harness-generator.git",
+    "directory": "packages/vertical-trading"
+  },
+  "license": "MIT",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist/**",
+    "templates/**",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "test": "vitest run --passWithNoTests",
+    "lint": "tsc --noEmit"
+  },
+  "keywords": [
+    "agent-harness",
+    "vertical-pack",
+    "trading",
+    "quant",
+    "backtesting",
+    "ruflo"
+  ],
+  "publishConfig": { "access": "public" },
+  "dependencies": {
+    "@ruflo/vertical-base": "0.1.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "typescript": "^5.4.0",
+    "vitest": "^2.0.0"
+  },
+  "engines": { "node": ">=20.0.0" }
+}
