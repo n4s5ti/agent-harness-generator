@@ -4,6 +4,26 @@ All notable changes to this project are documented here. Format follows [Keep a 
 
 ## [Unreleased]
 
+### Fixed — Iter 26 (2026-06-13)
+
+- **path-guard scanner was finding itself** — the Node CI jobs had
+  been failing since iter 20 once the build-ordered fix (iter 24)
+  exposed them. Root cause: `scripts/path-guard.mjs` is the scanner
+  that flags hardcoded `/tmp/`, `C:\`, `/Users/`, `/home/` references,
+  but it itself contains those very strings as the regex literals it's
+  scanning for. Same for `packages/create-agent-harness/src/validate.ts`
+  (iter 20's path-guard sub-check embeds the same regex) and
+  `crates/kernel/src/hooks.rs` (test fixture `Bash(rm -rf /tmp)`).
+  CI: 11 self-flagged regressions per run.
+- **Fix**: added a `SKIP_FILES` set listing the three known-meta paths:
+  - `scripts/path-guard.mjs` (the scanner)
+  - `packages/create-agent-harness/src/validate.ts` (the umbrella that
+    embeds the same regex)
+  - `crates/kernel/src/hooks.rs` (the hook-matcher fixture)
+- After the fix: `path-guard: clean (scanned packages, crates, scripts
+  on win32)`. Real regression detection still works — only these three
+  specific meta-files are exempt.
+
 ### Added — Iter 25 (2026-06-13)
 
 - **`__tests__/pack-contents.test.ts`** (6 cases) — `npm pack --dry-run

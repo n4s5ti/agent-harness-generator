@@ -31,6 +31,19 @@ const SKIP_DIRS = new Set([
   'templates', '.git', 'coverage',
 ]);
 const SCAN_EXT = new Set(['.ts', '.tsx', '.mjs', '.js', '.cjs', '.rs']);
+// Files that legitimately reference the bad patterns AS the scanner-side
+// regex itself, error-message text, or as known test fixtures. Each path
+// is workspace-relative + posix-normalised (matches the form we compare
+// against in the offender loop).
+const SKIP_FILES = new Set([
+  // The scanner itself — it defines the bad patterns it's looking for.
+  'scripts/path-guard.mjs',
+  // The validate umbrella's path-guard sub-check embeds the same regex
+  // and error-message strings (iter 20).
+  'packages/create-agent-harness/src/validate.ts',
+  // Rust hook-matcher test uses `/tmp` as a deliberate hooks-input fixture.
+  'crates/kernel/src/hooks.rs',
+]);
 
 const BAD_PATTERNS = [
   {
@@ -80,6 +93,8 @@ for (const top of SCAN_DIRS) {
   const path = join(root, top);
   try { statSync(path); } catch { continue; }
   for (const file of walk(path)) {
+    const rel = file.slice(root.length + 1).split(sep).join(posix.sep);
+    if (SKIP_FILES.has(rel)) continue;
     const ext = extname(file);
     const text = readFileSync(file, 'utf-8');
     const lines = text.split('\n');
@@ -89,7 +104,6 @@ for (const top of SCAN_DIRS) {
       for (const p of BAD_PATTERNS) {
         if (p.exclude && p.exclude.test(line)) continue;
         if (p.re.test(line)) {
-          const rel = file.slice(root.length + 1).split(sep).join(posix.sep);
           offenders.push(`${rel}:${i + 1}  ${p.msg}\n    > ${line.trim()}`);
         }
       }
