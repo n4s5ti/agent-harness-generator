@@ -4,6 +4,40 @@ All notable changes to this project are documented here. Format follows [Keep a 
 
 ## [Unreleased]
 
+### Added — Iter 39 (2026-06-13)
+
+- **Cross-host config-gen benchmark** —
+  `packages/bench/src/host-bench.ts` + `host-bin.ts` realize the
+  "benchmark" loop directive at the host-adapter layer:
+  - `benchHost(adapter, iters)` runs `generateConfig()` `iters` times
+    (with a 50-iter JIT warmup), returns `mean / p50 / p95 / p99`
+    latency + `filesPerCall` + `bytesPerCall`
+  - `benchAllHosts(iters)` covers all 6 supported hosts in one call
+  - `formatResultsTable(results)` emits a clean markdown table for
+    CI annotations + README badges
+- **CLI**: `npm --prefix packages/bench run bench:hosts` prints
+  the per-host table to stdout. `BENCH_HOST_ITERS=10000` and
+  `BENCH_HOST_OUT=./host-bench.json` configure for CI runs.
+- **`packages/bench/__tests__/host-bench.test.ts`** (5 cases):
+  - `benchHost` returns sensible metrics for every host (p99 ≥ p95 ≥ p50)
+  - `benchAllHosts` covers all 6 adapters
+  - markdown table has correct shape (header + separator + 6 rows)
+  - sanity guard: mean latency per host < 5ms (catches accidental
+    O(n²) regressions)
+  - every host produces ≥1 file per call
+- **Live measurement** (1000 iters/host, Windows):
+  ```
+  | Host        | mean (ms) | p99 (ms) | files | bytes |
+  | claude-code | 0.001     | 0.005    | 2     | 3     |
+  | codex       | 0.001     | 0.001    | 2     | 2     |
+  | pi-dev      | 0.001     | 0.001    | 3     | 350   |
+  | hermes      | 0.001     | 0.002    | 1     | 111   |
+  | openclaw    | 0.002     | 0.010    | 3     | 915   |
+  | rvm         | 0.004     | 0.023    | 4     | 2028  |
+  ```
+  Total wall time: **14ms for 6000 calls across 6 hosts**.
+- TS suite: **402/402** (up from 397).
+
 ### Added — Iter 38 (2026-06-13)
 
 - **`scripts/audit-deps.mjs`** — single aggregate security gate that

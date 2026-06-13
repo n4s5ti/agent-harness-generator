@@ -9,9 +9,18 @@
     "build": "tsc",
     "test": "vitest run --passWithNoTests",
     "bench": "node ./dist/bin.js",
+    "bench:hosts": "node ./dist/host-bin.js",
     "lint": "tsc --noEmit"
   },
-  "dependencies": { "@ruflo/kernel": "0.1.0" },
+  "dependencies": {
+    "@ruflo/kernel": "0.1.0",
+    "@ruflo/host-claude-code": "0.1.0",
+    "@ruflo/host-codex": "0.1.0",
+    "@ruflo/host-pi-dev": "0.1.0",
+    "@ruflo/host-hermes": "0.1.0",
+    "@ruflo/host-openclaw": "0.1.0",
+    "@ruflo/host-rvm": "0.1.0"
+  },
   "devDependencies": {
     "@types/node": "^20.0.0",
     "typescript": "^5.4.0",
