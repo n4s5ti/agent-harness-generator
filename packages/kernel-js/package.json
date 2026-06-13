@@ -25,6 +25,10 @@
     "./memory-rvf": {
       "types": "./dist/memory-rvf.d.ts",
       "import": "./dist/memory-rvf.js"
+    },
+    "./dispatch": {
+      "types": "./dist/dispatch.d.ts",
+      "import": "./dist/dispatch.js"
     }
   },
   "files": [

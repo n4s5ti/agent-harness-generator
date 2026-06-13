@@ -4,6 +4,32 @@ All notable changes to this project are documented here. Format follows [Keep a 
 
 ## [Unreleased]
 
+### Added — Iter 45 (2026-06-13)
+
+- **`harness mcp <ls|invoke>` subcommand** — surfaces the iter-10/13/34
+  MCP dispatch layer to the CLI. Closes the loop between the Rust
+  kernel dispatcher, the TS wrapper, and the user-facing command line:
+  - `harness mcp ls [path]` — list MCP servers + tools declared in
+    `<path>/.mcp/servers.json`. Reports cleanly when the file is absent
+    or empty.
+  - `harness mcp invoke <server> <tool> [--args=<json>] [path]` —
+    dispatches a tool through the kernel's claim-checked dispatcher
+    using the harness's local `.harness/claims.json`. Prints the
+    structured `outcome.kind`: `result` / `denied` / `not-found` /
+    `bad-args`. Exit codes follow: 0 on result, 1 on denied/not-found,
+    2 on bad-args / malformed input.
+- **New `./dispatch` subpath export on `@ruflo/kernel`** — required
+  so the CLI can `import('@ruflo/kernel/dispatch')` to load the
+  `ToolDispatcher` class without pulling the full kernel index.
+- **`__tests__/mcp-cmd.test.ts`** (12 cases):
+  - `mcp ls` reports missing file, lists servers+tools, handles empty
+  - `mcp invoke` validates positional args, rejects bad JSON, rejects
+    array `--args`, returns `result` on matching claim, `denied` on
+    no matching claim, defaults to empty claims when file absent
+  - `mcpDispatch` help mentions iter-34 integration test, unknown
+    subsub returns exit 2, default shows help
+- TS suite: **424/424** (up from 412).
+
 ### Added — Iter 43 (2026-06-13)
 
 - **Healthcheck wired into `ci.yml`** Node job — runs on every push

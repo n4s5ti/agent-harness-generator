@@ -16,6 +16,7 @@ import { findWitness, readAndVerify } from './witness-client.js';
 import { federateDispatch } from './federate.js';
 import { secretsDispatch } from './secrets.js';
 import { validate } from './validate.js';
+import { mcpDispatch } from './mcp-cmd.js';
 
 export type SubcommandResult = { code: number; lines: string[] };
 
@@ -232,6 +233,8 @@ export async function dispatch(subcommand: string, args: string[]): Promise<Subc
       return secretsDispatch(args.slice(0));
     case 'validate':
       return validate(args.slice(0));
+    case 'mcp':
+      return mcpDispatch(args.slice(0));
     case 'help':
     case undefined:
       return {
@@ -246,6 +249,7 @@ export async function dispatch(subcommand: string, args: string[]): Promise<Subc
           '  federate  — manage federation peers (init/add/remove/list/status)',
           '  secrets   — GCP Secret Manager: check / fetch / validate-token',
           '  validate  — umbrella: doctor + verify + path-guard + mcp + secrets',
+          '  mcp       — list MCP servers / dispatch a tool through the claim check',
           '  help      — show this message',
           '',
           'Most subcommands operate on the current directory by default.',
