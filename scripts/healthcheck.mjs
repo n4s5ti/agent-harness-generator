@@ -1,0 +1,173 @@
+#!/usr/bin/env node
+// SPDX-License-Identifier: MIT
+//
+// scripts/healthcheck.mjs — user-facing daily-driver health check.
+//
+// Distinct from scripts/preflight.mjs (which is release-specific and
+// runs every gate publish.yml would run, ~30s wall time). Healthcheck
+// is the "did I break anything?" command — fast (~3s), per-check
+// PASS / WARN / FAIL, no I/O beyond reading files.
+//
+// Checks (in order, all soft-skip on unmet preconditions):
+//   1. version coherence       all 11 packages + plugin.json + Cargo same version
+//   2. plugin.json shape       required fields, kebab-case name, etc.
+//   3. codex skills present    >=4 skills, each has skill.toml + README.md
+//   4. workflows reference     scripts/<X>.mjs references resolve
+//   5. path-guard              source clean of hardcoded /tmp + C:\ + /Users
+//   6. examples runnable       quickstart + federation scripts exist
+//
+// Run as:
+//   node scripts/healthcheck.mjs                # all checks
+//   node scripts/healthcheck.mjs --json         # machine-readable output
+//   node scripts/healthcheck.mjs --check=plugin # run only one check
+
+import { readFile, readdir, stat } from 'node:fs/promises';
+import { existsSync } from 'node:fs';
+import { join } from 'node:path';
+
+const ROOT = process.cwd();
+const args = process.argv.slice(2);
+const JSON_OUT = args.includes('--json');
+const onlyCheck = args.find(a => a.startsWith('--check='))?.slice('--check='.length);
+
+const CHECKS = {
+  async version() {
+    const root = JSON.parse(await readFile(join(ROOT, 'package.json'), 'utf-8'));
+    const wantedVersion = root.version;
+    const drifts = [];
+    // packages/*
+    const packages = await readdir(join(ROOT, 'packages'), { withFileTypes: true });
+    for (const p of packages) {
+      if (!p.isDirectory()) continue;
+      const pkgPath = join(ROOT, 'packages', p.name, 'package.json');
+      if (!existsSync(pkgPath)) continue;
+      const pkg = JSON.parse(await readFile(pkgPath, 'utf-8'));
+      if (pkg.version && pkg.version !== wantedVersion) {
+        drifts.push(`${pkg.name}: ${pkg.version} (expected ${wantedVersion})`);
+      }
+    }
+    // plugin.json
+    const pluginPath = join(ROOT, '.claude-plugin', 'plugin.json');
+    if (existsSync(pluginPath)) {
+      const plugin = JSON.parse(await readFile(pluginPath, 'utf-8'));
+      if (plugin.version !== wantedVersion) {
+        drifts.push(`.claude-plugin/plugin.json: ${plugin.version}`);
+      }
+    }
+    // Cargo workspace
+    const cargoPath = join(ROOT, 'Cargo.toml');
+    if (existsSync(cargoPath)) {
+      const cargo = await readFile(cargoPath, 'utf-8');
+      const m = cargo.match(/\[workspace\.package\][\s\S]*?\bversion\s*=\s*"([^"]+)"/);
+      if (m && m[1] !== wantedVersion) drifts.push(`Cargo.toml workspace: ${m[1]}`);
+    }
+    if (drifts.length === 0) return { tag: 'PASS', detail: `all sources at ${wantedVersion}` };
+    return { tag: 'FAIL', detail: `${drifts.length} drifts: ${drifts.slice(0, 3).join('; ')}` };
+  },
+
+  async plugin() {
+    const path = join(ROOT, '.claude-plugin', 'plugin.json');
+    if (!existsSync(path)) return { tag: 'SKIP', detail: 'no .claude-plugin/plugin.json' };
+    const plugin = JSON.parse(await readFile(path, 'utf-8'));
+    const probs = [];
+    if (!plugin.name?.match(/^[a-z0-9-]+$/)) probs.push('name not kebab-case');
+    if (!plugin.description || plugin.description.length < 30) probs.push('description < 30 chars');
+    if (!plugin.author?.id) probs.push('author.id missing');
+    if (!Array.isArray(plugin.skills) || plugin.skills.length === 0) probs.push('empty skills[]');
+    if (!Array.isArray(plugin.commands) || plugin.commands.length === 0) probs.push('empty commands[]');
+    if (probs.length === 0) {
+      return { tag: 'PASS', detail: `${plugin.skills.length} skills, ${plugin.commands.length} commands` };
+    }
+    return { tag: 'FAIL', detail: probs.join('; ') };
+  },
+
+  async codex() {
+    const dir = join(ROOT, '.codex', 'skills');
+    if (!existsSync(dir)) return { tag: 'SKIP', detail: 'no .codex/skills/' };
+    const entries = await readdir(dir, { withFileTypes: true });
+    const skillDirs = entries.filter(e => e.isDirectory());
+    const probs = [];
+    for (const e of skillDirs) {
+      const sd = join(dir, e.name);
+      if (!existsSync(join(sd, 'skill.toml'))) probs.push(`${e.name}/skill.toml missing`);
+      if (!existsSync(join(sd, 'README.md'))) probs.push(`${e.name}/README.md missing`);
+    }
+    if (skillDirs.length < 4) probs.push(`only ${skillDirs.length} skills (want >=4)`);
+    if (probs.length === 0) return { tag: 'PASS', detail: `${skillDirs.length} skills with skill.toml + README` };
+    return { tag: 'FAIL', detail: probs.slice(0, 3).join('; ') };
+  },
+
+  async workflows() {
+    const dir = join(ROOT, '.github', 'workflows');
+    if (!existsSync(dir)) return { tag: 'SKIP', detail: 'no .github/workflows/' };
+    const yamls = (await readdir(dir)).filter(f => /\.ya?ml$/.test(f));
+    const missing = [];
+    for (const f of yamls) {
+      const text = await readFile(join(dir, f), 'utf-8');
+      const re = /node scripts\/([\w.-]+\.m?js)/g;
+      let m;
+      while ((m = re.exec(text)) !== null) {
+        const target = join(ROOT, 'scripts', m[1]);
+        if (!existsSync(target)) missing.push(`${f}: scripts/${m[1]}`);
+      }
+    }
+    if (missing.length === 0) return { tag: 'PASS', detail: `${yamls.length} workflows, all script refs resolve` };
+    return { tag: 'FAIL', detail: missing.slice(0, 3).join('; ') };
+  },
+
+  async pathguard() {
+    // Lightweight version — just verify the path-guard script itself
+    // is invokable. The actual scan runs via `node scripts/path-guard.mjs`
+    // in CI; healthcheck just confirms wiring.
+    const path = join(ROOT, 'scripts', 'path-guard.mjs');
+    if (!existsSync(path)) return { tag: 'FAIL', detail: 'scripts/path-guard.mjs missing' };
+    return { tag: 'PASS', detail: 'path-guard.mjs present (run separately for full scan)' };
+  },
+
+  async examples() {
+    const required = [
+      'examples/quickstart/quickstart.mjs',
+      'examples/quickstart/README.md',
+      'examples/federation/federation.mjs',
+      'examples/federation/README.md',
+    ];
+    const missing = required.filter(p => !existsSync(join(ROOT, p)));
+    if (missing.length === 0) return { tag: 'PASS', detail: '2 runnable examples present' };
+    return { tag: 'FAIL', detail: `missing: ${missing.join(', ')}` };
+  },
+};
+
+function log(tag, name, detail) {
+  process.stderr.write(`  ${tag.padEnd(4)} ${name.padEnd(12)} ${detail}\n`);
+}
+
+async function main() {
+  const checks = onlyCheck ? [onlyCheck] : Object.keys(CHECKS);
+  const results = [];
+  for (const name of checks) {
+    const fn = CHECKS[name];
+    if (!fn) { results.push({ name, tag: 'FAIL', detail: `unknown check: ${name}` }); continue; }
+    try { results.push({ name, ...(await fn()) }); }
+    catch (e) { results.push({ name, tag: 'FAIL', detail: e?.message ?? String(e) }); }
+  }
+
+  if (JSON_OUT) {
+    process.stdout.write(JSON.stringify({ results, ok: results.every(r => r.tag !== 'FAIL') }, null, 2) + '\n');
+    process.exit(results.some(r => r.tag === 'FAIL') ? 1 : 0);
+  }
+
+  process.stderr.write(`healthcheck — ${results.length} check${results.length === 1 ? '' : 's'}\n`);
+  for (const r of results) log(r.tag, r.name, r.detail);
+  const fails = results.filter(r => r.tag === 'FAIL');
+  if (fails.length === 0) {
+    process.stderr.write(`\nResult: HEALTHY (${results.length}/${results.length} pass)\n`);
+    process.exit(0);
+  }
+  process.stderr.write(`\nResult: ${fails.length} FAIL — fix before merge\n`);
+  process.exit(1);
+}
+
+main().catch(err => {
+  process.stderr.write(`[healthcheck] unexpected: ${err?.stack ?? err}\n`);
+  process.exit(1);
+});

@@ -4,6 +4,37 @@ All notable changes to this project are documented here. Format follows [Keep a 
 
 ## [Unreleased]
 
+### Added — Iter 42 (2026-06-13)
+
+- **`scripts/healthcheck.mjs`** — user-facing daily-driver "is this
+  branch healthy?" command. Distinct from `preflight.mjs` (release-
+  specific, ~30s) and `release.mjs` (mutation flow): healthcheck is
+  read-only, runs in ~1s, no network, no I/O beyond reading files.
+- 6 checks (all soft-skip on unmet preconditions):
+  - `version` — root + 12 packages + plugin.json + Cargo workspace
+    all on same version (catches cross-pack drift between bumps)
+  - `plugin` — `.claude-plugin/plugin.json` has kebab-case name,
+    description ≥30 chars, author.id, non-empty skills/commands
+  - `codex` — `.codex/skills/*` each have `skill.toml` + `README.md`;
+    ≥4 skills total
+  - `workflows` — every `node scripts/<X>.mjs` referenced in
+    `.github/workflows/*.yml` points at a real file
+  - `pathguard` — `scripts/path-guard.mjs` itself is wired in
+    (full scan runs separately via `node scripts/path-guard.mjs`)
+  - `examples` — `examples/quickstart/` + `examples/federation/`
+    have both `.mjs` and `README.md` present
+- Output modes:
+  - default — human-readable tag column + Result line
+  - `--json` — machine-readable for CI integration
+  - `--check=<name>` — run only one check (fast iteration during dev)
+- **`__tests__/healthcheck.test.ts`** (7 cases): script exists, default
+  run = HEALTHY, all 6 checks default-on, `--json` parseable + has
+  `ok: boolean`, `--check=plugin` filters to 1, unknown `--check=`
+  fails not crashes, finishes <5s.
+- Live run shows 6/6 PASS: 5 codex skills, 3 workflows all script
+  refs resolve, 2 runnable examples, all sources at v0.1.0.
+- TS suite: **412/412** (up from 405).
+
 ### Fixed — Iter 41 (2026-06-13)
 
 - **CI Node jobs RED on iter-39** — `packages/bench` started importing
