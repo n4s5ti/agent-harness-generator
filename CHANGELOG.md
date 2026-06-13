@@ -4,6 +4,29 @@ All notable changes to this project are documented here. Format follows [Keep a 
 
 ## [Unreleased]
 
+### Fixed — Iter 19 (2026-06-13)
+
+- **4 pre-existing test failures green'd** (`memory.rankWithDecay` and
+  3 `SelfEvolvingRouter` tests):
+  - `loadEmergent` in both `memory.ts` and `self-evolution.ts` used to
+    consider `@ruvector/emergent-time` "available" as soon as the JS
+    shim dynamically imported. But the WASM bindings need explicit
+    `init()` before constructors work — the shim loads, the dynamic
+    import resolves, and then `new emergent.AgenticClock(...)` throws
+    `Cannot read properties of undefined (reading 'agenticclock_new')`.
+    Probe-construct + discard inside `loadEmergent` catches that case
+    and returns null so callers see a consistent "graceful absent"
+    signal. Same pattern for `LearnedWeights` (also guards against
+    upstream API drift).
+  - `SelfEvolvingRouter` EMA fallback used `reward` directly as the
+    EMA target. Since `computeReward` returns [0, 1] and the initial
+    weight is 1.0, ALL touched tiers drifted below initial — meaning
+    untouched tiers ALWAYS won re-ranking. Fixed by mapping the target
+    to `reward * 2`, so 0.5 (neutral reward) maps to 1.0 (initial),
+    successes pull above, failures below. The previously-failing
+    "rewards successful tier" test now passes deterministically.
+- TS suite: **289/289 passing** (up from 259/263).
+
 ### Added — Iter 18 (2026-06-13)
 
 - **`harness secrets` subcommand** — long-requested GCP Secret Manager

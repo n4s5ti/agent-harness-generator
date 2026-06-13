@@ -55,6 +55,15 @@ async function loadEmergent(): Promise<LearnedWeightsApi | null> {
   if (_emergent !== undefined) return _emergent;
   try {
     const mod = await import('@ruvector/emergent-time') as unknown as LearnedWeightsApi;
+    // Probe-construct + verify the API contract holds. Catches both:
+    //   (1) WASM not initialised — constructor throws on `learnedweights_new`
+    //   (2) API drift — module loaded but `.update` no longer on the prototype
+    // In either case, fall back to the local EMA path so tests + runtime see
+    // a consistent "graceful absent" signal.
+    const probe = new mod.LearnedWeights({ tiers: ['probe'] });
+    if (typeof probe.update !== 'function' || typeof probe.weights !== 'function') {
+      throw new Error('LearnedWeights API surface drifted');
+    }
     _emergent = mod;
     return mod;
   } catch {
@@ -127,8 +136,16 @@ export class SelfEvolvingRouter {
       // Local exponential moving average fallback when emergent-time
       // isn't installed. Smaller learning rate so single bad runs don't
       // crater a tier.
+      //
+      // Important: the EMA target is `reward * 2`, not `reward`. computeReward
+      // returns values in [0, 1] where 0.5 is "neutral / break-even". Mapping
+      // to [0, 2] keeps the initial weight of 1.0 as the neutral baseline:
+      // successful tiers pull above 1.0, failed tiers pull below, untouched
+      // tiers stay at 1.0. Without this rescale, ALL tiers slowly drift below
+      // 1.0 and untouched tiers always win — silently breaking re-ranking.
       const lr = 0.1;
-      this.weights[entry.tier] = (1 - lr) * this.weights[entry.tier] + lr * reward;
+      const target = reward * 2;
+      this.weights[entry.tier] = (1 - lr) * this.weights[entry.tier] + lr * target;
     }
     if (this.config.smallTierBias) {
       this.weights.small *= this.config.smallTierBias;

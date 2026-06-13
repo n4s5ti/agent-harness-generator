@@ -61,6 +61,13 @@ async function loadEmergent(): Promise<EmergentTimeApi | null> {
   if (_emergent !== undefined) return _emergent;
   try {
     const mod = await import('@ruvector/emergent-time') as unknown as EmergentTimeApi;
+    // Probe-construct an AgenticClock to confirm WASM is actually initialised.
+    // The dynamic-import resolves the JS shim even when the underlying WASM
+    // bindings haven't been bootstrapped, so a present-module check isn't
+    // enough — the constructor throws on first use ("Cannot read properties
+    // of undefined (reading 'agenticclock_new')"). Probe + discard catches
+    // that case and routes the caller to its raw-score fallback.
+    new mod.AgenticClock({ halfLifeMs: 1000 });
     _emergent = mod;
     return mod;
   } catch {
