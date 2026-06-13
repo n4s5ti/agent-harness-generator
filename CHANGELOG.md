@@ -4,6 +4,33 @@ All notable changes to this project are documented here. Format follows [Keep a 
 
 ## [Unreleased]
 
+### Added — Iter 38 (2026-06-13)
+
+- **`scripts/audit-deps.mjs`** — single aggregate security gate that
+  wraps `npm audit` + `cargo audit` and emits structured per-tool
+  `PASS / WARN / FAIL / SKIP` with one rolled-up exit code:
+  - `--level=high|critical|moderate|low|info` (default `high`)
+  - `--include-dev` to audit dev deps too
+  - `--skip-npm` / `--skip-cargo` for partial runs
+  - `--strict-tooling` fails if `cargo-audit` isn't installed (CI mode)
+  - Cross-platform: `cmd.exe /d /s /c` for Windows `npm.cmd` + `cargo`
+- **Wired into `.github/workflows/security.yml`** as the
+  `audit-deps-aggregate` job alongside the existing per-tool jobs.
+  Gives branch-protection a single boolean for "deps safety".
+- **`__tests__/audit-deps.test.ts`** (7 cases):
+  - script exists
+  - unknown `--level` exits 2 with "tooling" error
+  - `--skip-npm` + `--skip-cargo` both honored
+  - configured level echoed in output
+  - default level is `high`
+  - LIVE npm audit against the workspace reports 0 advisories ≥ high
+    (the actual gate — this is the real security signal)
+  - `--strict-tooling` flag exercised without crashing the script
+- Locally `npm audit --omit=dev --audit-level=high` against the
+  workspace: **0 advisories**. The publish pipeline is shippable
+  from a deps safety perspective.
+- TS suite: **397/397** (up from 390).
+
 ### Added — Iter 37 (2026-06-13)
 
 - **`__tests__/witness-tamper.test.ts`** (16 cases) — pins the TS
