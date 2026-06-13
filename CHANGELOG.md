@@ -4,6 +4,32 @@ All notable changes to this project are documented here. Format follows [Keep a 
 
 ## [Unreleased]
 
+### Added — Iter 25 (2026-06-13)
+
+- **`__tests__/pack-contents.test.ts`** (6 cases) — `npm pack --dry-run
+  --json` on every package, then asserts the tarball CONTAINS the files
+  README + exports promise:
+  - `@ruflo/kernel` ships README + LICENSE + `dist/`
+  - every host adapter (×6) ships README + LICENSE + `dist/`
+  - `create-agent-harness` ships `dist/`, `templates/`, AND both bin
+    entrypoints (`dist/bin.js`, `dist/harness-bin.js`) — the exact
+    bug class that hit create-agent-harness@0.1.0 when npm auto-
+    corrected the broken bin paths
+  - vertical packs ship `dist/`
+  - `@ruflo/sdk` ships `dist/` + README
+  - NO package leaks `.env`, `node_modules`, `.tsbuildinfo`,
+    `.DS_Store` (a separate regression class — accidental secret /
+    bloat in a tarball)
+- **Real bug caught immediately**: the test found that **all 10
+  publishable packages (the 6 host adapters + kernel + sdk + 2
+  verticals) were shipping WITHOUT LICENSE files**. This is an MIT
+  license-text-must-accompany-the-code violation that would have
+  hit the registry on first publish. The root `LICENSE` was the
+  only one in the repo.
+- **Fix**: copied root `LICENSE` to all 10 publishable package
+  directories. Test now passes 6/6.
+- TS suite: **320/320** (up from 314).
+
 ### Added — Iter 24 (2026-06-13)
 
 - **`__tests__/claude-marketplace-plugin.test.ts`** (8 cases) — pins
