@@ -1,0 +1,129 @@
+// SPDX-License-Identifier: MIT
+
+import { describe, it, expect } from 'vitest';
+import { serverToOpenClaw, configJson, skillMarkdown, installScript, adapter, HOST_NAME } from '../src/index.js';
+
+describe('@ruflo/host-openclaw — config generation', () => {
+  describe('serverToOpenClaw', () => {
+    it('converts stdio command form', () => {
+      const e = serverToOpenClaw({
+        name: 'demo',
+        command: ['npx', '-y', 'demo'],
+      });
+      expect(e.command).toBe('npx');
+      expect(e.args).toEqual(['-y', 'demo']);
+      expect(e.url).toBeUndefined();
+    });
+
+    it('converts url form', () => {
+      const e = serverToOpenClaw({
+        name: 'remote',
+        url: 'https://example.com/mcp',
+      });
+      expect(e.url).toBe('https://example.com/mcp');
+      expect(e.command).toBeUndefined();
+    });
+
+    it('includes env when present', () => {
+      const e = serverToOpenClaw({
+        name: 'x',
+        command: ['demo'],
+        env: [['FOO', 'bar']],
+      });
+      expect(e.env).toEqual({ FOO: 'bar' });
+    });
+  });
+
+  describe('configJson', () => {
+    it('wraps under top-level mcp_servers', () => {
+      const out = configJson({
+        name: 'h',
+        mcpServers: [
+          { name: 'a', command: ['x'] },
+          { name: 'b', url: 'https://y' },
+        ],
+      });
+      const parsed = JSON.parse(out);
+      expect(parsed.mcp_servers).toBeDefined();
+      expect(parsed.mcp_servers.a).toBeDefined();
+      expect(parsed.mcp_servers.b).toBeDefined();
+    });
+
+    it('is valid JSON', () => {
+      const out = configJson({ name: 'h' });
+      expect(() => JSON.parse(out)).not.toThrow();
+    });
+
+    it('always ends with a newline (POSIX file)', () => {
+      expect(configJson({ name: 'h' }).endsWith('\n')).toBe(true);
+    });
+  });
+
+  describe('skillMarkdown', () => {
+    it('emits YAML frontmatter + markdown', () => {
+      const md = skillMarkdown({
+        name: 'my-bot',
+        description: 'My description',
+        systemPrompt: 'You are helpful',
+      });
+      expect(md).toMatch(/^---/);
+      expect(md).toMatch(/name: my-bot/);
+      expect(md).toMatch(/description: "My description"/);
+      expect(md).toMatch(/# my-bot/);
+      expect(md).toMatch(/You are helpful/);
+    });
+
+    it('escapes quotes in description (YAML-safe)', () => {
+      const md = skillMarkdown({
+        name: 'x',
+        description: 'has "quotes"',
+      });
+      expect(md).toMatch(/description: "has \\"quotes\\""/);
+    });
+
+    it('lists agents when present', () => {
+      const md = skillMarkdown({
+        name: 'x',
+        agents: [
+          { name: 'coder', systemPrompt: 'You code.' },
+          { name: 'tester', systemPrompt: 'You test.' },
+        ],
+      });
+      expect(md).toMatch(/## Agents/);
+      expect(md).toMatch(/\*\*coder\*\*/);
+      expect(md).toMatch(/\*\*tester\*\*/);
+    });
+  });
+
+  describe('installScript', () => {
+    it('contains the onboard + install-daemon command', () => {
+      const s = installScript({ name: 'my-bot' });
+      expect(s).toMatch(/openclaw onboard --install-daemon/);
+    });
+
+    it('drops the skill in ~/.openclaw/workspace/skills/<name>/', () => {
+      const s = installScript({ name: 'my-bot' });
+      expect(s).toMatch(/\$HOME\/\.openclaw\/workspace\/skills\/my-bot/);
+    });
+
+    it('starts with the shebang', () => {
+      expect(installScript({ name: 'x' }).startsWith('#!/usr/bin/env bash')).toBe(true);
+    });
+  });
+
+  describe('adapter export', () => {
+    it('name is openclaw', () => {
+      expect(adapter.name).toBe(HOST_NAME);
+      expect(adapter.name).toBe('openclaw');
+    });
+
+    it('generateConfig returns the 3 expected files', () => {
+      const out = adapter.generateConfig({ name: 'x' });
+      expect(Object.keys(out).sort()).toEqual([
+        'SKILL.md',
+        'install-openclaw.sh',
+        'openclaw.json',
+      ]);
+    });
+  });
+});

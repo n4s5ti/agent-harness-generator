@@ -72,6 +72,7 @@ Generated harnesses run on four hosts. You can target one or more:
 | `codex` | `~/.codex/config.toml` with `[mcp_servers.*]` table |
 | `pi-dev` | Pi extension (TypeScript module, no MCP) |
 | `hermes` | `cli-config.yaml` + `optional-mcps/*.yaml` |
+| `openclaw` | `~/.openclaw/openclaw.json` snippet + workspace SKILL.md + install runbook |
 
 ```bash
 npx create-agent-harness my-bot \

@@ -12,7 +12,7 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 // Templates live at packages/create-agent-harness/templates/, one level above dist/.
 const TEMPLATES_ROOT = resolve(__dirname, '..', 'templates');
 
-export const HOSTS = ['claude-code', 'codex', 'pi-dev', 'hermes'] as const;
+export const HOSTS = ['claude-code', 'codex', 'pi-dev', 'hermes', 'openclaw'] as const;
 export type Host = (typeof HOSTS)[number];
 
 export const TEMPLATES = [

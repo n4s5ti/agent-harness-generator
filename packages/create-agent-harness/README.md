@@ -40,6 +40,7 @@ npx create-agent-harness my-legal-bot \
 | `codex` | `~/.codex/config.toml` with `[mcp_servers.*]` |
 | `pi-dev` | Pi extension (TypeScript, no MCP by design) |
 | `hermes` | `cli-config.yaml` + `optional-mcps/*.yaml` |
+| `openclaw` | `~/.openclaw/openclaw.json` + workspace SKILL.md + install runbook |
 
 Multi-host: pass `--host` multiple times.
 

@@ -4,6 +4,30 @@ All notable changes to this project are documented here. Format follows [Keep a 
 
 ## [Unreleased]
 
+### Added — Iter 11 (2026-06-13)
+
+- **Fifth host adapter: `@ruflo/host-openclaw`** for
+  [OpenClaw](https://github.com/openclaw/openclaw) — "Personal AI Assistant.
+  Any OS. Any Platform. The lobster way. 🦞"
+  - Generates `openclaw.json` (JSON, not TOML/YAML) snippet to merge into
+    `~/.openclaw/openclaw.json` under `mcp_servers`
+  - Generates `SKILL.md` with YAML frontmatter + markdown for the
+    workspace skill at `~/.openclaw/workspace/skills/<name>/SKILL.md`
+  - Generates idempotent `install-openclaw.sh` runbook:
+    `npm install -g openclaw@latest` → `openclaw onboard --install-daemon`
+    → merge MCP snippet → drop SKILL.md in workspace
+  - YAML-safe quote escaping in skill description
+  - 16 new TS test cases covering serverToOpenClaw stdio/url/env,
+    configJson shape + valid-JSON + trailing-newline, skillMarkdown
+    frontmatter + quote escaping + agent listing, installScript shebang
+    + onboard cmd + workspace path, adapter export contract
+- `HOSTS` const in `create-agent-harness` now includes `openclaw` (5 total)
+- README, USAGE.md, package READMEs updated with `openclaw` row
+- OpenClaw badge added to README header
+- Comparison table in `host-openclaw/README.md` highlights what's
+  different from the other four adapters (only host with built-in
+  multi-platform messaging WhatsApp/Telegram/Slack/Discord)
+
 ### Added — Iter 10 (2026-06-13)
 
 - **MCP tool dispatch chain in Rust kernel** (`crates/kernel/src/dispatch.rs`):
