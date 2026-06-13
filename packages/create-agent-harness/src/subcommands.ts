@@ -17,6 +17,7 @@ import { federateDispatch } from './federate.js';
 import { secretsDispatch } from './secrets.js';
 import { validate } from './validate.js';
 import { mcpDispatch } from './mcp-cmd.js';
+import { publishCmd } from './publish-cmd.js';
 
 export type SubcommandResult = { code: number; lines: string[] };
 
@@ -235,6 +236,8 @@ export async function dispatch(subcommand: string, args: string[]): Promise<Subc
       return validate(args.slice(0));
     case 'mcp':
       return mcpDispatch(args.slice(0));
+    case 'publish':
+      return publishCmd(args.slice(0));
     case 'help':
     case undefined:
       return {
@@ -250,6 +253,7 @@ export async function dispatch(subcommand: string, args: string[]): Promise<Subc
           '  secrets   — GCP Secret Manager: check / fetch / validate-token',
           '  validate  — umbrella: doctor + verify + path-guard + mcp + secrets',
           '  mcp       — list MCP servers / dispatch a tool through the claim check',
+          '  publish   — pin the harness manifest to IPFS via Pinata (dry-run default)',
           '  help      — show this message',
           '',
           'Most subcommands operate on the current directory by default.',

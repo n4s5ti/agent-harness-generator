@@ -4,6 +4,32 @@ All notable changes to this project are documented here. Format follows [Keep a 
 
 ## [Unreleased]
 
+### Added — Iter 46 (2026-06-13)
+
+- **`harness publish [path] [--confirm]` CLI subcommand** — wires the
+  iter-5 `publishHarness()` function into the `harness` binary as
+  the 8th user-facing subcommand (sign / verify / doctor / federate
+  / secrets / validate / mcp / **publish**):
+  - default mode is **dry-run** — validates manifest exists, witness
+    verifies (if present), reports what WOULD be pinned. Safe to run
+    without Pinata creds.
+  - `--confirm` actually pins to IPFS via Pinata. Requires
+    `PINATA_JWT` env var (CLI prints the `harness secrets fetch
+    PINATA_JWT` command if missing).
+  - `--name=<override>` overrides the manifest's name field.
+  - Output reports: manifest CID, size, confirmed status, next-step
+    hint (re-run with `--confirm` or distribute via marketplace).
+- **`__tests__/publish-cmd.test.ts`** (5 cases):
+  - dry-run doesn't require `PINATA_JWT`
+  - dry-run reports CID + size + `confirmed: false` + next-step hint
+  - missing manifest fails cleanly with explanatory error
+  - `--confirm` without `PINATA_JWT` exits 1 with `harness secrets
+    fetch` pointer (load-bearing for the CLI's discoverability)
+  - `--name=<override>` flows through
+- CI milestone: iter-44 commit `c99e0f1` ran to **CI conclusion =
+  SUCCESS** — second consecutive confirmed full-green run.
+- TS suite: **429/429** (up from 424).
+
 ### Added — Iter 45 (2026-06-13)
 
 - **`harness mcp <ls|invoke>` subcommand** — surfaces the iter-10/13/34
