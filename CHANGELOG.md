@@ -4,6 +4,28 @@ All notable changes to this project are documented here. Format follows [Keep a 
 
 ## [Unreleased]
 
+### Added — Iter 20 (2026-06-13)
+
+- **`harness validate` umbrella command** — single release-readiness
+  gate that fans out to 5 sub-checks and reports per-check PASS/FAIL:
+  - `doctor`     — file-shape + manifest hash + ≥1 host artifact
+  - `verify`     — witness manifest signature (skipped if no witness)
+  - `path-guard` — TS/JS/Rust files scanned for hardcoded `/tmp/`,
+                   `C:\`, `/Users/`, `/home/` (the original Windows
+                   /tmp bug regression class)
+  - `mcp`        — `.mcp/servers.json` (if present) has `name` +
+                   `command` on every entry
+  - `secrets`    — `gcloud auth list` + project + secret exist (or
+                   skip with `--skip-gcp`)
+  - 7 tests cover the umbrella + each check independently.
+- **`scripts/publish-dryrun.mjs`** — runs `npm publish --dry-run --json`
+  on every non-private workspace package and reports per-package
+  PASS/WARN/FAIL with file count + unpacked size. Detects the
+  "version already published" case as WARN rather than FAIL so the
+  publish gate doesn't block on version-not-bumped. Handles npm's
+  `npm.cmd` vs `npm` Windows quirk via per-platform shell:true.
+  Validates all 11 packages locally with 10 PASS / 1 WARN / 0 FAIL.
+
 ### Fixed — Iter 19 (2026-06-13)
 
 - **4 pre-existing test failures green'd** (`memory.rankWithDecay` and
