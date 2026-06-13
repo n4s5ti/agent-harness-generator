@@ -4,6 +4,38 @@ All notable changes to this project are documented here. Format follows [Keep a 
 
 ## [Unreleased]
 
+### Added — Iter 18 (2026-06-13)
+
+- **`harness secrets` subcommand** — long-requested GCP Secret Manager
+  integration delivered as `harness secrets <check|fetch|validate-token>`:
+  - `check` validates the full setup (gcloud on PATH, active project,
+    auth principal, secret exists, WIF pool present)
+  - `fetch <name>` prints a secret value to stdout (for `eval`/pipe use)
+  - `validate-token` fetches `NPM_TOKEN` and runs `npm whoami` against
+    the registry — no publish, just confirms the token is non-revoked
+  - Common flags: `--project=<id>`, `--secret=<name>`, `--version=latest`
+  - Shells out to `gcloud` (already a documented prereq) rather than
+    pulling in `@google-cloud/secret-manager` (12 MB dep). 8 unit tests
+    cover the mock-gcloud paths.
+- **`scripts/validate-gcp-secrets.mjs`** — standalone pre-publish gate
+  for `.github/workflows/publish.yml`. Runs 6 fail-fast checks before
+  any `npm publish` and exits non-zero with structured `[gcp-validate]
+  PASS/FAIL/WARN/INFO` lines that CI can grep on.
+
+### Fixed — Iter 18 (2026-06-13)
+
+- **CI WASM-windows broken** — `cargo install wasm-pack --locked`
+  pinned to 0.15.0 whose lockfile pulls `cargo-platform 0.3.3` requiring
+  rustc 1.91+. Pinned `wasm-pack 0.13.1` (rustc-1.74 compatible).
+  Defensively pinned `wasm-tools 1.250.0` so future MSRV bumps don't
+  silently break the matrix again.
+- **`packages/host-rvm/src/index.ts:166` syntax error masked by
+  `.replace()` hack** — the `lifecycle = "managed"` line opened with a
+  backtick but closed with a single quote (`` `…"managed"');``). esbuild
+  refused to transform the file, which silently dropped 26 tests from
+  the suite. Removed the `.replace()` post-process and fixed the
+  template literal properly. The 26 host-rvm tests now actually run.
+
 ### Fixed — Iter 17 (2026-06-13)
 
 - **CI red on `e8d5b77` (iter 16) — all 3 OS Rust + WASM jobs failing.**

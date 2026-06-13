@@ -83,9 +83,16 @@ jobs:
       - name: Install wasm-pack (Windows)
         if: runner.os == 'Windows'
         shell: pwsh
-        run: cargo install wasm-pack --locked
+        # Pin wasm-pack 0.13.1 — newer versions (0.15+) lock `cargo-platform`
+        # transitively at a level that needs rustc 1.91+, breaking our 1.88
+        # workspace toolchain pin. Drop --locked so cargo can pick compatible
+        # transitives if needed.
+        run: cargo install wasm-pack --version 0.13.1
       - name: Install wasm-tools
-        run: cargo install wasm-tools --locked
+        # Pin to a version compatible with workspace rust 1.88 — newer
+        # wasm-tools rev their MSRV aggressively (1.252 needed 1.85,
+        # 1.260+ may need 1.91). 1.250.0 is known-stable on 1.88.
+        run: cargo install wasm-tools --version 1.250.0
       - name: Build wasm bundler target
         run: wasm-pack build crates/kernel-wasm --target bundler --release
       - name: Validate wasm

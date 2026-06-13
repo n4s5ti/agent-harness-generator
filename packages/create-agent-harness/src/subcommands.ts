@@ -14,6 +14,7 @@ import { createHash } from 'node:crypto';
 import { join, resolve } from 'node:path';
 import { findWitness, readAndVerify } from './witness-client.js';
 import { federateDispatch } from './federate.js';
+import { secretsDispatch } from './secrets.js';
 
 export type SubcommandResult = { code: number; lines: string[] };
 
@@ -226,6 +227,8 @@ export async function dispatch(subcommand: string, args: string[]): Promise<Subc
       return sign(args);
     case 'federate':
       return federateDispatch(args.slice(0));
+    case 'secrets':
+      return secretsDispatch(args.slice(0));
     case 'help':
     case undefined:
       return {
@@ -238,6 +241,7 @@ export async function dispatch(subcommand: string, args: string[]): Promise<Subc
           '  verify    — verify the witness manifest of a harness',
           '  doctor    — smoke-check a scaffolded harness',
           '  federate  — manage federation peers (init/add/remove/list/status)',
+          '  secrets   — GCP Secret Manager: check / fetch / validate-token',
           '  help      — show this message',
           '',
           'Most subcommands operate on the current directory by default.',

@@ -163,13 +163,13 @@ export function partitionToml(spec: HarnessSpec, partition: RvmPartitionSpec = d
   lines.push('[wasm_guest]');
   lines.push(`package = "@ruflo/kernel"`);
   lines.push(`version = "0.1.0"`);
-  lines.push(`lifecycle = "managed"');
+  lines.push(`lifecycle = "managed"`);
   lines.push('');
   if (spec.description) {
     lines.push('[metadata]');
     lines.push(`description = "${tomlEscape(spec.description)}"`);
   }
-  return lines.join('\n').replace(`lifecycle = "managed"'`, `lifecycle = "managed"`) + '\n';
+  return lines.join('\n') + '\n';
 }
 
 /** Render the install runbook (idempotent). */
