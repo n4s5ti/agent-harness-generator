@@ -129,6 +129,7 @@ export interface CliArgs {
   description?: string;
   fromExisting?: string;
   list?: boolean;
+  wizard?: boolean;
 }
 
 export function parseArgs(argv: string[]): CliArgs {
@@ -153,6 +154,10 @@ export function parseArgs(argv: string[]): CliArgs {
       out.fromExisting = argv[++i] ?? process.cwd();
     } else if (a === '--list' || a === '--templates') {
       out.list = true;
+    } else if (a === '--wizard' || a === '-w') {
+      // iter 100: opt-in interactive flow. Off by default so CI scripts
+      // calling no-args keep getting the usage message instead of hanging.
+      out.wizard = true;
     } else if (!a.startsWith('-') && !out.name) {
       out.name = a;
     }
@@ -272,6 +277,36 @@ export async function main(argv: string[]): Promise<number> {
     return 0;
   }
 
+  if (args.wizard) {
+    // iter 100 (MILESTONE) — interactive wizard. Errors immediately
+    // on non-TTY environments (no point running the wizard in CI;
+    // arg-driven scaffold is what CI should use).
+    if (!process.stdin.isTTY) {
+      console.error('--wizard requires an interactive TTY. Use the arg-driven form in CI:');
+      console.error('  npx create-agent-harness <name> --template <id> --host <id>');
+      return 2;
+    }
+    const { runWizard, makeReadlineAsker, answersToInvocation } = await import('./wizard.js');
+    const catalogEntries = loadCatalog().map(t => ({ id: t.id, name: t.name, description: t.description }));
+    const wizardCatalog = { templates: catalogEntries, hosts: HOSTS };
+    const { ask, close } = makeReadlineAsker();
+    try {
+      const answers = await runWizard(wizardCatalog, ask);
+      // Fall through to the same scaffold path the arg-driven form
+      // uses — single source of truth for the scaffold semantics.
+      args.name = answers.name;
+      args.template = answers.template;
+      args.hosts = [answers.host];
+      args.description = answers.description;
+      // Print the equivalent CLI invocation so the user can re-run
+      // without the wizard next time.
+      process.stdout.write('\nNext time, you can skip the wizard with:\n');
+      process.stdout.write(`  ${answersToInvocation(answers)}\n\n`);
+    } finally {
+      close();
+    }
+  }
+
   if (args.fromExisting !== undefined) {
     const root = args.fromExisting || process.cwd();
     const d = detectRufloProject(root);
@@ -291,6 +326,8 @@ export async function main(argv: string[]): Promise<number> {
   if (!args.name) {
     console.log('Usage: npx create-agent-harness <name> [--template <id>] [--host claude-code|codex|pi-dev|hermes] [--description "..."] [--force]');
     console.log('       npx create-agent-harness --from-existing [./path]');
+    console.log('       npx create-agent-harness --wizard          (iter 100 — interactive picker)');
+    console.log('       npx create-agent-harness --list            (browse all templates)');
     console.log('');
     console.log(`Templates: ${TEMPLATES.join(', ')}`);
     console.log(`Hosts: ${HOSTS.join(', ')}`);

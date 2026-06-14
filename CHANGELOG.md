@@ -4,6 +4,51 @@ All notable changes to this project are documented here. Format follows [Keep a 
 
 ## [Unreleased]
 
+### Added — Iter 100 (MILESTONE) (2026-06-14)
+
+- **`npx create-agent-harness --wizard`** — interactive picker for
+  users who don't yet know the 19 vertical IDs or 6 host IDs. iter
+  100 is the third "user-facing tool" milestone after iter 50 (SBOM)
+  and iter 90 (diag --bundle). 4-question flow: name → template
+  (numeric or paste id) → host (numeric or paste, default
+  `claude-code` on empty Enter) → description.
+- **One-paragraph design**:
+  - **New `wizard.ts` module** — pure function `runWizard(catalog, asker)`
+    + `answersToInvocation(answers)` helper. Takes an `Asker` so the
+    same code runs against stdin (production) and a scripted asker
+    (tests). No `process.stdin` reads inside the module → no TTY
+    coupling in the test suite.
+  - **`makeReadlineAsker()`** wires the production stdin path.
+  - **Falls through to the same `scaffold()`** the arg-driven form
+    uses — one source of truth for the scaffold semantics.
+  - **Errors immediately on non-TTY** — CI scripts that accidentally
+    pass `--wizard` see a `exit 2` with the arg-driven equivalent,
+    not a hang.
+  - **"Next time, skip the wizard with:"** hint prints the equivalent
+    `npx create-agent-harness ...` command so the user learns the
+    fast path. `answersToInvocation()` omits defaults (no
+    `--template minimal`, no `--host claude-code`) for terse output.
+- **Re-prompt loops** for invalid inputs (bad name, out-of-range
+  numeric, unknown id). Name validation mirrors `validateHarnessName()`
+  in `renderer.ts` so the wizard's verdict matches the scaffolder's.
+- **No-args usage block** updated to advertise `--wizard` + `--list`
+  as the two interactive entrypoints.
+- **`__tests__/harness-wizard.test.ts`** — 7 cases:
+  - happy path (numeric name + template + host + description)
+  - template can be pasted as id, not just numeric
+  - host defaults to `claude-code` on empty Enter
+  - re-prompts on invalid name then accepts a valid one
+  - re-prompts on out-of-range template, then accepts valid number
+  - `answersToInvocation` builds copy-pasteable command with all flags
+  - `answersToInvocation` omits defaults (terse for `minimal` +
+    `claude-code` defaults)
+- **Why iter 100 is a milestone**: third "user-facing tool" milestone.
+  iter 50 was SBOM (a build-time artefact). iter 90 was diag --bundle
+  (a triage tool). iter 100 is the interactive onboarding tool — the
+  first contact a new user has with the CLI, now matched to their
+  knowledge state (they know what they want, not what to type).
+- TS suite: **601/601** (was 594; +7 wizard cases).
+
 ### Changed — Iter 99 (2026-06-14)
 
 - **`docs/USAGE.md` catches up after ~90 iters of new subcommands +
