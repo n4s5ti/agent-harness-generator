@@ -83,6 +83,51 @@ export function renderNotes(sections, opts = {}) {
   return lines.join('\n') + '\n';
 }
 
+/**
+ * iter 74: render a TIGHT summary suitable for tweets / chat
+ * announcements / release-tracking issue updates. Picks the iter title
+ * (first line of body) for each section + a one-line counter, instead
+ * of dumping the full body.
+ *
+ * Heuristic for the iter title: the first non-empty line of body, with
+ * trailing punctuation stripped. CHANGELOG entries typically lead with
+ * a bolded `**N**` (the headline) so we get a clean one-liner.
+ */
+export function renderSummary(sections, opts = {}) {
+  if (sections.length === 0) {
+    return '_No CHANGELOG entries in the selected range._\n';
+  }
+  const minIter = Math.min(...sections.map(s => s.iter));
+  const maxIter = Math.max(...sections.map(s => s.iter));
+  const lines = [];
+  if (opts.title) lines.push(opts.title, '');
+  const kindCounts = sections.reduce((acc, s) => {
+    acc[s.kind] = (acc[s.kind] ?? 0) + 1;
+    return acc;
+  }, {});
+  const countSummary = Object.entries(kindCounts)
+    .map(([k, n]) => `${n} ${k.toLowerCase()}`)
+    .join(' + ');
+  lines.push(`**${sections.length} CHANGELOG entries** across iters ${minIter}–${maxIter} (${countSummary}).`, '');
+  // One bullet per section: "- Iter N: <first-line title>"
+  const sorted = [...sections].sort((a, b) => a.iter - b.iter);
+  for (const s of sorted) {
+    const firstLine = s.body
+      .map(l => l.trim())
+      .find(l => l.length > 0 && !l.startsWith('```'));
+    if (!firstLine) continue;
+    // Strip leading "- " bullet + any **emphasis** so the summary
+    // reads as plain text. Cap each entry at ~120 chars.
+    const cleaned = firstLine
+      .replace(/^[-*]\s+/, '')
+      .replace(/\*\*/g, '')
+      .replace(/[.,;:]+$/, '')
+      .slice(0, 120);
+    lines.push(`- **Iter ${s.iter}** — ${cleaned}`);
+  }
+  return lines.join('\n') + '\n';
+}
+
 async function gitTagExists(tag) {
   try {
     await execFile('git', ['rev-parse', '--verify', `refs/tags/${tag}`], { cwd: ROOT });
@@ -172,7 +217,12 @@ async function main() {
 
   const titleVersion = versionArg ? `v${versionArg}` : '';
   const title = titleVersion ? `# Release ${titleVersion}` : '';
-  const body = renderNotes(selected, { title });
+  // iter 74: --summary emits a tight one-bullet-per-iter announcement
+  // suitable for tweets / release-tracking issue updates. Falls back to
+  // the full body when --summary is absent (default behaviour).
+  const body = flag('summary')
+    ? renderSummary(selected, { title })
+    : renderNotes(selected, { title });
   process.stdout.write(body);
 }
 

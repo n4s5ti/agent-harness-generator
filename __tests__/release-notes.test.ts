@@ -5,7 +5,7 @@ import { execFile as execFileCb } from 'node:child_process';
 import { promisify } from 'node:util';
 import { join } from 'node:path';
 // @ts-ignore - JS module
-import { parseChangelog, renderNotes } from '../scripts/release-notes.mjs';
+import { parseChangelog, renderNotes, renderSummary } from '../scripts/release-notes.mjs';
 
 const execFile = promisify(execFileCb);
 const ROOT = process.cwd();
@@ -91,6 +91,55 @@ describe('release-notes — renderNotes', () => {
       { title: '# Release v0.2.0' }
     );
     expect(out).toContain('# Release v0.2.0');
+  });
+});
+
+// iter 74 — renderSummary emits a tight one-bullet-per-iter version
+// suitable for tweets / release-tracking issue comments.
+describe('release-notes — renderSummary (iter 74)', () => {
+  const sample = [
+    { kind: 'Added', iter: 10, date: '2026-06-10', body: ['- **Cool new feature** — does X, Y, Z', 'extra body'] },
+    { kind: 'Fixed', iter: 11, date: '2026-06-11', body: ['- **Squashed a bug** — was crashing on edge case'] },
+  ];
+
+  it('shows total count + per-kind breakdown', () => {
+    const out = renderSummary(sample);
+    expect(out).toMatch(/2 CHANGELOG entries/);
+    expect(out).toMatch(/1 added/);
+    expect(out).toMatch(/1 fixed/);
+  });
+
+  it('one bullet per iter with bolded iter prefix', () => {
+    const out = renderSummary(sample);
+    expect(out).toMatch(/- \*\*Iter 10\*\* — Cool new feature/);
+    expect(out).toMatch(/- \*\*Iter 11\*\* — Squashed a bug/);
+  });
+
+  it('strips bullet markers and bold markdown from the title line', () => {
+    const out = renderSummary([{
+      kind: 'Added', iter: 99, date: '2026-06-14',
+      body: ['- **bold title** — with content'],
+    }]);
+    // Bullet + bold stripped, em-dash kept
+    expect(out).toMatch(/Iter 99\*\* — bold title — with content/);
+  });
+
+  it('caps long titles at ~120 chars', () => {
+    const long = '- ' + 'X'.repeat(200);
+    const out = renderSummary([{ kind: 'Added', iter: 1, date: '2026-06-01', body: [long] }]);
+    // The summary line should be < ~150 chars (120 cap + prefix)
+    const match = out.match(/- \*\*Iter 1\*\* — (.+)$/m);
+    expect(match).not.toBeNull();
+    expect(match![1].length).toBeLessThanOrEqual(120);
+  });
+
+  it('empty sections renders the same empty-state message', () => {
+    expect(renderSummary([])).toMatch(/No CHANGELOG entries/);
+  });
+
+  it('honors title when provided', () => {
+    const out = renderSummary(sample, { title: '# Release v0.1.0' });
+    expect(out).toContain('# Release v0.1.0');
   });
 });
 

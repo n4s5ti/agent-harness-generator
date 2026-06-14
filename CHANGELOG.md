@@ -4,6 +4,39 @@ All notable changes to this project are documented here. Format follows [Keep a 
 
 ## [Unreleased]
 
+### Added — Iter 74 (2026-06-14)
+
+- **`scripts/release-notes.mjs --summary`** — tight one-bullet-per-iter
+  output suitable for tweets, tracking-issue updates, or release
+  announcements. The default `renderNotes()` dumps the full body
+  (perfect for GH release body); `renderSummary()` picks the first
+  meaningful line of each section, strips bullet markers + bold
+  markdown, caps at ~120 chars, and prefixes with `**Iter N**`.
+- **Total-count + per-kind breakdown** at the top:
+  `**8 CHANGELOG entries** across iters 66–73 (6 added + 2 fixed).`
+- **Validated end-to-end** against the live CHANGELOG:
+  ```
+  node scripts/release-notes.mjs --version=0.1.0 \
+    --from-iter=66 --to-iter=73 --summary
+
+  - **Iter 66** — `harness diag` — 15th subcommand, the ADR-027 diagnostic UX loop
+  - **Iter 67** — Shell completions catch up with the dispatcher
+  - **Iter 68** — `harness diag` chained into the iter-52 e2e lifecycle
+  - **Iter 69** — `scripts/dev-toolkit.mjs` currency
+  - **Iter 70** — 7th Codex skill — `diag-harness`
+  - **Iter 71** — `harness diag` now also surfaces generator-version skew
+  - **Iter 72** — `scripts/healthcheck.mjs --probe-pages`
+  - **Iter 73** — `harness diag --json`
+  ```
+- **`__tests__/release-notes.test.ts`** 9 → **15** (+6):
+  - shows total count + per-kind breakdown
+  - one bullet per iter with bolded iter prefix
+  - strips bullet markers + bold markdown from title line
+  - caps long titles at ~120 chars
+  - empty sections renders same empty-state message
+  - honors title when provided
+- TS suite: **563/563** (was 557).
+
 ### Added — Iter 73 (2026-06-14)
 
 - **`harness diag --json`** — machine-readable output for CI scripts
