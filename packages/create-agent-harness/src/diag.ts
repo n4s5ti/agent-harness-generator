@@ -18,7 +18,7 @@
 
 import { createRequire } from 'node:module';
 import { readFile } from 'node:fs/promises';
-import { existsSync, readFileSync } from 'node:fs';
+import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 /** Mirror of subcommands.ts's exported shape — kept local to avoid a
@@ -258,13 +258,140 @@ export function formatDiagReportJson(report: DiagReport): SubcommandResult {
   };
 }
 
+/**
+ * iter 90 — support-bundle JSON. Single-command snapshot of every
+ * diagnostic surface a maintainer would need to triage an issue:
+ *
+ *   - The diag report (skew verdict + versions)
+ *   - The manifest contents (sanitised — vars stay since they're chosen
+ *     by the user, but anything starting with `secret_`/`token_`/`key_`
+ *     is replaced with "<redacted>" so users can paste this without
+ *     leaking credentials they typed into prompts)
+ *   - The harness's package.json name + version + @ruflo/* deps
+ *   - Node version, platform, arch (for cross-OS bug repro)
+ *   - Last 3 .harness/* file paths (presence/absence proves which
+ *     lifecycle steps the user has run)
+ *
+ * Users run `harness diag --bundle` and paste the output into a GitHub
+ * issue. Maintainers get every load-bearing fact in one block.
+ */
+export interface SupportBundle {
+  schema: 1;
+  generatedAt: string;
+  diag: DiagReport & { exitCode: number };
+  harness: {
+    packageName: string | undefined;
+    packageVersion: string | undefined;
+    rufloDeps: Record<string, string>;
+  };
+  manifest: { present: boolean; content: unknown | undefined };
+  harnessFiles: string[];
+  env: {
+    nodeVersion: string;
+    platform: string;
+    arch: string;
+  };
+}
+
+const REDACT_KEY_RE = /^(secret|token|key|password|api[-_]?key)/i;
+
+function sanitiseManifest(m: unknown): unknown {
+  if (m === null || typeof m !== 'object') return m;
+  if (Array.isArray(m)) return m.map(sanitiseManifest);
+  const out: Record<string, unknown> = {};
+  for (const [k, v] of Object.entries(m as Record<string, unknown>)) {
+    if (REDACT_KEY_RE.test(k)) out[k] = '<redacted>';
+    else if (typeof v === 'string' && REDACT_KEY_RE.test(k)) out[k] = '<redacted>';
+    else out[k] = sanitiseManifest(v);
+  }
+  return out;
+}
+
+export async function buildSupportBundle(harnessDir: string): Promise<SupportBundle> {
+  const report = await buildDiagReport(harnessDir);
+  const human = formatDiagReport(report);
+  const exitCode = human.code;
+
+  let packageName: string | undefined;
+  let packageVersion: string | undefined;
+  const rufloDeps: Record<string, string> = {};
+  const pkgPath = join(harnessDir, 'package.json');
+  if (existsSync(pkgPath)) {
+    try {
+      const pkg = JSON.parse(readFileSync(pkgPath, 'utf-8'));
+      packageName = typeof pkg.name === 'string' ? pkg.name : undefined;
+      packageVersion = typeof pkg.version === 'string' ? pkg.version : undefined;
+      for (const block of [pkg.dependencies, pkg.devDependencies, pkg.peerDependencies] as Array<Record<string, string> | undefined>) {
+        if (block && typeof block === 'object') {
+          for (const [name, version] of Object.entries(block)) {
+            if (name.startsWith('@ruflo/') || name === 'create-agent-harness') {
+              rufloDeps[name] = version;
+            }
+          }
+        }
+      }
+    } catch {
+      /* unreadable package.json — harnessDir not a real harness */
+    }
+  }
+
+  const manifestPath = join(harnessDir, '.harness', 'manifest.json');
+  let manifestContent: unknown = undefined;
+  if (existsSync(manifestPath)) {
+    try {
+      manifestContent = sanitiseManifest(JSON.parse(readFileSync(manifestPath, 'utf-8')));
+    } catch {
+      manifestContent = '<unreadable>';
+    }
+  }
+
+  const harnessFiles: string[] = [];
+  if (existsSync(join(harnessDir, '.harness'))) {
+    try {
+      for (const ent of readdirSync(join(harnessDir, '.harness'))) {
+        harnessFiles.push(`.harness/${ent}`);
+      }
+    } catch {
+      /* swallow — read failure isn't fatal for the bundle */
+    }
+  }
+
+  return {
+    schema: 1,
+    generatedAt: new Date().toISOString(),
+    diag: { ...report, exitCode },
+    harness: { packageName, packageVersion, rufloDeps },
+    manifest: { present: !!manifestContent, content: manifestContent },
+    harnessFiles,
+    env: {
+      nodeVersion: process.version,
+      platform: process.platform,
+      arch: process.arch,
+    },
+  };
+}
+
 export async function diagCmd(args: string[]): Promise<SubcommandResult> {
   // iter 73: --json emits machine-readable output. Useful for CI
   // scripts that want to gate on the structured verdict rather than
   // parsing the human text.
+  // iter 90: --bundle emits a complete support-bundle JSON with
+  // diag + manifest + ruflo deps + env. For "paste this into the
+  // issue" workflows.
   const json = args.includes('--json');
+  const bundle = args.includes('--bundle');
   const positional = args.filter(a => !a.startsWith('--'));
   const dir = resolve(positional[0] ?? process.cwd());
+  if (bundle) {
+    const b = await buildSupportBundle(dir);
+    return {
+      // Exit code follows the diag verdict so CI scripts can still
+      // gate on the bundle output (you can `harness diag --bundle > b.json`
+      // and use `$?` to know whether to alert).
+      code: b.diag.exitCode,
+      lines: [JSON.stringify(b, null, 2)],
+    };
+  }
   const report = await buildDiagReport(dir);
   return json ? formatDiagReportJson(report) : formatDiagReport(report);
 }

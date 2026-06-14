@@ -4,6 +4,42 @@ All notable changes to this project are documented here. Format follows [Keep a 
 
 ## [Unreleased]
 
+### Added — Iter 90 (MILESTONE) (2026-06-14)
+
+- **`harness diag --bundle`** — real new user-facing feature. One
+  command produces all the diagnostic context users need to file a
+  useful issue. Pastes cleanly into a GitHub issue; maintainers get
+  every load-bearing fact in one block.
+- **Bundle contents** (`SupportBundle` interface):
+  - `diag` — full DiagReport with `exitCode` (verdict + kernel + generator)
+  - `harness.packageName / packageVersion` — what was scaffolded
+  - `harness.rufloDeps` — only `@ruflo/*` + `create-agent-harness` entries
+    (no third-party noise that's irrelevant to the harness's own state)
+  - `manifest.present` + `manifest.content` — the full manifest, but
+    **sanitised**: any object key matching `/^(secret|token|key|password|api[-_]?key)/i`
+    is replaced with `"<redacted>"` so the bundle is safe to paste
+  - `harnessFiles` — `.harness/*` enumeration (proves which lifecycle
+    steps have run: `manifest.json` only → freshly scaffolded;
+    `+ witness.json` → signed; `+ federation.json` → federated)
+  - `env.nodeVersion / platform / arch` — cross-OS bug reproducer
+- **Exit code follows diag verdict** — so CI scripts can do
+  `harness diag --bundle > bundle.json` and gate on `$?`. Bundle is
+  emitted even on exit 2 (no manifest) so the user can see "you ran
+  this in the wrong directory" structurally.
+- **`__tests__/harness-diag.test.ts`** 20 → **23** (+3):
+  - emits a complete SupportBundle JSON for a fresh scaffold (all
+    fields populated, including the iter-90 readdirSync ESM fix)
+  - sanitises secret-like keys in the manifest (synthetic
+    `secret_token` redacted, other vars survive)
+  - exit code follows diag verdict — bundle is well-formed JSON even
+    on exit 2
+- **Why iter 90 is a milestone**: this is the first iter that targets
+  the long tail of users running into problems in the wild. iter 1-89
+  built the system; iter 90 ships the tool that closes the loop on
+  "user hit a problem → maintainer can triage it" without a 5-message
+  back-and-forth for environment details.
+- TS suite: **587/587** (was 584).
+
 ### Added — Iter 89 (2026-06-14)
 
 - **`vertical-tour` wired into `ci.yml`** Node job as a per-push smoke

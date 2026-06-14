@@ -198,6 +198,90 @@ describe('generator-version skew (iter 71)', () => {
   });
 });
 
+describe('--bundle output (iter 90 MILESTONE)', () => {
+  it('emits a complete SupportBundle JSON for a fresh scaffold', async () => {
+    const dir = await mkdtemp(join(tmpdir(), 'ahg-diag-bundle-'));
+    try {
+      await scaffold({
+        name: 'bundle-bot',
+        template: 'minimal',
+        host: 'claude-code',
+        targetDir: dir,
+        force: true,
+        generatorVersion: '0.1.0',
+      });
+      const r = await diag.diagCmd([dir, '--bundle']);
+      expect(r.code).toBe(0);
+      const b = JSON.parse(r.lines.join('\n'));
+      expect(b.schema).toBe(1);
+      expect(typeof b.generatedAt).toBe('string');
+      // diag block carries the full DiagReport + exitCode
+      expect(b.diag.verdict).toBe('match');
+      expect(b.diag.exitCode).toBe(0);
+      // harness block — only @ruflo/* deps
+      expect(b.harness.packageName).toBe('bundle-bot');
+      expect(Object.keys(b.harness.rufloDeps)).toContain('@ruflo/kernel');
+      // manifest present + read
+      expect(b.manifest.present).toBe(true);
+      expect((b.manifest.content as any).meta.kernel_version).toBe('0.1.0');
+      // harnessFiles enumerates .harness/* (iter 90 fix — readdirSync
+      // import works in ESM context, not require)
+      expect(b.harnessFiles).toContain('.harness/manifest.json');
+      expect(b.harnessFiles).toContain('.harness/manifest.sha256');
+      // env block carries reproducer info
+      expect(b.env.nodeVersion).toMatch(/^v\d+/);
+      expect(b.env.platform).toMatch(/^(linux|darwin|win32)$/);
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
+  });
+
+  it('sanitises secret-like keys in the manifest', async () => {
+    const dir = await mkdtemp(join(tmpdir(), 'ahg-diag-bundle-secret-'));
+    try {
+      await mkdir(join(dir, '.harness'), { recursive: true });
+      // Hand-roll a manifest that has a secret_token field (the kind of
+      // accidental thing a user might paste into vars when scaffolding)
+      await writeFile(join(dir, '.harness', 'manifest.json'), JSON.stringify({
+        schema: 1,
+        generator: '0.1.0',
+        template: 'minimal',
+        vars: { name: 'x', secret_token: 'sk-real-secret-do-not-leak' },
+        hosts: ['claude-code'],
+        files: {},
+        generated_at: new Date(0).toISOString(),
+        meta: { surface: 'cli', kernel_version: '0.1.0' },
+      }, null, 2));
+      await writeFile(join(dir, 'package.json'), JSON.stringify({ name: 'secret-bot', version: '0.1.0' }));
+      const r = await diag.diagCmd([dir, '--bundle']);
+      const b = JSON.parse(r.lines.join('\n'));
+      // The secret_token key was redacted before output
+      const vars = (b.manifest.content as any).vars;
+      expect(vars.secret_token).toBe('<redacted>');
+      // Other vars survive unchanged
+      expect(vars.name).toBe('x');
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
+  });
+
+  it('exit code follows diag verdict (so CI can gate on $?)', async () => {
+    const dir = await mkdtemp(join(tmpdir(), 'ahg-diag-bundle-noman-'));
+    try {
+      // No manifest at path → exit 2
+      const r = await diag.diagCmd([dir, '--bundle']);
+      expect(r.code).toBe(2);
+      // Even on exit 2 the bundle is well-formed JSON for grep
+      const b = JSON.parse(r.lines.join('\n'));
+      expect(b.schema).toBe(1);
+      expect(b.diag.exitCode).toBe(2);
+      expect(b.manifest.present).toBe(false);
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
+  });
+});
+
 describe('--json output (iter 73)', () => {
   it('emits parseable JSON with the full DiagReport + exitCode', async () => {
     const dir = await mkdtemp(join(tmpdir(), 'ahg-diag-json-'));
