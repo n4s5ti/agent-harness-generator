@@ -4,6 +4,34 @@ All notable changes to this project are documented here. Format follows [Keep a 
 
 ## [Unreleased]
 
+### Added — Iter 72 (2026-06-14)
+
+- **`scripts/healthcheck.mjs --probe-pages`** — opt-in HTTP probe of
+  the live Studio at <https://ruvnet.github.io/agent-harness-generator/>.
+  iter-42 healthcheck was deliberately offline (file-system only); the
+  Pages site has become a primary distribution surface so the daily
+  driver should know how to verify it's alive.
+- **Two-stage probe** (catches more than "is the index 200?"):
+  1. Fetch the index HTML, assert `200` + contains the "Agent Harness
+     Generator" title
+  2. Parse out the Vite bundle reference (`<script src="…/assets/index-<hash>.js">`)
+     and HEAD-check it — proves the deploy isn't a 200-but-empty index
+     pointing at broken bundles
+- **Default behaviour is SKIP** — the check is added to the default
+  run but stays informational unless `--probe-pages` is passed. This
+  keeps healthcheck offline-friendly + airgap-runnable, while putting
+  live-site verification one flag away.
+- New live output with `--probe-pages`:
+  ```
+  PASS pages       https://ruvnet.github.io/agent-harness-generator/ OK + Vite bundle 200
+  ```
+- `__tests__/healthcheck.test.ts` 7 → 9 cases (+2):
+  - pages check is SKIP by default (no network)
+  - `--check=pages` alone is SKIP without `--probe-pages`
+- The two existing checks-by-default tests updated to expect 7
+  results (was 6).
+- TS suite: **554/554** (was 552).
+
 ### Added — Iter 71 (2026-06-14)
 
 - **`harness diag` now also surfaces generator-version skew.** iter 66

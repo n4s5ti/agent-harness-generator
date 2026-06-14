@@ -29,10 +29,10 @@ describe('scripts/healthcheck.mjs', () => {
     expect(r.stderr).toMatch(/Result: HEALTHY/);
   }, 30_000);
 
-  it('runs all 6 checks by default', async () => {
+  it('runs all 7 checks by default (iter 72: + pages)', async () => {
     const r = await run();
-    expect(r.stderr).toMatch(/healthcheck — 6 checks/);
-    for (const name of ['version', 'plugin', 'codex', 'workflows', 'pathguard', 'examples']) {
+    expect(r.stderr).toMatch(/healthcheck — 7 checks/);
+    for (const name of ['version', 'plugin', 'codex', 'workflows', 'pathguard', 'examples', 'pages']) {
       expect(r.stderr).toContain(name);
     }
   }, 30_000);
@@ -42,7 +42,7 @@ describe('scripts/healthcheck.mjs', () => {
     expect(r.code).toBe(0);
     const parsed = JSON.parse(r.stdout);
     expect(Array.isArray(parsed.results)).toBe(true);
-    expect(parsed.results).toHaveLength(6);
+    expect(parsed.results).toHaveLength(7);
     expect(typeof parsed.ok).toBe('boolean');
     expect(parsed.ok).toBe(true);
   }, 30_000);
@@ -64,5 +64,21 @@ describe('scripts/healthcheck.mjs', () => {
     const t0 = Date.now();
     await run();
     expect(Date.now() - t0).toBeLessThan(5000);
+  }, 30_000);
+
+  // iter 72 — pages probe is SKIP by default (no network needed), and
+  // requires the explicit --probe-pages flag to actually fetch the
+  // deployed Studio. Keeps healthcheck offline-friendly while making
+  // the live-site probe one flag away.
+  it('pages check is SKIP by default (no network)', async () => {
+    const r = await run();
+    expect(r.stderr).toMatch(/SKIP\s+pages\s+opt-in/);
+  }, 30_000);
+
+  it('--check=pages alone is SKIP without --probe-pages', async () => {
+    const r = await run(['--check=pages']);
+    expect(r.code).toBe(0);
+    expect(r.stderr).toMatch(/SKIP\s+pages/);
+    expect(r.stderr).toMatch(/HEALTHY/);
   }, 30_000);
 });
