@@ -27,6 +27,8 @@ const SUBCOMMANDS = [
   'genome',
   // iter 111 — 5-dimension harness scorecard with badges
   'score',
+  // iter 112 — MCP threat-model artifact for enterprise review
+  'threat-model',
   'help',
 ] as const;
 
@@ -95,6 +97,7 @@ _harness() {
     'compare:diff two harnesses (manifest + per-file fingerprints, ADR-031 --bundle)'
     'genome:7-section readiness scorecard for a local repo (--json/--bundle, iter 110)'
     'score:5-dimension harness scorecard 0–100 with badges (--json/--bundle, iter 111)'
+    'threat-model:MCP threat-model artifact for PR/compliance review (--json/--bundle, iter 112)'
     'help:show help'
   )
 
