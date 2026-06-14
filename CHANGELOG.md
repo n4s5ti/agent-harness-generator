@@ -4,6 +4,39 @@ All notable changes to this project are documented here. Format follows [Keep a 
 
 ## [Unreleased]
 
+### Added — Iter 95 (2026-06-14)
+
+- **ADR-030 — The Discovery Loop**. Iters 90→94 demonstrated the
+  "build tool → propagate everywhere → surface at the moment of need →
+  test the propagation" pattern. iter 95 captures it as ADR-030 so
+  the next user-facing feature ships with the same discipline.
+- **5 steps documented**:
+  1. **Build** — implement + tests pin shape (iter 90)
+  2. **Surface** — README + codex skill + harness help (iter 91)
+  3. **Catalog** — dev-toolkit + plugin.json (iter 91)
+  4. **Discover** — contextual "Next:" suggestion on FAIL (iters 93+94)
+  5. **Test the propagation** — assert suggestion appears on FAIL AND
+     does NOT appear on HEALTHY (the second half is the easily-forgotten one)
+- **The "Next:" block contract** documented with 3 load-bearing
+  elements: (a) command using user's actual context, (b) reassurance
+  about the cost of taking the action, (c) appears only on FAIL.
+- **Which features warrant the full 5-step treatment** documented as
+  a triage table: user-facing CLI tools get all 5; internal scripts
+  get step 1+3; cross-cutting infra gets step 1+5; new verticals
+  follow a different pattern (ADR-029's tour-script form).
+- **The cost-of-skipping table** lists what goes wrong at each step
+  if omitted, so future contributors can make explicit trade-offs
+  rather than silently skipping.
+- **4 alternatives explicitly rejected** with rationale:
+  - Single iter that does all 5 steps (diff too big, steps go silent)
+  - Skip step 5 tests (silent regression on user's primary path)
+  - Embed step 4 in step 1 (discovery is real, premature wiring)
+  - Generic Next:-block infrastructure (N=1, abstraction premature)
+- **7 required tests** referenced — all already exist + pass.
+- `docs/adrs/INDEX.md` updated. `adr-index.test.ts` 3/3 still passes.
+- Pairs with ADR-029: every multi-iter architectural decision now has
+  a documented design rationale.
+
 ### Changed — Iter 94 (2026-06-14)
 
 - **`harness validate` umbrella FAIL message now recommends
