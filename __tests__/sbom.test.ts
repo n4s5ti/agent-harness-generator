@@ -127,4 +127,29 @@ describe('SBOM builder against the live repo', () => {
     const ids = new Set(doc.packages.map((p: any) => p.SPDXID));
     expect(ids.size).toBe(doc.packages.length);
   });
+
+  // iter 64 — apps/web-ui ships to GitHub Pages; its deps belong in the
+  // bill of materials for regulated-industry auditors. Before iter 64
+  // the SBOM only walked the root workspace and missed jszip, react, etc.
+  it('includes apps/web-ui deps (jszip — production-shipped JSZip bundle)', async () => {
+    const doc = await buildSbomFromRepo();
+    const jszip = doc.packages.find((p: any) => p.name === 'jszip');
+    expect(jszip, 'jszip not found in SBOM — apps/web-ui not being scanned').toBeDefined();
+    expect(jszip!.versionInfo).toMatch(/^\d+\.\d+\.\d+/);
+    expect(jszip!.externalRefs[0].referenceLocator).toMatch(/^pkg:npm\/jszip@/);
+  });
+
+  it('includes apps/web-ui deps (react — production-shipped Studio UI)', async () => {
+    const doc = await buildSbomFromRepo();
+    const react = doc.packages.find((p: any) => p.name === 'react');
+    expect(react, 'react not found in SBOM — apps/web-ui not being scanned').toBeDefined();
+    expect(react!.versionInfo).toMatch(/^\d+\.\d+\.\d+/);
+  });
+
+  it('dedupes packages that appear in multiple lockfiles (no name@version duplicate)', async () => {
+    const doc = await buildSbomFromRepo();
+    const keys = doc.packages.map((p: any) => `${p.name}@${p.versionInfo}`);
+    const dupes = keys.filter((k: string, i: number) => keys.indexOf(k) !== i);
+    expect(dupes, `duplicate name@version found: ${dupes.slice(0, 3).join(', ')}`).toEqual([]);
+  });
 });

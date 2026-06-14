@@ -42,15 +42,33 @@ function packageVerificationCode(versionCount) {
   return createHash('sha1').update(`v=${versionCount}`).digest('hex');
 }
 
-async function readNpmLock() {
-  const path = join(ROOT, 'package-lock.json');
+async function readNpmLock(path = join(ROOT, 'package-lock.json')) {
   if (!existsSync(path)) return null;
   try {
     return JSON.parse(await readFile(path, 'utf-8'));
   } catch (e) {
-    log('WARN', `failed to parse package-lock.json: ${e?.message ?? e}`);
+    log('WARN', `failed to parse ${path}: ${e?.message ?? e}`);
     return null;
   }
+}
+
+/**
+ * iter 64: known-but-non-workspace package trees whose deps belong in the
+ * SBOM. Today: apps/web-ui (PR #1 web-UI Studio) — its bundle ships to
+ * GitHub Pages, so its deps are part of the production attack surface and
+ * the regulated-industry bill of materials.
+ */
+const EXTRA_LOCK_DIRS = ['apps/web-ui'];
+
+async function readExtraNpmLocks() {
+  const out = [];
+  for (const dir of EXTRA_LOCK_DIRS) {
+    const path = join(ROOT, dir, 'package-lock.json');
+    if (!existsSync(path)) continue;
+    const lock = await readNpmLock(path);
+    if (lock) out.push({ dir, lock });
+  }
+  return out;
 }
 
 async function readCargoLock() {
@@ -179,7 +197,21 @@ export function validateSpdx(doc) {
 export async function buildSbomFromRepo() {
   const npmLock = await readNpmLock();
   const cargoLock = await readCargoLock();
-  const npm = npmEntries(npmLock);
+  const extraLocks = await readExtraNpmLocks();
+  // iter 64: dedupe by name@version since extra trees often share
+  // transitive deps with the root workspace. Keep the first occurrence
+  // so the workspace's resolved/integrity stays authoritative.
+  const seen = new Set();
+  const npm = [];
+  for (const source of [{ dir: '.', lock: npmLock }, ...extraLocks]) {
+    if (!source.lock) continue;
+    for (const e of npmEntries(source.lock)) {
+      const key = `${e.name}@${e.version}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      npm.push(e);
+    }
+  }
   const cargo = cargoLock ? parseCargoLock(cargoLock) : [];
   return buildSpdx(npm, cargo);
 }

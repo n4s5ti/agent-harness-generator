@@ -4,6 +4,30 @@ All notable changes to this project are documented here. Format follows [Keep a 
 
 ## [Unreleased]
 
+### Added — Iter 64 (2026-06-14)
+
+- **SBOM coverage of `apps/web-ui/`** — closes the SPDX analog of
+  iter 61's audit-deps gap. Same surface (the bundle that ships to
+  GitHub Pages), separate scanner — and SBOM is a regulated-industry
+  deliverable, so a missing dep is a real compliance gap for
+  downstream auditors.
+- **Implementation** in `scripts/sbom.mjs`:
+  - `readNpmLock(path)` is now path-parameterised (was hardcoded to
+    repo root)
+  - new `EXTRA_LOCK_DIRS = ['apps/web-ui']` const + `readExtraNpmLocks()`
+  - `buildSbomFromRepo()` walks the workspace lock + every extra lock,
+    deduping by `name@version` so transitively-shared deps aren't
+    double-counted. Workspace lock wins on collision (authoritative
+    resolved/integrity).
+- **Local verification**: SBOM size went from ~180 → **196** packages.
+  New entries include the web-UI's production deps: `jszip@3.10.1`,
+  `react@18.3.1`, plus the rest of the Vite/React/Tailwind tree.
+- **`__tests__/sbom.test.ts`**: 11 → **14** cases (+3):
+  - includes apps/web-ui deps (`jszip`) — production-shipped JSZip bundle
+  - includes apps/web-ui deps (`react`) — production-shipped Studio UI
+  - dedupes packages that appear in multiple lockfiles
+- TS suite: **533/533** (was 530).
+
 ### Fixed — Iter 63 (2026-06-14)
 
 - **`@ruflo/vertical-base` now ships a README** — caught by running
