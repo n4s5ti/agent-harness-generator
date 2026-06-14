@@ -204,18 +204,25 @@ export async function runThreeWayAblation(corpus: DracoCorpus, opts: AblationOpt
     return { d, f };
   };
 
-  for (const q of questions) {
-    const v = await vanillaResearch({ id: q.id, prompt: q.prompt }, singleModel, opts.transport);
-    tokens.vanilla += v.totalTokens;
-    const vs = await scoreOne(v.answer, q); dims.vanilla.push(vs.d); if (vs.f != null) faith.vanilla.push(vs.f);
-
-    const h = await singleModelHarness({ id: q.id, prompt: q.prompt }, singleModel, opts.transport);
-    tokens.harness += h.totalTokens;
-    const hs = await scoreOne(h.answer, q); dims.harness.push(hs.d); if (hs.f != null) faith.harness.push(hs.f);
-
-    const f = await fuseResearch({ id: q.id, prompt: q.prompt }, fusionModels, opts.transport);
-    tokens.fusion += f.totalTokens;
-    const fs = await scoreOne(f.answer, q); dims.fusion.push(fs.d); if (fs.f != null) faith.fusion.push(fs.f);
+  // Optimisation (iter 159): run the three arms PER QUESTION concurrently, and
+  // all questions concurrently. Each question's pipeline is internally
+  // sequential; ~corpus-size requests are in flight at once. On a 20-Q corpus
+  // this is ~20x faster than the old one-call-at-a-time loop. Results are
+  // collected in input order (Promise.all preserves order) so scoring is
+  // deterministic w.r.t. the corpus.
+  const perQ = await Promise.all(questions.map(async (q) => {
+    const [v, h, f] = await Promise.all([
+      vanillaResearch({ id: q.id, prompt: q.prompt }, singleModel, opts.transport),
+      singleModelHarness({ id: q.id, prompt: q.prompt }, singleModel, opts.transport),
+      fuseResearch({ id: q.id, prompt: q.prompt }, fusionModels, opts.transport),
+    ]);
+    const [vs, hs, fs] = await Promise.all([scoreOne(v.answer, q), scoreOne(h.answer, q), scoreOne(f.answer, q)]);
+    return { v, h, f, vs, hs, fs };
+  }));
+  for (const r of perQ) {
+    tokens.vanilla += r.v.totalTokens; dims.vanilla.push(r.vs.d); if (r.vs.f != null) faith.vanilla.push(r.vs.f);
+    tokens.harness += r.h.totalTokens; dims.harness.push(r.hs.d); if (r.hs.f != null) faith.harness.push(r.hs.f);
+    tokens.fusion += r.f.totalTokens; dims.fusion.push(r.fs.d); if (r.fs.f != null) faith.fusion.push(r.fs.f);
   }
 
   const score = (ds: DimensionScores[], ff: number[]) => {
