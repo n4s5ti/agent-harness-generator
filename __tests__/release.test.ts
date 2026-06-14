@@ -83,4 +83,24 @@ describe('scripts/release.mjs', () => {
     expect(r.code).toBe(0);
     expect(r.stderr).toMatch(/version-bump 0\.5\.7-rc\.1/);
   }, 60_000);
+
+  // iter 77 — release.mjs now passes --probe-pages to preflight so real
+  // releases gate on the live Studio. The dry-run skips preflight entirely,
+  // so we can only assert the wiring exists in the source.
+  it('release.mjs source passes --probe-pages to preflight (iter 77)', async () => {
+    const { readFileSync } = await import('node:fs');
+    const { join } = await import('node:path');
+    const src = readFileSync(join(process.cwd(), 'scripts', 'release.mjs'), 'utf-8');
+    // The preflight invocation must include --probe-pages so real releases
+    // gate on the deployed Studio being alive. Test pins the wiring.
+    expect(src).toMatch(/scripts\/preflight\.mjs[^]*--probe-pages/);
+  });
+
+  it('preflight.mjs honors --probe-pages flag (iter 77)', async () => {
+    const { readFileSync } = await import('node:fs');
+    const { join } = await import('node:path');
+    const src = readFileSync(join(process.cwd(), 'scripts', 'preflight.mjs'), 'utf-8');
+    expect(src).toMatch(/probePages\s*=\s*args\.has\('--probe-pages'\)/);
+    expect(src).toMatch(/healthcheck\.mjs --probe-pages/);
+  });
 });

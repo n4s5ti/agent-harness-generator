@@ -111,13 +111,18 @@ async function main() {
     if (!existsSync(join(ROOT, 'scripts', 'preflight.mjs'))) {
       log('WARN', 'preflight.mjs not found — skipping');
     } else {
-      const pre = await run('node', ['scripts/preflight.mjs']);
+      // iter 77: real releases (not --dry-run) gate on the live Studio
+      // being alive too, so a degraded Pages deploy can't ship a v0.X.Y
+      // tag pointing at a broken site. Delegates to scripts/preflight.mjs
+      // --probe-pages → healthcheck --probe-pages → 2-stage HTTP probe.
+      const preArgs = ['scripts/preflight.mjs', '--probe-pages'];
+      const pre = await run('node', preArgs);
       if (pre.code !== 0) {
         log('FAIL', `preflight failed — fix before retagging`);
         process.stderr.write(pre.stdout + pre.stderr);
         process.exit(1);
       }
-      log('PASS', 'preflight clean');
+      log('PASS', 'preflight clean (incl. live Studio probe)');
     }
   }
 

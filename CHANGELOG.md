@@ -4,6 +4,37 @@ All notable changes to this project are documented here. Format follows [Keep a 
 
 ## [Unreleased]
 
+### Added — Iter 77 (2026-06-14)
+
+- **`scripts/release.mjs` preflight now gates on the live Studio**.
+  iter 72 made the HTTP probe possible (`healthcheck --probe-pages`);
+  iter 76 used it from inside the validate umbrella; iter 77 wires it
+  into release.mjs's preflight step so a broken Pages deploy blocks
+  the tag push.
+- **`scripts/preflight.mjs --probe-pages`** — new flag delegates to
+  `node scripts/healthcheck.mjs --probe-pages --check=pages` so there's
+  **one** HTTP probe implementation in the repo (no duplication).
+  Without the flag the probe step is skipped — preflight stays
+  offline-friendly by default.
+- **release.mjs** unconditionally passes `--probe-pages` to preflight
+  for non-dry-run releases. Dry-runs and `--skip-preflight` paths
+  unchanged.
+- **Effect**: when the maintainer runs `release.mjs minor --push`,
+  the new step output is:
+  ```
+  STEP: 2/5 preflight (run every gate publish.yml would run)
+  ...
+  ==> live Studio probe (--probe-pages)... PASS
+  PASS: preflight clean (incl. live Studio probe)
+  ```
+  If the Studio returns non-200 or the Vite bundle 404s, the tag push
+  aborts before any git mutation.
+- **Tests** — `release.test.ts` 6 → 8 cases (+2):
+  - source pin: `release.mjs` passes `--probe-pages` to preflight
+  - source pin: `preflight.mjs` honors `--probe-pages` + delegates to
+    healthcheck (no duplicate fetch logic)
+- TS suite: **567/567** (was 565).
+
 ### Added — Iter 76 (2026-06-14)
 
 - **`harness validate` umbrella now chains `diag` as a 6th
