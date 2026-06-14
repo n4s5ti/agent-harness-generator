@@ -24,6 +24,7 @@ import { sbomCmd } from './sbom-cmd.js';
 import { auditCmd } from './audit-cmd.js';
 import { mcpScanCmd } from './mcp-scan.js';
 import { diagCmd } from './diag.js';
+import { exportConfigCmd } from './export-config.js';
 import { analyzeRepoCmd } from './analyze-repo.js';
 
 // Pull the version from the workspace package.json (Node's `with: { type: 'json' }`
@@ -301,6 +302,8 @@ export async function dispatch(subcommand: string, args: string[]): Promise<Subc
       return analyzeRepoCmd(args.slice(0));
     case 'diag':
       return diagCmd(args.slice(0));
+    case 'export-config':
+      return exportConfigCmd(args.slice(0));
     case 'help':
     case undefined:
       return {
@@ -324,6 +327,7 @@ export async function dispatch(subcommand: string, args: string[]): Promise<Subc
           '  mcp-scan  — security-scan the harness MCP surface (policy + perms + deps)',
           '  analyze-repo — recommend a harness from a local repo (--embed for ruvllm)',
           '  diag      — kernel-version skew check (ADR-027 diagnostic)',
+          '  export-config — emit MCP + claims + permissions as a single JSON (iter 97)',
           '  help      — show this message',
           '',
           'Flags:',

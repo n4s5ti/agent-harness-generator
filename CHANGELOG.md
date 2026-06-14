@@ -4,6 +4,48 @@ All notable changes to this project are documented here. Format follows [Keep a 
 
 ## [Unreleased]
 
+### Added — Iter 97 (2026-06-14)
+
+- **`harness export-config` — 16th subcommand**. Real new feature
+  that complements iter-90's `diag --bundle`. Where the bundle
+  captures *diagnostic state* for triage, export-config captures
+  *security-relevant config* for sharing/auditing.
+- **Single JSON output** containing:
+  - `mcpServers` — full `.mcp/servers.json` contents (sanitised)
+  - `claudeSettings` — full `.claude/settings.json` (sanitised) —
+    the allow/deny + MCP wiring users actually want reviewed
+  - `codexConfig` — `.codex/config.toml` as a string with secret-shaped
+    TOML values inline-replaced (`api_key = "<redacted>"`)
+  - `manifestMeta` — iter 56/58 meta block
+  - `host` + `hosts` — what this harness targets
+- **Sanitisation regex is broader than iter-90's bundle** —
+  `(secret|token|key|password|passphrase)` (case-insensitive, no
+  anchor). Where the bundle's `^anchor` matched `secret_token` etc.
+  at the start, export-config catches `OPENAI_API_KEY`, `GITHUB_TOKEN`,
+  `db_password` — env-var-style names where the secret indicator
+  appears at the end or middle. False positives (a key literally
+  named `notakey` redacts) are acceptable for an audit-share artefact:
+  cost of over-redaction is low; cost of leaking is high.
+- **Exit code contract**: 0 on success, 2 if `.harness/manifest.json`
+  missing (with FAIL message — same shape as iter 66 diag).
+- **Use case**: a user asks "is my MCP allowlist reasonable?" or "are
+  my Bash permissions too tight?" — they paste `harness export-config`
+  output into a security discussion without zipping their whole
+  harness. Reviewers see the security surface, not the agent prompts.
+- **Sites updated** (ADR-030 step 2 + 3):
+  - `subcommands.ts` dispatcher + help text (15 → 16 subcommands)
+  - `completions-cmd.ts` SUBCOMMANDS + zsh `_describe` block
+  - `__tests__/cli-flags-completions.test.ts` 15 → 16 in both
+    assertions (help text + all-three-shells)
+- **`__tests__/harness-export-config.test.ts`** — 3 cases:
+  - emits parseable JSON for fresh scaffold (claudeSettings + meta
+    + hosts all populated)
+  - redacts secret-like keys in claude settings (synthetic
+    `api_key`, `token`, nested `OPENAI_API_KEY` all → `<redacted>`,
+    non-secret allow list survives)
+  - exits 2 + FAIL on no manifest at path
+- TS suite: **594/594** (was 591; +3 export-config cases).
+
 ### Added — Iter 96 (2026-06-14)
 
 - **`vertical:gaming` — 19th vertical template**. Third new vertical

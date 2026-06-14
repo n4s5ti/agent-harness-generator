@@ -19,6 +19,8 @@ const SUBCOMMANDS = [
   'mcp-scan', 'analyze-repo',
   // iter 66 — kernel-version skew diagnostic
   'diag',
+  // iter 97 — export MCP + claims as single JSON
+  'export-config',
   'help',
 ] as const;
 
@@ -83,6 +85,7 @@ _harness() {
     'mcp-scan:security-scan the harness MCP surface (policy + perms + deps)'
     'analyze-repo:recommend a harness from a local repo'
     'diag:kernel-version skew check (ADR-027 diagnostic)'
+    'export-config:emit MCP servers + claims + permissions as a single JSON'
     'help:show help'
   )
 

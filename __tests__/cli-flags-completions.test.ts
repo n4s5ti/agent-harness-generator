@@ -28,17 +28,16 @@ describe('CLI conventional flags', () => {
     expect(r.lines.join('\n')).toMatch(/harness \d+\.\d+\.\d+/);
   });
 
-  it('help text lists all 15 subcommands (incl. completions + flags)', async () => {
+  it('help text lists all 16 subcommands (incl. completions + flags)', async () => {
     const r = await dispatch('help', []);
     const txt = r.lines.join('\n');
-    // iter 67: refreshed list — was 10 (sign through completions), now 15.
-    // sbom + audit (iter 51), mcp-scan + analyze-repo (PR #1 / iter 55),
-    // diag (iter 66). Every subcommand the dispatcher honours MUST be
-    // visible in `harness help`, or users can't find it.
+    // iter 97: refreshed 15 → 16 with export-config. Every subcommand
+    // the dispatcher honours MUST be visible in `harness help`, or
+    // users can't find it.
     for (const cmd of [
       'sign', 'verify', 'doctor', 'federate', 'secrets', 'validate',
       'mcp', 'publish', 'upgrade', 'completions', 'sbom', 'audit',
-      'mcp-scan', 'analyze-repo', 'diag',
+      'mcp-scan', 'analyze-repo', 'diag', 'export-config',
     ]) {
       expect(txt, `help missing ${cmd}`).toContain(cmd);
     }
@@ -90,7 +89,7 @@ describe('harness completions', () => {
     const subs = [
       'sign', 'verify', 'doctor', 'federate', 'secrets', 'validate',
       'mcp', 'publish', 'upgrade', 'sbom', 'audit',
-      'mcp-scan', 'analyze-repo', 'diag',
+      'mcp-scan', 'analyze-repo', 'diag', 'export-config',
     ];
     for (const shell of ['bash', 'zsh', 'fish']) {
       const r = await dispatch('completions', [shell]);
