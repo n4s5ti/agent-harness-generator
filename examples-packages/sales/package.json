@@ -1,0 +1,41 @@
+{
+  "name": "@metaharness/sales",
+  "version": "0.1.0",
+  "description": "MetaHarness example — sales pipeline pod (qualifier, opener, closer) for Claude Code (npx @metaharness/sales my-bot)",
+  "homepage": "https://github.com/ruvnet/agent-harness-generator/tree/main/examples-packages/sales",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/ruvnet/agent-harness-generator.git",
+    "directory": "examples-packages/sales"
+  },
+  "license": "MIT",
+  "author": "rUv <ruv@ruv.net>",
+  "type": "module",
+  "bin": "./bin/scaffold.mjs",
+  "files": [
+    "bin/**",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "smoke": "node --check bin/scaffold.mjs"
+  },
+  "keywords": [
+    "metaharness",
+    "agent-harness",
+    "agent-harness-generator",
+    "sales",
+    "vertical",
+    "claude-code",
+    "ai-agent",
+    "mcp",
+    "npx",
+    "scaffold"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  }
+}

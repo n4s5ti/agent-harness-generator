@@ -1,0 +1,73 @@
+# MetaHarness × Hermes cli-config harness
+
+A one-shot scaffolder that drops a minimal, working Hermes-integrated agent harness into a fresh directory. It wires up the host-specific config file Hermes expects, a baseline `harness.json`, and the bare-minimum agent + MCP plumbing so you can run `harness doctor` and get a green check in under a minute. It is intentionally NOT a multi-agent template, a vertical solution, or an opinionated framework — it is the smallest viable starting point for building a Hermes-driven CLI agent.
+
+## Quickstart
+
+```bash
+npx @metaharness/hermes@latest my-bot
+cd my-bot && npm install && npx harness doctor
+```
+
+That sequence scaffolds the project, installs dependencies, and runs the harness self-check. If `doctor` passes, you have a working Hermes harness.
+
+## What you get
+
+- `harness.json` — the canonical MetaHarness manifest (host: `hermes`, template: `minimal`).
+- `hermes.config.json` — host-specific Hermes CLI configuration with default model + transport settings.
+- `agents/` — one starter agent definition you can copy and rename.
+- `mcp/` — placeholder `servers.json` listing the default MCP servers the harness expects.
+- `.harness/settings.json` — local-only settings (gitignored) for API keys and per-machine overrides.
+- `package.json` with `harness`, `harness doctor`, and `harness validate` wired as scripts.
+- A `README.md` stub inside the scaffold pointing at the Hermes CLI docs.
+
+## Advanced
+
+Run the built-in health check:
+
+```bash
+npx harness doctor
+```
+
+Expected excerpt:
+
+```
+[ok] harness.json valid
+[ok] hermes.config.json present
+[ok] node >= 20
+[ok] mcp/servers.json parseable
+```
+
+Validate the manifest against the MetaHarness schema:
+
+```bash
+npx harness validate
+# manifest: ok (host=hermes, template=minimal)
+```
+
+Run the scaffold against the Claude Code CLI for a smoke test:
+
+```bash
+claude -p --plugin-dir ./my-bot "say hello as my agent"
+```
+
+You can also re-scaffold over an existing directory by passing `--force` through:
+
+```bash
+npx @metaharness/hermes@latest my-bot --force
+```
+
+## FAQ
+
+**Q: Does this install Hermes itself?**
+A: No. It scaffolds a project configured to talk to Hermes. Install the Hermes CLI separately following the upstream Hermes docs, then point `hermes.config.json` at your install.
+
+**Q: Can I rename the project after scaffolding?**
+A: Yes. Rename the directory and update the `name` field in `package.json` and `harness.json`. Nothing else hard-codes the project name.
+
+**Q: Why is my key not picked up?**
+A: Local secrets live in `.harness/settings.json`, which is gitignored. Add `ANTHROPIC_API_KEY` (or the relevant provider key) there, or export it in your shell before running `harness doctor`.
+
+## License
+
+MIT. Built on metaharness (https://www.npmjs.com/package/metaharness).

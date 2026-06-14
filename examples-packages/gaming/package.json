@@ -1,0 +1,41 @@
+{
+  "name": "@metaharness/gaming",
+  "version": "0.1.0",
+  "description": "MetaHarness example — ready-made game-design pod (concept, mechanics, balance, playtest) for Claude Code (npx @metaharness/gaming my-bot)",
+  "homepage": "https://github.com/ruvnet/agent-harness-generator/tree/main/examples-packages/gaming",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/ruvnet/agent-harness-generator.git",
+    "directory": "examples-packages/gaming"
+  },
+  "license": "MIT",
+  "author": "rUv <ruv@ruv.net>",
+  "type": "module",
+  "bin": "./bin/scaffold.mjs",
+  "files": [
+    "bin/**",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "smoke": "node --check bin/scaffold.mjs"
+  },
+  "keywords": [
+    "metaharness",
+    "agent-harness",
+    "agent-harness-generator",
+    "gaming",
+    "vertical",
+    "claude-code",
+    "ai-agent",
+    "mcp",
+    "npx",
+    "scaffold"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  }
+}

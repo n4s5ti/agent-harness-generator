@@ -1,0 +1,40 @@
+{
+  "name": "@metaharness/pi-dev",
+  "version": "0.1.0",
+  "description": "MetaHarness example — pi.dev AGENTS.md harness with a minimal scaffold ready for pi.dev agents (npx @metaharness/pi-dev my-bot)",
+  "homepage": "https://github.com/ruvnet/agent-harness-generator/tree/main/examples-packages/pi-dev",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/ruvnet/agent-harness-generator.git",
+    "directory": "examples-packages/pi-dev"
+  },
+  "license": "MIT",
+  "author": "rUv <ruv@ruv.net>",
+  "type": "module",
+  "bin": "./bin/scaffold.mjs",
+  "files": [
+    "bin/**",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "smoke": "node --check bin/scaffold.mjs"
+  },
+  "keywords": [
+    "metaharness",
+    "agent-harness",
+    "agent-harness-generator",
+    "pi-dev",
+    "host",
+    "ai-agent",
+    "mcp",
+    "npx",
+    "scaffold"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  }
+}

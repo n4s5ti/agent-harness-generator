@@ -1,0 +1,40 @@
+{
+  "name": "@metaharness/claude-code",
+  "version": "0.1.0",
+  "description": "MetaHarness example — Claude Code workspace + plugin scaffold with CLAUDE.md, .claude/, and MCP wiring (npx @metaharness/claude-code my-bot)",
+  "homepage": "https://github.com/ruvnet/agent-harness-generator/tree/main/examples-packages/claude-code",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/ruvnet/agent-harness-generator.git",
+    "directory": "examples-packages/claude-code"
+  },
+  "license": "MIT",
+  "author": "rUv <ruv@ruv.net>",
+  "type": "module",
+  "bin": "./bin/scaffold.mjs",
+  "files": [
+    "bin/**",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "smoke": "node --check bin/scaffold.mjs"
+  },
+  "keywords": [
+    "metaharness",
+    "agent-harness",
+    "agent-harness-generator",
+    "claude-code",
+    "host",
+    "ai-agent",
+    "mcp",
+    "npx",
+    "scaffold"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  }
+}
