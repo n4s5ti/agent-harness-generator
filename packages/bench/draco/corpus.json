@@ -1,0 +1,225 @@
+{
+  "version": 1,
+  "questions": [
+    {
+      "id": "sci-001",
+      "domain": "science",
+      "prompt": "What is the current scientific consensus on the role of the gut microbiome in mental health, and what are the two strongest dissenting or unresolved positions?",
+      "rubric": {
+        "must_cite": ["peer-reviewed-journal", "clinical-trial", "meta-analysis"],
+        "must_contain": ["gut-brain axis", "serotonin", "depression", "probiotics", "causation vs correlation"],
+        "must_not": ["unverified anecdote", "fabricated study", "no citation"],
+        "grader": "hybrid"
+      }
+    },
+    {
+      "id": "sci-002",
+      "domain": "science",
+      "prompt": "Explain the mechanism by which mRNA vaccines produce an immune response and summarise the peer-reviewed evidence on their long-term safety profile as of 2024.",
+      "rubric": {
+        "must_cite": ["peer-reviewed-journal", "FDA-regulatory-document", "WHO-report"],
+        "must_contain": ["spike protein", "T-cell response", "antibody titres", "adverse event", "immunogenicity"],
+        "must_not": ["conspiracy claim", "fabricated citation", "anecdotal only"],
+        "grader": "hybrid"
+      }
+    },
+    {
+      "id": "sci-003",
+      "domain": "science",
+      "prompt": "What does current climate science say about tipping points in the Earth system, specifically the Amazon dieback and Atlantic Meridional Overturning Circulation (AMOC) weakening? Are these risks overstated or understated in mainstream media reporting?",
+      "rubric": {
+        "must_cite": ["IPCC-report", "peer-reviewed-journal", "Nature-or-Science"],
+        "must_contain": ["tipping point", "Amazon", "AMOC", "feedback loop", "uncertainty"],
+        "must_not": ["fabricated temperature data", "denial of peer-reviewed consensus", "no primary source"],
+        "grader": "hybrid"
+      }
+    },
+    {
+      "id": "sci-004",
+      "domain": "science",
+      "prompt": "Summarise the state of research on CRISPR base-editing for sickle-cell disease, including the clinical trial outcomes for Casgevy (exa-cel) approved in 2023, and the remaining scientific challenges.",
+      "rubric": {
+        "must_cite": ["FDA-approval-document", "peer-reviewed-journal", "ClinicalTrials.gov"],
+        "must_contain": ["base editing", "haemoglobin", "BCL11A", "off-target", "remission"],
+        "must_not": ["wrong approval date", "fabricated trial data", "no citation"],
+        "grader": "hybrid"
+      }
+    },
+    {
+      "id": "fin-001",
+      "domain": "finance",
+      "prompt": "What were the primary causes of the Silicon Valley Bank collapse in March 2023, and what regulatory changes have been proposed or enacted in response?",
+      "rubric": {
+        "must_cite": ["FDIC-report", "Federal-Reserve-review", "Congressional-testimony"],
+        "must_contain": ["duration risk", "held-to-maturity", "bank run", "deposit concentration", "FDIC"],
+        "must_not": ["fabricated financial figures", "no primary regulatory source", "wrong date"],
+        "grader": "hybrid"
+      }
+    },
+    {
+      "id": "fin-002",
+      "domain": "finance",
+      "prompt": "Explain the mechanics of carry trades in currency markets, the conditions under which they unwind violently, and cite the August 2024 yen carry-trade unwind as a case study.",
+      "rubric": {
+        "must_cite": ["central-bank-report", "academic-paper", "financial-news-with-date"],
+        "must_contain": ["interest rate differential", "risk-off", "volatility", "yen", "deleveraging"],
+        "must_not": ["wrong currency pair", "fabricated loss figures", "no citation"],
+        "grader": "hybrid"
+      }
+    },
+    {
+      "id": "fin-003",
+      "domain": "finance",
+      "prompt": "Compare the valuation methodologies used for early-stage AI companies in 2024 versus traditional SaaS companies, and identify the key risks that these methodologies may systematically underestimate.",
+      "rubric": {
+        "must_cite": ["SEC-filing", "venture-capital-report", "academic-paper"],
+        "must_contain": ["revenue multiple", "gross margin", "compute cost", "moat", "customer acquisition cost"],
+        "must_not": ["fabricated valuation", "no source", "confusion between debt and equity"],
+        "grader": "llm-judge"
+      }
+    },
+    {
+      "id": "fin-004",
+      "domain": "finance",
+      "prompt": "What is the Basel III endgame proposal (US implementation) and how did the industry pushback in 2023–2024 alter the final rule? Summarise the key capital requirement changes and their projected impact on bank lending.",
+      "rubric": {
+        "must_cite": ["Federal-Reserve-proposal", "OCC-document", "bank-earnings-call-or-comment-letter"],
+        "must_contain": ["risk-weighted assets", "tier 1 capital", "comment period", "G-SIB surcharge", "lending capacity"],
+        "must_not": ["fabricated regulatory text", "wrong Basel tier", "no citation"],
+        "grader": "hybrid"
+      }
+    },
+    {
+      "id": "law-001",
+      "domain": "law",
+      "prompt": "Explain the Supreme Court's holding in Loper Bright Enterprises v. Raimondo (2024) and its implications for administrative agency rulemaking under the Administrative Procedure Act.",
+      "rubric": {
+        "must_cite": ["Supreme-Court-opinion", "APA-statute", "academic-legal-commentary"],
+        "must_contain": ["Chevron deference", "statutory interpretation", "overruling", "major questions", "agency authority"],
+        "must_not": ["wrong decision date", "invented holding", "no citation to opinion"],
+        "grader": "hybrid"
+      }
+    },
+    {
+      "id": "law-002",
+      "domain": "law",
+      "prompt": "What is the current legal landscape in the United States for AI-generated content and copyright, including how the Copyright Office has addressed the issue through 2024?",
+      "rubric": {
+        "must_cite": ["Copyright-Office-guidance", "federal-court-decision", "statute-or-regulation"],
+        "must_contain": ["human authorship", "Thaler v. Vidal", "registration", "originality", "AI-output"],
+        "must_not": ["fabricated case citation", "invented statute", "wrong jurisdiction"],
+        "grader": "hybrid"
+      }
+    },
+    {
+      "id": "law-003",
+      "domain": "law",
+      "prompt": "Explain the EU AI Act's risk-classification tiers, which AI systems fall into the 'high-risk' category, and what the compliance obligations are for deployers versus providers.",
+      "rubric": {
+        "must_cite": ["EU-AI-Act-official-text", "EU-Parliament-document", "legal-commentary"],
+        "must_contain": ["prohibited", "high-risk", "CE marking", "conformity assessment", "GPAI model"],
+        "must_not": ["wrong tier name", "fabricated article number", "no official source"],
+        "grader": "hybrid"
+      }
+    },
+    {
+      "id": "law-004",
+      "domain": "law",
+      "prompt": "Analyse the antitrust theories of harm advanced by the DOJ in its lawsuit against Google's search distribution agreements (US v. Google LLC, 2024 judgment), and assess whether the remedy proposals match the identified harms.",
+      "rubric": {
+        "must_cite": ["DOJ-complaint", "court-opinion-2024", "academic-antitrust-commentary"],
+        "must_contain": ["exclusive dealing", "default search", "foreclosure", "Section 2 Sherman Act", "remedy"],
+        "must_not": ["fabricated court ruling", "wrong statute cited", "no case citation"],
+        "grader": "hybrid"
+      }
+    },
+    {
+      "id": "cur-001",
+      "domain": "current-events",
+      "prompt": "Summarise the major geopolitical and humanitarian developments in the Israel-Gaza conflict from October 2023 through June 2024, citing credible primary sources and noting areas of significant factual dispute.",
+      "rubric": {
+        "must_cite": ["UN-report", "established-news-outlet", "government-statement"],
+        "must_contain": ["October 7", "Gaza", "humanitarian corridor", "casualty figures", "ceasefire negotiations"],
+        "must_not": ["one-sided framing without acknowledgment", "fabricated casualty data", "no date on claim"],
+        "grader": "hybrid"
+      }
+    },
+    {
+      "id": "cur-002",
+      "domain": "current-events",
+      "prompt": "What were the key causes, economic consequences, and international responses to the Argentine peso crisis and IMF programme renegotiation under President Milei in 2023–2024?",
+      "rubric": {
+        "must_cite": ["IMF-press-release", "Argentine-central-bank-data", "established-financial-news"],
+        "must_contain": ["devaluation", "inflation rate", "dollarisation", "fiscal surplus", "IMF tranche"],
+        "must_not": ["fabricated inflation figure", "wrong president name", "no source"],
+        "grader": "hybrid"
+      }
+    },
+    {
+      "id": "cur-003",
+      "domain": "current-events",
+      "prompt": "Describe the timeline and key technical details of the CrowdStrike Falcon sensor update outage in July 2024 that caused widespread Windows system failures, and identify the systemic failures it exposed.",
+      "rubric": {
+        "must_cite": ["CrowdStrike-incident-report", "Microsoft-statement", "CISA-advisory"],
+        "must_contain": ["kernel driver", "Blue Screen of Death", "channel file", "outage duration", "affected systems"],
+        "must_not": ["wrong date", "fabricated technical detail", "no primary source"],
+        "grader": "hybrid"
+      }
+    },
+    {
+      "id": "tech-001",
+      "domain": "technical",
+      "prompt": "Explain how Retrieval-Augmented Generation (RAG) differs from fine-tuning for knowledge injection in large language models, and provide a quantitative comparison of latency, cost, and accuracy trade-offs based on published benchmarks.",
+      "rubric": {
+        "must_cite": ["academic-paper", "published-benchmark", "LLM-provider-technical-report"],
+        "must_contain": ["vector database", "context window", "hallucination rate", "fine-tuning cost", "retrieval precision"],
+        "must_not": ["fabricated benchmark figures", "no citation", "confusing inference with training"],
+        "grader": "hybrid"
+      }
+    },
+    {
+      "id": "tech-002",
+      "domain": "technical",
+      "prompt": "What are the security implications of AI code-completion tools (e.g. GitHub Copilot, Cursor) for enterprise software development, and what mitigations have been empirically shown to reduce vulnerability introduction rates?",
+      "rubric": {
+        "must_cite": ["academic-security-paper", "NIST-guidance", "CVE-database-or-published-study"],
+        "must_contain": ["training data poisoning", "vulnerable code suggestion", "code review", "SAST", "supply chain"],
+        "must_not": ["fabricated CVE", "no empirical citation", "anecdotal only"],
+        "grader": "hybrid"
+      }
+    },
+    {
+      "id": "tech-003",
+      "domain": "technical",
+      "prompt": "Compare the consensus mechanisms of Ethereum (post-Merge proof-of-stake), Solana (proof-of-history + proof-of-stake), and a classical PBFT-based permissioned chain along the axes of finality, throughput, decentralisation, and attack surface.",
+      "rubric": {
+        "must_cite": ["Ethereum-foundation-docs", "Solana-whitepaper", "academic-BFT-paper"],
+        "must_contain": ["finality time", "validator set", "slashing", "TPS", "Sybil resistance"],
+        "must_not": ["wrong consensus name", "fabricated TPS figure", "no primary source"],
+        "grader": "hybrid"
+      }
+    },
+    {
+      "id": "tech-004",
+      "domain": "technical",
+      "prompt": "What are the architectural trade-offs between monolithic LLMs and mixture-of-experts (MoE) architectures (e.g. Mixtral, GPT-4), and what does the published evidence say about inference efficiency, training cost, and capability per parameter?",
+      "rubric": {
+        "must_cite": ["academic-paper", "model-technical-report", "published-benchmark"],
+        "must_contain": ["sparse activation", "routing", "parameter count", "FLOP efficiency", "benchmark accuracy"],
+        "must_not": ["fabricated parameter count", "wrong model architecture", "no citation"],
+        "grader": "hybrid"
+      }
+    },
+    {
+      "id": "tech-005",
+      "domain": "technical",
+      "prompt": "Explain the WebAssembly Component Model (WASM CM) proposal: what problem it solves relative to the core WASM spec, the role of WIT interface definitions, and the current state of runtime support in Wasmtime, WASI-Preview 2, and browser runtimes as of 2024.",
+      "rubric": {
+        "must_cite": ["W3C-WASM-spec", "Bytecode-Alliance-doc", "runtime-changelog-or-release-note"],
+        "must_contain": ["interface types", "WIT", "canonical ABI", "component linking", "WASI-Preview-2"],
+        "must_not": ["confusion between WASM MVP and Component Model", "fabricated spec status", "no primary source"],
+        "grader": "hybrid"
+      }
+    }
+  ]
+}

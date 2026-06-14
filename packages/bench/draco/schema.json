@@ -1,0 +1,75 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://github.com/ruvnet/agent-harness-generator/packages/bench/draco/schema.json",
+  "title": "DRACO Corpus",
+  "description": "Cross-Domain Benchmark for Deep Research — versioned corpus schema (ADR-037)",
+  "type": "object",
+  "required": ["version", "questions"],
+  "additionalProperties": false,
+  "properties": {
+    "version": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "Corpus version. A DRACO score is only comparable across runs that share the same version."
+    },
+    "questions": {
+      "type": "array",
+      "minItems": 15,
+      "items": { "$ref": "#/definitions/Question" }
+    }
+  },
+  "definitions": {
+    "Question": {
+      "type": "object",
+      "required": ["id", "domain", "prompt", "rubric"],
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[a-z]+-[0-9]{3}$",
+          "description": "Stable unique identifier, e.g. 'sci-001'. Never reused across versions."
+        },
+        "domain": {
+          "type": "string",
+          "enum": ["science", "finance", "law", "current-events", "technical"],
+          "description": "One of the five DRACO benchmark domains."
+        },
+        "prompt": {
+          "type": "string",
+          "minLength": 20,
+          "description": "The research question exactly as posed to the harness."
+        },
+        "rubric": {
+          "$ref": "#/definitions/Rubric"
+        }
+      }
+    },
+    "Rubric": {
+      "type": "object",
+      "required": ["must_cite", "must_contain", "must_not", "grader"],
+      "additionalProperties": false,
+      "properties": {
+        "must_cite": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Keywords or phrase types that must appear as cited sources (e.g. 'peer-reviewed-journal', 'government-agency')."
+        },
+        "must_contain": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Concepts, terms or perspectives the answer must address. Checked by regex + embedding similarity."
+        },
+        "must_not": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Failure patterns — if any are present, the answer fails the grounding check."
+        },
+        "grader": {
+          "type": "string",
+          "enum": ["llm-judge", "deterministic", "hybrid"],
+          "description": "How the rubric is evaluated. 'deterministic' uses only regex/embedding checks (offline safe). 'llm-judge' adds an independent model. 'hybrid' = both."
+        }
+      }
+    }
+  }
+}

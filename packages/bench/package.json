@@ -10,6 +10,7 @@
     "test": "vitest run --passWithNoTests",
     "bench": "node ./dist/bin.js",
     "bench:hosts": "node ./dist/host-bin.js",
+    "bench:draco": "node -e \"console.log('M1: corpus only; runner lands in M3')\"",
     "lint": "tsc --noEmit"
   },
   "dependencies": {
