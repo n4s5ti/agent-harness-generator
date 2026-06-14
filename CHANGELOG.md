@@ -4,6 +4,30 @@ All notable changes to this project are documented here. Format follows [Keep a 
 
 ## [Unreleased]
 
+### Changed — Iter 91 (2026-06-14)
+
+- **iter-90's `diag --bundle` now surfaces across all 4 user-facing
+  surfaces** — same propagation pattern as iter 80→83 used for
+  vertical:education:
+  - **README day-to-day commands table** — new row:
+    `File a support ticket — bundle everything the maintainer needs`
+    → `harness diag <path> --bundle > bundle.json`
+  - **`.codex/skills/diag-harness/README.md`** — Equivalent CLI block
+    gains `--bundle` line + a one-paragraph callout explaining the
+    sanitisation invariant (`secret|token|key|password|api_key` keys
+    redacted so the bundle is safe for public GitHub issues)
+  - **`.claude-plugin/plugin.json`** — `diag-harness` command's
+    `description` updated to mention `--bundle` alongside `--json`
+  - **`scripts/dev-toolkit.mjs`** — diag subcommand summary updated
+    to flag both `--json` (CI gating) and `--bundle` (support tickets)
+- Same regression mode the iter-67-69 sweep guarded against: when a
+  new flag lands but only the source-of-truth surface mentions it.
+  Every surface that documents the diag subcommand now mentions all
+  three forms (default text, --json, --bundle).
+- Tests still 24/24 across `dev-toolkit + codex-skills +
+  claude-marketplace` — these existing pins cover the listing
+  contracts even though the description text changed.
+
 ### Added — Iter 90 (MILESTONE) (2026-06-14)
 
 - **`harness diag --bundle`** — real new user-facing feature. One

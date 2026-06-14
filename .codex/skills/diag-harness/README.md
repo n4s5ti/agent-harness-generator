@@ -34,8 +34,12 @@ Resolves the local `@ruflo/kernel` via `createRequire` rooted at the harness's o
 
 ```bash
 harness diag                            # cwd
-harness diag ./my-harness
+harness diag ./my-harness               # explicit path
+harness diag ./my-harness --json        # machine-readable for CI
+harness diag ./my-harness --bundle      # support-ticket JSON (iter 90)
 ```
+
+The `--bundle` form (iter 90) emits a single JSON snapshot of the diag report + sanitised manifest + `@ruflo/*` deps + Node/platform info — everything a maintainer needs to triage a bug report. Object keys matching `secret|token|key|password|api_key` are redacted so the bundle is safe to paste into a public GitHub issue.
 
 ## Sample output
 

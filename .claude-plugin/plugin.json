@@ -71,7 +71,7 @@
     },
     {
       "name": "diag-harness",
-      "description": "Kernel-version skew check (ADR-027). Surfaces manifest kernel + installed kernel + verdict with copy-pasteable next step."
+      "description": "Kernel-version skew check (ADR-027). Surfaces manifest kernel + installed kernel + verdict with copy-pasteable next step. --json for CI gating; --bundle (iter 90) emits a full support-ticket JSON (sanitised manifest + deps + env)."
     }
   ],
   "permissions": ["memory", "filesystem", "network"],

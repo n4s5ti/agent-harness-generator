@@ -51,7 +51,7 @@ const HARNESS_SUBCOMMANDS = [
   { name: 'audit', summary: 'npm audit per-harness with structured output', iter: 51 },
   { name: 'mcp-scan', summary: 'Security-scan the harness MCP surface (policy + perms + deps)', iter: 55 },
   { name: 'analyze-repo', summary: 'Recommend a harness from a local repo (--embed for ruvllm)', iter: 55 },
-  { name: 'diag', summary: 'Kernel-version skew check (ADR-027 diagnostic)', iter: 66 },
+  { name: 'diag', summary: 'Kernel-version skew check (ADR-027) — --json for CI, --bundle for support tickets (iter 90)', iter: 66 },
 ];
 
 async function listScripts() {
