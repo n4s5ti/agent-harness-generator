@@ -157,6 +157,27 @@ export async function doctor(args: string[]): Promise<SubcommandResult> {
   check(hasClaudeCode || hasCodex || hasPi || hasHermes,
     'at least one host artifact present (.claude/, .codex/, AGENTS.md, or cli-config.yaml)');
 
+  // iter 134: surface .claude-plugin/plugin.json presence (the second-path
+  // `claude -p --plugin-dir <harness>` proof). All scaffolds since
+  // metaharness@0.1.3 (iter 132) ship this file. WARN, not FAIL —
+  // pre-iter-131 harnesses pre-date the propagation, and a user may have
+  // intentionally removed it. The hint tells them how to add it back.
+  const pluginPath = join(dir, '.claude-plugin', 'plugin.json');
+  if (existsSync(pluginPath)) {
+    try {
+      const plugin = JSON.parse(await readFile(pluginPath, 'utf-8'));
+      if (typeof plugin.name === 'string' && plugin.name.length > 0) {
+        lines.push(`  PASS .claude-plugin/plugin.json (name=${plugin.name}, claude -p --plugin-dir works)`);
+      } else {
+        lines.push('  WARN .claude-plugin/plugin.json is missing the "name" field');
+      }
+    } catch {
+      lines.push('  WARN .claude-plugin/plugin.json is not valid JSON');
+    }
+  } else {
+    lines.push('  WARN .claude-plugin/plugin.json absent — `claude -p --plugin-dir` won\'t load this harness as a plugin. Re-scaffold with metaharness@0.1.3+ or `harness upgrade` to add it.');
+  }
+
   if (problems === 0) {
     pushLines(lines, '', `Result: HEALTHY (${dir})`);
     return { code: 0, lines };
