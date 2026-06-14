@@ -1,0 +1,3 @@
+# DRACO corpus is checksum-pinned (packages/bench/__tests__/draco-corpus.test.ts).
+# Force LF so the bytes — and the SHA — are identical on every platform.
+packages/bench/draco/corpus.json text eol=lf

@@ -14,7 +14,10 @@ const DRACO_DIR = join(__dirname, '..', 'draco');
 
 // ── Load artifacts ──────────────────────────────────────────────────────────
 
-const corpusRaw = readFileSync(join(DRACO_DIR, 'corpus.json'), 'utf8');
+// Normalise line endings before anything hashes this — git may check the file
+// out with CRLF on Windows, which would change the bytes (and the SHA) even
+// though the content is identical. The pin below is the LF hash, so we hash LF.
+const corpusRaw = readFileSync(join(DRACO_DIR, 'corpus.json'), 'utf8').replace(/\r\n/g, '\n');
 
 interface Rubric {
   must_cite: string[];
