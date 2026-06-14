@@ -4,6 +4,23 @@ All notable changes to this project are documented here. Format follows [Keep a 
 
 ## [Unreleased]
 
+### Changed — Iter 75 (2026-06-14)
+
+- **README day-to-day commands table refreshed** — was frozen at iter 62.
+  Five new rows added:
+  - `Is the deployed Studio alive?` → `healthcheck --probe-pages` (iter 72)
+  - `Is THIS local kernel compatible with this harness?` → `harness diag` (iter 66)
+  - `Same, for a CI script` → `harness diag --json` (iter 73)
+  - `Preview the v0.1.0 GH release body` → `release-notes.mjs --version=0.1.0` (iter 36)
+  - `Same, tweet-length summary` → `release-notes.mjs --summary` (iter 74)
+- **Tests badge** refreshed 529 → **563** passing.
+- **Status table** test-suite row 529/529 → **563/563** and 64 → 66
+  test files.
+- **New row** for "15 `harness` subcommands" with the full inline list,
+  bolding `diag` as the freshly-shipped one (ADR-027).
+- The `create-agent-harness` CLI row now points down to that subcommand
+  row rather than re-listing 4 of the 15 by hand.
+
 ### Added — Iter 74 (2026-06-14)
 
 - **`scripts/release-notes.mjs --summary`** — tight one-bullet-per-iter

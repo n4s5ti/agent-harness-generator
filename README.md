@@ -8,7 +8,7 @@ Like ruflo is the meta-harness for Claude, this is the meta-harness for AI agent
 
 [![Open the Studio →](https://img.shields.io/badge/Studio-open_in_browser_↗-7c5cff?style=for-the-badge&logo=githubpages&logoColor=white)](https://ruvnet.github.io/agent-harness-generator/)
 [![npm — coming soon](https://img.shields.io/badge/npm%20create--agent--harness-coming%20soon-cb3837?style=for-the-badge&logo=npm)](https://github.com/ruvnet/agent-harness-generator)
-[![Tests — 529 passing](https://img.shields.io/badge/tests-529%20passing-22c55e?style=for-the-badge)](docs/ARCHITECTURE.md)
+[![Tests — 563 passing](https://img.shields.io/badge/tests-563%20passing-22c55e?style=for-the-badge)](docs/ARCHITECTURE.md)
 [![CI — 16 jobs](https://img.shields.io/badge/CI-16%20jobs%20green-22c55e?style=for-the-badge&logo=githubactions)](.github/workflows/ci.yml)
 [![License MIT](https://img.shields.io/badge/License-MIT-yellow?style=for-the-badge)](LICENSE)
 
@@ -157,7 +157,7 @@ See [`examples/`](examples/) and [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) 
 | Kernel (Rust + WASM + NAPI-RS) | Shipped | [`crates/kernel/`](crates/kernel/) — 7 subsystems |
 | `@ruflo/kernel` runtime resolver | Shipped | [`packages/kernel-js/`](packages/kernel-js/) |
 | 6 host adapters | Shipped | claude-code / codex / pi-dev / hermes / openclaw / rvm |
-| `create-agent-harness` CLI | Shipped | scaffold + `harness validate / secrets / verify-witness / federate` |
+| `create-agent-harness` CLI | Shipped | scaffold + 15 `harness` subcommands (see row below) |
 | 6 Codex skills | Shipped | create / publish / validate / secrets / verify-witness / upgrade-harness |
 | Claude marketplace plugin | Shipped + schema-validated | [`.claude-plugin/plugin.json`](.claude-plugin/plugin.json) |
 | Witness signing (Ed25519) | Shipped + tamper-tested | [ADR-011](docs/adrs/ADR-011-witness-and-provenance.md) |
@@ -167,7 +167,8 @@ See [`examples/`](examples/) and [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) 
 | CI matrix (16 jobs across Rust + WASM + Node + Bench + pack+install) | Green | [`.github/workflows/ci.yml`](.github/workflows/ci.yml) |
 | Security (cargo-audit + cargo-deny + npm-audit + CodeQL + audit-deps aggregate) | Green | [`.github/workflows/security.yml`](.github/workflows/security.yml) |
 | Publish pipeline (GCP WIF + 2 gates + 11 packages + IPFS pin) | Wired + tested | [`.github/workflows/publish.yml`](.github/workflows/publish.yml) |
-| Test suite | **529/529** | 64 test files |
+| Test suite | **563/563** | 66 test files |
+| 15 `harness` subcommands | Shipped | sign · verify · doctor · federate · secrets · validate · mcp · publish · upgrade · completions · sbom · audit · mcp-scan · analyze-repo · **diag** (ADR-027) |
 | Agent Harness Studio (live Pages) | Shipped | <https://ruvnet.github.io/agent-harness-generator/> — 100% client-side |
 | Perf-regression gate (host-bench-baseline) | Wired + baselined | [`packages/bench/host-baseline.json`](packages/bench/host-baseline.json) — 50% threshold |
 | SBOM (SPDX-2.3) | Wired | [`scripts/sbom.mjs`](scripts/sbom.mjs) — CI artifact |
@@ -175,8 +176,13 @@ See [`examples/`](examples/) and [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) 
 | Day-to-day | Wall time | Command |
 |---|---|---|
 | Did I break anything? | <1s | `node scripts/healthcheck.mjs` |
+| Is the deployed Studio alive? | ~1s | `node scripts/healthcheck.mjs --probe-pages` |
+| Is THIS local kernel compatible with this harness? | <100ms | `harness diag <path>` |
+| Same, for a CI script | <100ms | `harness diag <path> --json` |
 | Is this scaffolded harness release-ready? | <1s | `harness validate <path>` |
 | Is this branch release-ready? | ~30s | `node scripts/preflight.mjs` |
+| Preview the v0.1.0 GH release body | ~1s | `node scripts/release-notes.mjs --version=0.1.0` |
+| Same, tweet-length summary | ~1s | `node scripts/release-notes.mjs --version=0.1.0 --summary` |
 | Cut a release | ~60s | `node scripts/release.mjs patch --push` |
 
 ---
