@@ -11,6 +11,7 @@
 
 import { resolve, basename } from 'node:path';
 import { inventory, analyzeFiles, recommendPlan, scoreArchetypes, ruvllmSemantic, type HarnessPlan } from './analyze-repo.js';
+import { checkConstraints, summarise, formatConstraints } from './constraints.js';
 
 export type SubcommandResult = { code: number; lines: string[] };
 
@@ -28,6 +29,10 @@ export interface RepoScorecard {
   recommendedMode: 'CLI' | 'CLI + MCP';
   archetype: string;
   template: string;
+  /** All HARD constraints passed → the recommended design is scaffold-ready (ADR-041 validation). */
+  scaffoldReady: boolean;
+  /** hard-constraints-passed / total (e.g. "6/6"). */
+  hardConstraints: string;
   generatedAt: string;
 }
 
@@ -99,6 +104,9 @@ export function buildRepoScorecard(dir: string, generatedAt: string = new Date()
 
   const recommendedMode: RepoScorecard['recommendedMode'] = plan.mcp === 'off' ? 'CLI' : 'CLI + MCP';
 
+  // ADR-041 validation stage — hard/soft constraints over the recommended design.
+  const cs = summarise(checkConstraints(profile, plan));
+
   return {
     schema: 1,
     repo: name,
@@ -111,6 +119,8 @@ export function buildRepoScorecard(dir: string, generatedAt: string = new Date()
     recommendedMode,
     archetype: plan.archetypeId,
     template: plan.template,
+    scaffoldReady: cs.allHardPass,
+    hardConstraints: `${cs.hardPassed}/${cs.hardTotal}`,
     generatedAt,
   };
 }
@@ -127,6 +137,7 @@ export function formatRepoScorecard(sc: RepoScorecard): string[] {
     `  Memory usefulness:  ${sc.memoryUsefulness}/100`,
     `  Est. cost per run:  $${sc.estCostPerRunUsd.toFixed(3)}`,
     `  Recommended mode:   ${sc.recommendedMode}  (template ${sc.template})`,
+    `  Constraints:        ${sc.hardConstraints} hard ${sc.scaffoldReady ? '✓ scaffold-ready' : '✗ blocked — run with --constraints'}`,
   ];
 }
 
@@ -165,6 +176,21 @@ export function topCandidates(dir: string, n = 3): CandidateScore[] {
     }));
 }
 
+/** Full constraint report for a repo's recommended design (ADR-041 validation). */
+export function repoConstraints(dir: string): { repo: string; results: ReturnType<typeof checkConstraints> } {
+  const files = inventory(dir);
+  let name = basename(resolve(dir)) || 'repo';
+  try {
+    const pkgName = files['package.json'] ? (JSON.parse(files['package.json']) as { name?: string }).name : undefined;
+    if (pkgName) name = pkgName;
+  } catch {
+    /* keep basename */
+  }
+  const profile = analyzeFiles(name, files);
+  const plan = recommendPlan(profile, ruvllmSemantic(profile));
+  return { repo: name, results: checkConstraints(profile, plan) };
+}
+
 /** Format the top-N candidates as a ranked list. */
 export function formatCandidates(repo: string, cands: CandidateScore[]): string[] {
   return [
@@ -192,7 +218,7 @@ export async function scoreRepoCmd(args: string[]): Promise<SubcommandResult> {
   let topN: number | null = null;
   for (let i = 0; i < args.length; i++) {
     const a = args[i];
-    if (a === '--json') continue;
+    if (a === '--json' || a === '--constraints') continue;
     if (a === '--help' || a === '-h') return { code: 0, lines: usage() };
     if (a === '--top') {
       const v = parseInt(args[++i] ?? '', 10);
@@ -212,7 +238,16 @@ export async function scoreRepoCmd(args: string[]): Promise<SubcommandResult> {
   if (positional.length === 0) return { code: 2, lines: usage() };
 
   const dir = resolve(positional[0]!);
+  const showConstraints = args.includes('--constraints');
   try {
+    if (showConstraints) {
+      const { repo, results } = repoConstraints(dir);
+      const s = summarise(results);
+      return {
+        code: s.allHardPass ? 0 : 1, // non-zero exit when a hard constraint fails (CI gate)
+        lines: json ? [JSON.stringify({ schema: 1, repo, summary: { ...s, failures: undefined }, results }, null, 2)] : formatConstraints(results),
+      };
+    }
     if (topN != null) {
       const cands = topCandidates(dir, topN);
       const repo = (() => {
