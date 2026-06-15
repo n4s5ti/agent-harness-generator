@@ -111,5 +111,18 @@ Scorecard — <repo>  (best-fit archetype: …)
 ```
 
 No-exec (only reads high-signal files), deterministic, `--json` for CI. +9 tests.
-Wired into `metaharness score` and the CLI help. The remaining synthesis stages
-(beam/MCTS/GoT search, constraint solver) build on this measurement spine.
+Wired into `metaharness score` and the CLI help.
+
+### Shipped synthesis stages (building on the scorecard spine)
+
+| stage | command | status |
+|-------|---------|--------|
+| scoring (the scorecard) | `score <repo>` | ✅ `metaharness@0.1.9` |
+| candidate generation (beam) | `score <repo> --top N` — ranked harness designs | ✅ `metaharness@0.1.10` |
+| validation (constraints) | `score <repo> --constraints` — hard/soft gate, non-zero exit on hard fail | ✅ `metaharness@0.1.11` |
+
+The remaining stages — **MCTS/UCT topology search** (over add-skill/tool/memory/
+verifier/MCP actions with the explicit reward above) and **Graph-of-Thoughts**
+meta-design — are the larger builds; they consume the scorecard (reward signal),
+the candidate generator (beam frontier), and the constraint checker (prune
+infeasible nodes) that now exist.
