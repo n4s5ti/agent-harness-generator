@@ -109,6 +109,38 @@ export async function enforceLiveCitations(
   return { swapped, unresolved, alreadyLive, enforcedAnswer: out.join(' ') };
 }
 
+/** Stop-words excluded from a source's support terms (low-signal for matching). */
+const STOP = new Set([
+  'the', 'and', 'for', 'with', 'from', 'about', 'that', 'this', 'are', 'was', 'were', 'its', 'http', 'https', 'www',
+  'com', 'org', 'net', 'html', 'source', 'sources', 'primary', 'report', 'data', 'see', 'via', 'per', 'each',
+]);
+
+/**
+ * Build a live-mirror pool from a harness's OWN retrieved-source text (the
+ * `search`/`grade` stage output). For each URL on a line, the support terms are
+ * the meaningful words sharing that line (the source's topic/description) — so a
+ * graded source can be matched to a claim it covers. This lets the live-citation
+ * enforcer rescue a dead citation using a source the harness ALREADY retrieved,
+ * with no extra fetch and no fabrication. Pure + deterministic.
+ */
+export function poolFromSourceText(sourceText: string): PooledSource[] {
+  const pool: PooledSource[] = [];
+  for (const line of sourceText.split(/\r?\n/)) {
+    const urls = extractUrls(line);
+    if (urls.length === 0) continue;
+    // Support terms = words on the line minus the URLs themselves + stop-words.
+    let bare = line;
+    for (const u of urls) bare = bare.split(u).join(' ');
+    const terms = [
+      ...new Set(
+        (bare.toLowerCase().match(/[a-z][a-z0-9-]{2,}/g) ?? []).filter((w) => !STOP.has(w)),
+      ),
+    ];
+    for (const url of urls) pool.push({ url, supports: terms });
+  }
+  return pool;
+}
+
 export interface LivePipelineReport {
   enforce: LiveCitationReport;
   gate: GroundingGateReport;

@@ -17,6 +17,9 @@
 // NOTHING here computes or claims a DRACO score — that is M3 (deterministic
 // scorer) + M4 (LLM-judge). M2 produces the FUSED ANSWER + provenance only.
 
+import type { UrlChecker } from './scorer.js';
+import { poolFromSourceText, runLiveCitationPipeline } from './live-citation.js';
+
 /** The six DRACO pipeline stages, in execution order (ADR-037 §2). */
 export const FUSION_STAGES = [
   'decompose',   // question → sub-queries
@@ -101,6 +104,15 @@ export interface FusionResult {
   provenance: StageProvenance[];
   /** Total tokens across all stages. */
   totalTokens: number;
+  /** Set when the deterministic grounding pass ran (ADR-038 arms 5+6). */
+  grounding?: {
+    /** Dead citations rescued by swapping in a live source the harness retrieved. */
+    mirrorsSwapped: number;
+    /** Dead-only claims dropped (no live mirror — honest, never hidden). */
+    claimsDropped: number;
+    /** Redundant dead-citation tokens stripped (live cite already supported the claim). */
+    deadStripped: number;
+  };
 }
 
 /**
@@ -218,7 +230,20 @@ export async function fuseResearch(
   question: { id: string; prompt: string },
   models: FusionModelMap,
   transport: OpenRouterTransport,
-  opts: { enforceFusion?: boolean } = {},
+  opts: {
+    enforceFusion?: boolean;
+    /**
+     * Deterministic grounding pass (ADR-038 arms 5+6). When a UrlChecker is
+     * supplied, after generation the dossier runs through the live-citation
+     * pipeline: dead citations are rescued by swapping in a LIVE source the
+     * harness ALREADY retrieved (from the search/grade stages — its own pool),
+     * then the grounding gate strips redundant dead tokens and drops any claim
+     * still dead-only. Replaces the LLM's GUESS about which citations are
+     * confirmable with a ground-truth liveness check. Honest: no fabricated
+     * citation, no hidden claim. Injected so it stays offline-testable.
+     */
+    groundingChecker?: UrlChecker;
+  } = {},
 ): Promise<FusionResult> {
   // enforceFusion defaults to true (a real fusion run REQUIRES an independent
   // verifier). The single-model HARNESS arm of the ablation runs the same
@@ -276,6 +301,24 @@ export async function fuseResearch(
   ]);
   // Adopt the cite output only if it preserved the dossier (≥70% of length).
   answer = cited.length >= folded.length * 0.7 ? cited : folded;
+
+  // Deterministic grounding pass (ADR-038 arms 5+6): use the harness's OWN
+  // retrieved sources (search + grade stages) as the live-mirror pool, then run
+  // enforce→gate so the final dossier cites only sources that actually resolve —
+  // a ground-truth liveness check, not the LLM's guess. No extra fetch of the
+  // model, no fabricated citation, no hidden claim.
+  if (opts.groundingChecker) {
+    const pool = poolFromSourceText(`${sources}\n${graded}`);
+    const { enforce, gate, pipelineAnswer } = await runLiveCitationPipeline(answer, pool, opts.groundingChecker);
+    answer = pipelineAnswer;
+    return {
+      questionId: question.id,
+      answer,
+      provenance,
+      totalTokens,
+      grounding: { mirrorsSwapped: enforce.swapped, claimsDropped: gate.claimsDropped, deadStripped: gate.deadUrlsStripped },
+    };
+  }
 
   return { questionId: question.id, answer, provenance, totalTokens };
 }

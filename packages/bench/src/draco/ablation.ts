@@ -60,6 +60,13 @@ export interface AblationOptions {
   /** Override the fusion-arm model map (e.g. the cheap preset). Defaults to DRACO_OPTIMIZED_MODELS. */
   fusionModels?: import('./fusion.js').FusionModelMap;
   limit?: number;
+  /**
+   * Opt-in deterministic grounding pass on the FUSION arm (ADR-038 arms 5+6).
+   * When true, fuseResearch runs the live-citation pipeline over its own retrieved
+   * sources using `checkUrl` — the fusion dossier then cites only sources that
+   * actually resolve. Off by default so the baseline three-way is unchanged.
+   */
+  grounded?: boolean;
   /** Called as each question finishes — lets a long live run emit a heartbeat
    * instead of printing nothing until the end. */
   onProgress?: (done: number, total: number, questionId: string) => void;
@@ -258,7 +265,7 @@ export async function runThreeWayAblation(corpus: DracoCorpus, opts: AblationOpt
     const [v, h, f] = await Promise.all([
       vanillaResearch({ id: q.id, prompt: q.prompt }, singleModel, opts.transport),
       singleModelHarness({ id: q.id, prompt: q.prompt }, singleModel, opts.transport),
-      fuseResearch({ id: q.id, prompt: q.prompt }, fusionModels, opts.transport),
+      fuseResearch({ id: q.id, prompt: q.prompt }, fusionModels, opts.transport, opts.grounded ? { groundingChecker: opts.checkUrl } : {}),
     ]);
     const [vs, hs, fs] = await Promise.all([scoreOne(v.answer, q), scoreOne(h.answer, q), scoreOne(f.answer, q)]);
     opts.onProgress?.(++done, questions.length, q.id);

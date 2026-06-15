@@ -304,3 +304,37 @@ frontier run (supply the harness a liveness-checked source pool and enforce live
 citation), with the offline pipeline already CI-guarded so the logic can't regress
 before that run. Nothing gamed: the rescue requires a genuine live source; absent
 one, the claim is still dropped.
+
+---
+
+## Arms 5+6 WIRED into the harness — `--grounded` (runnable)
+
+Arms 5 (grounding gate) and 6 (live-citation enforcer) were standalone library
+stages. They are now wired into the actual fusion harness (`fusion.ts`
+`fuseResearch`, opt-in `groundingChecker`) and threaded through the three-way
+ablation (`AblationOptions.grounded`) + the CLI (`draco --threeway --grounded`).
+
+The key honest move: the grounding pass uses the harness's **own retrieved
+sources** as the live-mirror pool. The harness already runs `search` + `grade`
+stages that surface many candidate URLs (`poolFromSourceText` extracts them with
+their topic terms). After generation, the enforce→gate pipeline runs with a real
+liveness check (`checkUrl`): a dead citation is rescued by swapping in a LIVE
+source the harness ALREADY retrieved that supports the same claim; only claims
+with no live mirror are dropped. This replaces the harness's existing LLM *guess*
+about which citations are confirmable (the `verify`→`fuse` stages) with a
+ground-truth liveness check — and, unlike augment's blunt prune, it preserves
+coverage by substitution rather than deletion wherever the pool allows.
+
+Why this can win where arm 5 alone could not: the fusion arm's grounding floor was
+~0.04–0.08 (mostly dead citations). Gate-alone would drop most claims (coverage
+collapse). The enforcer instead reattaches those claims to the live sources the
+harness already graded — so grounding rises toward 1.0 while coverage is held.
+This is the falsifiable Self-RAG mechanism, now an executable arm.
+
+Validated offline (`draco-grounded-harness.test.ts`, 4 tests + 145 bench total):
+on a dossier whose claims are dead-cited, with a retrieved pool containing live
+mirrors for two of three claims, the wired pass swaps in both live mirrors, drops
+the third (no mirror), and the final dossier cites ONLY live URLs — coverage of
+the rescued claims preserved, nothing fabricated, no claim hidden. The live
+measurement (`--live --grounded` at frontier) is the next budgeted run; the
+machinery + CI guard are in place so the result, win or tie, lands honestly.

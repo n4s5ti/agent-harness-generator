@@ -102,9 +102,11 @@ async function main() {
 
   // The full thesis: --threeway runs vanilla < harness < fusion+harness.
   if (has('threeway')) {
-    const r = await runThreeWayAblation(corpus, { transport, transportKind: kind, checkUrl, judgeTransport, limit, onProgress, ...cheapOpts });
-    process.stdout.write(`\nDRACO ${kind.toUpperCase()} THREE-WAY — vanilla < harness < fusion+harness\n`);
+    const grounded = has('grounded'); // ADR-038 arms 5+6: deterministic grounding pass on the fusion arm
+    const r = await runThreeWayAblation(corpus, { transport, transportKind: kind, checkUrl, judgeTransport, limit, onProgress, grounded, ...cheapOpts });
+    process.stdout.write(`\nDRACO ${kind.toUpperCase()} THREE-WAY${grounded ? ' (grounded fusion)' : ''} — vanilla < harness < fusion+harness\n`);
     if (kind === 'mock') process.stdout.write('NOTE: MOCK transport — demonstrates the machinery, not a live result.\n');
+    if (grounded) process.stdout.write('NOTE: --grounded — fusion arm cites only sources that resolve live (ADR-038 arms 5+6).\n');
     process.stdout.write(`  vanilla (raw chat):            ${r.arms.vanilla.score.toFixed(4)}\n`);
     process.stdout.write(`  harness (structure, 1 model):  ${r.arms.harness.score.toFixed(4)}  (+${r.deltas.harnessOverVanilla.toFixed(4)} vs vanilla)\n`);
     process.stdout.write(`  fusion+harness (independent):  ${r.arms.fusion.score.toFixed(4)}  (+${r.deltas.fusionOverHarness.toFixed(4)} vs harness)\n`);
