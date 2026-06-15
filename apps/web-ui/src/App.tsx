@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Boxes, Github, HelpCircle, Sparkles } from 'lucide-react';
+import { Boxes, Github, HelpCircle, Sparkles, Gauge, Route, ShieldCheck } from 'lucide-react';
 import { HarnessBuilder } from './components/HarnessBuilder';
 import { ArtifactBuilder } from './components/ArtifactBuilder';
 import { RepoImporter } from './components/RepoImporter';
@@ -68,6 +68,23 @@ export default function App() {
               agents, skills, commands, MCP tools, and policy; emit a signed-ready, npm-publishable runtime. No backend,
               no install.
             </p>
+            <div className="mt-3 flex flex-wrap gap-2">
+              {[
+                { icon: Gauge, title: 'Score any repo', desc: 'harness fit · $/run · scaffold-ready' },
+                { icon: Route, title: 'Cost-optimal routing', desc: 'cheap model, frontier quality' },
+                { icon: ShieldCheck, title: 'Default-deny tools', desc: 'auditable · witness-signed' },
+              ].map(({ icon: Icon, title, desc }) => (
+                <span
+                  key={title}
+                  className="inline-flex items-center gap-1.5 rounded-lg border border-ink-700 bg-ink-800/50 px-2.5 py-1 text-xs text-slate-300"
+                  title={desc}
+                >
+                  <Icon size={13} className="text-brand-glow" />
+                  <span className="font-medium text-slate-200">{title}</span>
+                  <span className="hidden text-slate-500 sm:inline">— {desc}</span>
+                </span>
+              ))}
+            </div>
           </div>
           <SegTabs
             value={mode}
