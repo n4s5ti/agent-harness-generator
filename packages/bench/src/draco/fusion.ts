@@ -166,18 +166,20 @@ export function openRouterTransport(opts: {
         clearTimeout(timer);
       }
       if (res.ok) {
-        // A 200 does NOT guarantee a JSON body: frontier models occasionally
-        // return an empty or truncated body (load, content filtering, upstream
-        // hiccup), and res.json() then throws "Unexpected end of JSON input".
-        // That escaped the !res.ok retry path and killed the whole run, so treat
-        // an unparseable 200 as a transient failure and retry.
-        const raw = await res.text();
+        // A 200 does NOT guarantee a readable JSON body. Two failure modes, both
+        // transient, both previously fatal:
+        //   1. empty/truncated body → JSON.parse throws "Unexpected end of JSON input"
+        //   2. connection terminated DURING the body read → undici throws
+        //      `TypeError: terminated` from `await res.text()` itself.
+        // Reading the body AND parsing it are wrapped together so either failure
+        // is retried instead of killing the whole run.
         let json: { choices?: { message?: { content?: string } }[]; usage?: { total_tokens?: number } };
         try {
+          const raw = await res.text();
           json = JSON.parse(raw);
-        } catch {
+        } catch (err) {
           if (attempt === maxRetries) {
-            throw new Error(`OpenRouter ${modelId} → 200 with unparseable/empty body (after ${attempt} retries)`);
+            throw new Error(`OpenRouter ${modelId} → 200 body read/parse failed: ${String((err as Error)?.message ?? err)} (after ${attempt} retries)`);
           }
           await sleep(Math.min(1000 * 2 ** attempt, 16000) + (attempt * 137) % 500);
           continue;

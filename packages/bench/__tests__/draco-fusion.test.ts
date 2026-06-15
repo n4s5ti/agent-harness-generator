@@ -136,6 +136,22 @@ describe('DRACO fusion — live transport guards', () => {
     expect(calls).toBe(2);
   });
 
+  it('retries a 200 whose body read is terminated (undici), then succeeds', async () => {
+    let calls = 0;
+    const fetchImpl = vi.fn(async () => {
+      calls++;
+      if (calls === 1) {
+        // 200 OK but res.text() throws like undici on a cut connection.
+        return { ok: true, status: 200, text: async () => { throw new TypeError('terminated'); } };
+      }
+      return { ok: true, status: 200, text: async () => JSON.stringify({ choices: [{ message: { content: 'recovered' } }], usage: { total_tokens: 11 } }) };
+    }) as unknown as typeof fetch;
+    const t = openRouterTransport({ apiKey: 'k', fetchImpl, maxRetries: 3 });
+    const out = await t('m', [{ role: 'user', content: 'q' }]);
+    expect(out.text).toBe('recovered');
+    expect(calls).toBe(2);
+  });
+
   it('retries a transient 429 then succeeds (honours Retry-After)', async () => {
     let calls = 0;
     const fetchImpl = vi.fn(async () => {
