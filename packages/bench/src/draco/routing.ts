@@ -17,13 +17,28 @@ import type { UrlChecker } from './scorer.js';
 import { scoreAnswer } from './scorer.js';
 import { judgeFaithfulness, DRACO_JUDGE } from './judge.js';
 import { vanillaResearch } from './optimized.js';
+import { parseQuality } from './self-consistency.js';
 import { costOf, BLENDED_USD_PER_MTOK } from './cost-efficiency.js';
 import type { DracoCorpus } from './runner.js';
+
+/** Holistic pre-signal prompt — NO URL re-fetch, so a real router can use it. */
+const SIGNAL_PROMPT =
+  'You are a research-quality judge. Rate the dossier below from 0.0 to 1.0 on ' +
+  'overall quality (grounding, coverage, balance, faithfulness). You cannot fetch ' +
+  'URLs — judge from the text alone. Reply with ONLY the number.';
 
 /** One (question, model) cell: the DRACO quality + tokens for that model's dossier. */
 export interface RoutingCell {
   quality: number;
   tokens: number;
+  /**
+   * Routing-time PRE-SIGNAL: a cheap holistic judge rating (0..1) of the dossier,
+   * computed WITHOUT the scorer's URL re-fetch — i.e. exactly what a real router
+   * can observe before committing. router_v2 may read this; the oracle may not
+   * (the oracle uses the post-hoc `quality`). Present only when the matrix was
+   * built with recordSignal.
+   */
+  signal?: number;
 }
 
 /** questionId -> model -> cell. The reusable artifact every policy reads. */
@@ -62,6 +77,11 @@ export async function runRoutingMatrix(
     limit?: number;
     concurrency?: number;
     onProgress?: (done: number, total: number, id: string) => void;
+    /** Record the routing-time pre-signal per cell (a cheap holistic rating). */
+    recordSignal?: boolean;
+    /** Model for the pre-signal rating (default: judgeModel). A cheap model is realistic. */
+    signalModel?: string;
+    signalTransport?: OpenRouterTransport;
   },
 ): Promise<RoutingMatrix> {
   const judgeModel = opts.judgeModel ?? DRACO_JUDGE.model;
@@ -90,7 +110,19 @@ export async function runRoutingMatrix(
             // fold faithfulness into the composite the same way the ablations do
             quality = (dims.grounding + dims.coverage + dims.balance + dims.cleanliness + j.faithfulness) / 5;
           }
-          row[model] = { quality, tokens: r.totalTokens };
+          let signal: number | undefined;
+          if (opts.recordSignal) {
+            const st = opts.signalTransport ?? opts.judgeTransport;
+            const sm = opts.signalModel ?? judgeModel;
+            if (st) {
+              const s = await st(sm, [
+                { role: 'system', content: SIGNAL_PROMPT },
+                { role: 'user', content: r.answer },
+              ]);
+              signal = parseQuality(s.text);
+            }
+          }
+          row[model] = { quality, tokens: r.totalTokens, ...(signal != null ? { signal } : {}) };
         }),
       );
       cells[q.id] = row;
@@ -153,6 +185,43 @@ export function oracleCostOptimal(m: RoutingMatrix, epsilon: number, prices = BL
 /** A real router: a selection function seeing only the matrix's structure (caller supplies the policy). */
 export function routerPolicy(m: RoutingMatrix, label: string, pick: (q: string, m: RoutingMatrix) => string, prices = BLENDED_USD_PER_MTOK): PolicyResult {
   return evalPicks(m, label, (q) => pick(q, m), prices);
+}
+
+/**
+ * router_v2 — adaptive escalation. Run the cheap model; observe ONLY its
+ * routing-time pre-signal (cell.signal, no URL re-fetch); if the signal is below
+ * `threshold`, escalate to `escalateTo`, else keep the cheap dossier. This is an
+ * HONEST router: it never reads the post-hoc `quality` the oracle uses — only
+ * the signal a real deployment can see. Cost includes the cheap call always (you
+ * pay for it before deciding) plus the escalation call when it fires.
+ */
+export function routerEscalate(
+  m: RoutingMatrix,
+  opts: { cheapModel: string; escalateTo: string; threshold: number },
+  prices = BLENDED_USD_PER_MTOK,
+): PolicyResult {
+  const label = `router_v2(${opts.cheapModel.split('/').pop()}→${opts.escalateTo.split('/').pop()}@${opts.threshold})`;
+  const picks: string[] = [];
+  let qSum = 0;
+  let cost = 0;
+  for (const q of m.questionIds) {
+    const cheap = m.cells[q][opts.cheapModel];
+    const sig = cheap.signal ?? 0; // no signal recorded → treat as low → escalate (conservative)
+    // Always pay for the cheap probe call.
+    let questionCost = costOf(opts.cheapModel, cheap.tokens, prices);
+    let chosen = opts.cheapModel;
+    if (sig < opts.threshold) {
+      const esc = m.cells[q][opts.escalateTo];
+      questionCost += costOf(opts.escalateTo, esc.tokens, prices); // pay for the escalation too
+      chosen = opts.escalateTo;
+    }
+    const cell = m.cells[q][chosen];
+    qSum += cell.quality;
+    cost += questionCost;
+    picks.push(chosen);
+  }
+  const quality = qSum / m.questionIds.length;
+  return { label, picks, quality, costUSD: cost, qualityPerUSD: cost > 0 ? quality / cost : Infinity };
 }
 
 function bestBy(m: RoutingMatrix, q: string, key: (c: RoutingCell) => number): string {

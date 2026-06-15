@@ -8,6 +8,7 @@ import {
   oracleQuality,
   oracleCostOptimal,
   routerPolicy,
+  routerEscalate,
   analyse,
 } from '../src/draco/routing.js';
 
@@ -55,6 +56,37 @@ describe('oracle policies', () => {
     // bigger ε=0.35: q2 haiku(0.6) now within 0.35 of 0.9 → cheap haiku wins on cost.
     const o2 = oracleCostOptimal(M, 0.35);
     expect(o2.picks).toEqual(['anthropic/claude-haiku-4.5', 'anthropic/claude-haiku-4.5']);
+  });
+});
+
+describe('router_v2 — adaptive escalation on the pre-signal', () => {
+  // haiku signal: q1 high (0.9 → keep haiku), q2 low (0.3 → escalate to opus).
+  const MS: RoutingMatrix = {
+    models: ['anthropic/claude-haiku-4.5', 'anthropic/claude-opus-4'],
+    questionIds: ['q1', 'q2'],
+    cells: {
+      q1: { 'anthropic/claude-haiku-4.5': { quality: 0.8, tokens: 1000, signal: 0.9 }, 'anthropic/claude-opus-4': { quality: 0.7, tokens: 1000, signal: 0.8 } },
+      q2: { 'anthropic/claude-haiku-4.5': { quality: 0.6, tokens: 1000, signal: 0.3 }, 'anthropic/claude-opus-4': { quality: 0.9, tokens: 1000, signal: 0.8 } },
+    },
+  };
+
+  it('keeps cheap when signal >= threshold, escalates when below', () => {
+    const r = routerEscalate(MS, { cheapModel: 'anthropic/claude-haiku-4.5', escalateTo: 'anthropic/claude-opus-4', threshold: 0.5 });
+    expect(r.picks).toEqual(['anthropic/claude-haiku-4.5', 'anthropic/claude-opus-4']); // keep q1, escalate q2
+    expect(r.quality).toBeCloseTo((0.8 + 0.9) / 2); // 0.85 — matches the oracle here
+  });
+
+  it('charges the cheap probe always + the escalation when it fires', () => {
+    const r = routerEscalate(MS, { cheapModel: 'anthropic/claude-haiku-4.5', escalateTo: 'anthropic/claude-opus-4', threshold: 0.5 });
+    // q1: haiku only ($3/1M*1000). q2: haiku probe + opus escalation ($3 + $45)/1M*1000.
+    const haiku = (1000 / 1e6) * 3;
+    const opus = (1000 / 1e6) * 45;
+    expect(r.costUSD).toBeCloseTo(haiku + (haiku + opus), 6);
+  });
+
+  it('threshold 0 never escalates (= always cheap)', () => {
+    const r = routerEscalate(MS, { cheapModel: 'anthropic/claude-haiku-4.5', escalateTo: 'anthropic/claude-opus-4', threshold: 0 });
+    expect(r.picks).toEqual(['anthropic/claude-haiku-4.5', 'anthropic/claude-haiku-4.5']);
   });
 });
 

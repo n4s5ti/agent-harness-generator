@@ -123,18 +123,23 @@ async function main() {
   // and evaluates the routing ladder (always_X, oracle, cost-optimal oracle,
   // router_v1) on quality/dollar. Needs --live + a judge for real quality.
   if (has('routing')) {
-    const { runRoutingMatrix, alwaysPolicy, oracleQuality, oracleCostOptimal, routerPolicy, analyse } = await import('./routing.js');
+    const { runRoutingMatrix, alwaysPolicy, oracleQuality, oracleCostOptimal, routerPolicy, routerEscalate, analyse } = await import('./routing.js');
     const pool = (arg('pool') ?? 'anthropic/claude-haiku-4.5,openai/gpt-5,anthropic/claude-opus-4').split(',');
     const eps = arg('epsilon') ? parseFloat(arg('epsilon')!) : 0.03;
     const concurrency = parseInt(process.env.DRACO_CONCURRENCY ?? '4', 10) || 4;
-    const matrix = await runRoutingMatrix(corpus, { pool, transport, checkUrl, judgeTransport, limit, concurrency, onProgress });
+    const recordSignal = has('signal'); // router_v2 needs the routing-time pre-signal
+    const matrix = await runRoutingMatrix(corpus, { pool, transport, checkUrl, judgeTransport, limit, concurrency, onProgress, recordSignal });
     const always = pool.map((mdl) => alwaysPolicy(matrix, mdl));
     const oQ = oracleQuality(matrix);
     const oCO = oracleCostOptimal(matrix, eps);
     const { BLENDED_USD_PER_MTOK } = await import('./cost-efficiency.js');
-    const cheapest = pool.slice().sort((a, b) => (BLENDED_USD_PER_MTOK[a] ?? Infinity) - (BLENDED_USD_PER_MTOK[b] ?? Infinity))[0];
+    const sorted = pool.slice().sort((a, b) => (BLENDED_USD_PER_MTOK[a] ?? Infinity) - (BLENDED_USD_PER_MTOK[b] ?? Infinity));
+    const cheapest = sorted[0];
+    const dearest = sorted[sorted.length - 1];
     const routerV1 = routerPolicy(matrix, 'router_v1(always-cheapest)', () => cheapest);
-    const ladder = analyse([...always, oQ, routerV1, oCO], oCO);
+    // router_v2: escalate cheapest→dearest when the pre-signal is low. Sweep thresholds.
+    const v2s = recordSignal ? [0.5, 0.6, 0.7, 0.8].map((t) => routerEscalate(matrix, { cheapModel: cheapest, escalateTo: dearest, threshold: t })) : [];
+    const ladder = analyse([...always, oQ, routerV1, ...v2s, oCO], oCO);
     process.stdout.write(`\nDRACO ${kind.toUpperCase()} ROUTING (ADR-040) — quality/dollar ladder (eps=${eps})\n`);
     process.stdout.write(`  pool: ${pool.join(', ')}\n`);
     for (const p of ladder) {
