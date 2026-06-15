@@ -48,9 +48,14 @@ let cached: TinyDancerModule | null | undefined;
 async function loadTinyDancer(): Promise<TinyDancerModule | null> {
   if (cached !== undefined) return cached;
   try {
-    // Indirect specifier so bundlers don't hard-resolve the optional dep.
-    const mod = (await import('@ruvector/tiny-dancer')) as unknown as TinyDancerModule;
-    cached = mod && typeof mod.trainRouter === 'function' ? mod : null;
+    // tiny-dancer is CJS: under plain Node ESM its named exports land on `.default`,
+    // not the namespace object. Unwrap so this works in real installs (not just the
+    // vitest interop). Indirect specifier keeps bundlers from hard-resolving the dep.
+    const raw = (await import('@ruvector/tiny-dancer')) as unknown as Record<string, unknown>;
+    const cand = (raw && typeof raw.trainRouter === 'function' ? raw : (raw?.default as Record<string, unknown> | undefined)) as
+      | TinyDancerModule
+      | undefined;
+    cached = cand && typeof cand.trainRouter === 'function' ? cand : null;
   } catch {
     cached = null;
   }
