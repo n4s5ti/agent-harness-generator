@@ -111,6 +111,38 @@ of a candidate dossier, observable WITHOUT the scorer's URL re-fetch). The matri
 will be enriched to record it per cell so router_v2 is evaluated honestly (the
 router sees only the pre-signal, never the post-hoc score the oracle uses).
 
+## Results — matrix run 2 (signal-enriched, router_v2 sweep)
+
+| policy | quality | % oracle-q | cost | q/$ |
+|--------|---------|-----------|------|-----|
+| always_haiku | 0.6545 | 86% | $0.13 | 4.87 |
+| always_gpt-5 | 0.6795 | 89% | $2.50 | 0.27 |
+| always_opus | 0.6960 | 91% | $1.27 | 0.55 |
+| **oracle_quality** | **0.7682** | 100% | $1.68 | 0.46 |
+| router_v1 (cheapest) | 0.6545 | 86% | $0.13 | 4.87 |
+| **router_v2 (self-signal escalate, τ∈{.5,.6,.7,.8})** | **0.6512** | 85% | $0.38 | 1.73 |
+| oracle_cost_optimal(ε=.03) | 0.7654 | 100% | $1.49 | 0.51 |
+
+**Phase 2 premise re-confirmed:** the oracle (0.7682) beats the best fixed model
+(opus, 0.6960) by **+0.072 / +10%** — consistent with run 1's +7.5%. Per-question
+model disagreement is real and repeatable; routing headroom exists.
+
+**router_v2 (hand-rolled self-signal escalation) FAILED — and the failure is the
+finding.** It scored 0.6512 (85%) — *worse* than always-cheapest (0.6545) — and
+paid extra ($0.38) for escalations that didn't help, **flat across all
+thresholds**. Mechanism: a model's *self-rated holistic confidence does not
+predict which questions another model wins.* Escalating "low-confidence"
+questions to opus added cost without quality, because the self-rating is
+uncorrelated with per-question model superiority.
+
+**This is the empirical case for a LEARNED router (tiny-dancer), not a hand
+threshold.** The signal that works is not self-assessment — it's a model trained
+on (query embedding → per-model outcome). The routing matrix IS that training
+set; the oracle's +10% is the headroom a learned router should capture where the
+threshold couldn't. Next: train/evaluate `@ruvector/tiny-dancer` (FastGRNN +
+uncertainty + circuit breaker) on this matrix, reported as % of oracle on the
+same data. router_v2 stays in-tree as the measured-rejected naive baseline.
+
 ## Honest guardrails
 
 - The "haiku > opus on DRACO" claim must **survive repeated runs** before it

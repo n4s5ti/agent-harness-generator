@@ -1,0 +1,681 @@
+{
+  "pool": [
+    "anthropic/claude-haiku-4.5",
+    "openai/gpt-5",
+    "anthropic/claude-opus-4"
+  ],
+  "epsilon": 0.03,
+  "matrix": {
+    "models": [
+      "anthropic/claude-haiku-4.5",
+      "openai/gpt-5",
+      "anthropic/claude-opus-4"
+    ],
+    "questionIds": [
+      "sci-001",
+      "sci-002",
+      "sci-003",
+      "sci-004",
+      "fin-001",
+      "fin-002",
+      "fin-003",
+      "fin-004",
+      "law-001",
+      "law-002",
+      "law-003",
+      "law-004",
+      "cur-001",
+      "cur-002",
+      "cur-003",
+      "tech-001",
+      "tech-002",
+      "tech-003",
+      "tech-004",
+      "tech-005"
+    ],
+    "cells": {
+      "sci-003": {
+        "anthropic/claude-haiku-4.5": {
+          "quality": 0.8300000000000001,
+          "tokens": 1607,
+          "signal": 1
+        },
+        "anthropic/claude-opus-4": {
+          "quality": 0.8003157894736843,
+          "tokens": 1349,
+          "signal": 0.95
+        },
+        "openai/gpt-5": {
+          "quality": 0.86,
+          "tokens": 9472,
+          "signal": 0.95
+        }
+      },
+      "sci-001": {
+        "anthropic/claude-haiku-4.5": {
+          "quality": 0.6599999999999999,
+          "tokens": 1043,
+          "signal": 1
+        },
+        "anthropic/claude-opus-4": {
+          "quality": 0.76,
+          "tokens": 1270,
+          "signal": 0.95
+        },
+        "openai/gpt-5": {
+          "quality": 0.45999999999999996,
+          "tokens": 10956,
+          "signal": 1
+        }
+      },
+      "sci-004": {
+        "anthropic/claude-haiku-4.5": {
+          "quality": 0.7006666666666667,
+          "tokens": 2778,
+          "signal": 0.3
+        },
+        "anthropic/claude-opus-4": {
+          "quality": 0.6072727272727272,
+          "tokens": 1369,
+          "signal": 0.3
+        },
+        "openai/gpt-5": {
+          "quality": 0.7595555555555555,
+          "tokens": 13801,
+          "signal": 0.95
+        }
+      },
+      "sci-002": {
+        "anthropic/claude-haiku-4.5": {
+          "quality": 0.6966666666666667,
+          "tokens": 1715,
+          "signal": 0.98
+        },
+        "anthropic/claude-opus-4": {
+          "quality": 0.5675,
+          "tokens": 1419,
+          "signal": 1
+        },
+        "openai/gpt-5": {
+          "quality": 0.5282758620689656,
+          "tokens": 12677,
+          "signal": 1
+        }
+      },
+      "fin-001": {
+        "anthropic/claude-opus-4": {
+          "quality": 0.6968888888888889,
+          "tokens": 1203,
+          "signal": 1
+        },
+        "anthropic/claude-haiku-4.5": {
+          "quality": 0.5261538461538462,
+          "tokens": 1555,
+          "signal": 1
+        },
+        "openai/gpt-5": {
+          "quality": 0.5858823529411765,
+          "tokens": 8082,
+          "signal": 1
+        }
+      },
+      "fin-004": {
+        "anthropic/claude-opus-4": {
+          "quality": 0.6185714285714285,
+          "tokens": 1057,
+          "signal": 0.95
+        },
+        "openai/gpt-5": {
+          "quality": 0.7,
+          "tokens": 8313,
+          "signal": 1
+        },
+        "anthropic/claude-haiku-4.5": {
+          "quality": 0.44000000000000006,
+          "tokens": 1966,
+          "signal": 0.98
+        }
+      },
+      "fin-002": {
+        "anthropic/claude-haiku-4.5": {
+          "quality": 0.6,
+          "tokens": 2134,
+          "signal": 0
+        },
+        "anthropic/claude-opus-4": {
+          "quality": 0.72,
+          "tokens": 1591,
+          "signal": 0.95
+        },
+        "openai/gpt-5": {
+          "quality": 0.8171428571428571,
+          "tokens": 8907,
+          "signal": 0
+        }
+      },
+      "fin-003": {
+        "anthropic/claude-opus-4": {
+          "quality": 0.5326666666666667,
+          "tokens": 1401,
+          "signal": 0.95
+        },
+        "anthropic/claude-haiku-4.5": {
+          "quality": 0.7006666666666667,
+          "tokens": 3335,
+          "signal": 0.98
+        },
+        "openai/gpt-5": {
+          "quality": 0.5876923076923077,
+          "tokens": 10004,
+          "signal": 1
+        }
+      },
+      "law-001": {
+        "anthropic/claude-haiku-4.5": {
+          "quality": 0.7133333333333333,
+          "tokens": 1803,
+          "signal": 1
+        },
+        "anthropic/claude-opus-4": {
+          "quality": 0.5866666666666667,
+          "tokens": 1318,
+          "signal": 0.92
+        },
+        "openai/gpt-5": {
+          "quality": 0.8727272727272727,
+          "tokens": 7768,
+          "signal": 1
+        }
+      },
+      "law-003": {
+        "anthropic/claude-haiku-4.5": {
+          "quality": 0.7739999999999999,
+          "tokens": 2493,
+          "signal": 1
+        },
+        "anthropic/claude-opus-4": {
+          "quality": 0.8313333333333333,
+          "tokens": 1820,
+          "signal": 0.95
+        },
+        "openai/gpt-5": {
+          "quality": 0.7485714285714286,
+          "tokens": 8901,
+          "signal": 1
+        }
+      },
+      "law-002": {
+        "anthropic/claude-opus-4": {
+          "quality": 0.787,
+          "tokens": 1083,
+          "signal": 0.98
+        },
+        "anthropic/claude-haiku-4.5": {
+          "quality": 0.648,
+          "tokens": 1737,
+          "signal": 0.98
+        },
+        "openai/gpt-5": {
+          "quality": 0.8133333333333332,
+          "tokens": 11127,
+          "signal": 1
+        }
+      },
+      "law-004": {
+        "anthropic/claude-opus-4": {
+          "quality": 0.6060000000000001,
+          "tokens": 1258,
+          "signal": 0.95
+        },
+        "anthropic/claude-haiku-4.5": {
+          "quality": 0.62,
+          "tokens": 3491,
+          "signal": 0.95
+        },
+        "openai/gpt-5": {
+          "quality": 0.7523538461538462,
+          "tokens": 8760,
+          "signal": 1
+        }
+      },
+      "cur-002": {
+        "anthropic/claude-opus-4": {
+          "quality": 0.6453333333333333,
+          "tokens": 1013,
+          "signal": 0.5
+        },
+        "anthropic/claude-haiku-4.5": {
+          "quality": 0.682,
+          "tokens": 1977,
+          "signal": 0.4
+        },
+        "openai/gpt-5": {
+          "quality": 0.48,
+          "tokens": 10367,
+          "signal": 1
+        }
+      },
+      "cur-001": {
+        "anthropic/claude-opus-4": {
+          "quality": 0.7903076923076923,
+          "tokens": 1292,
+          "signal": 1
+        },
+        "anthropic/claude-haiku-4.5": {
+          "quality": 0.7913666666666667,
+          "tokens": 1729,
+          "signal": 0.97
+        },
+        "openai/gpt-5": {
+          "quality": 0.5347368421052632,
+          "tokens": 10498,
+          "signal": 0.99
+        }
+      },
+      "cur-003": {
+        "anthropic/claude-haiku-4.5": {
+          "quality": 0.526,
+          "tokens": 1456,
+          "signal": 0.95
+        },
+        "anthropic/claude-opus-4": {
+          "quality": 0.758,
+          "tokens": 1832,
+          "signal": 0.95
+        },
+        "openai/gpt-5": {
+          "quality": 0.6799999999999999,
+          "tokens": 10895,
+          "signal": 1
+        }
+      },
+      "tech-001": {
+        "anthropic/claude-haiku-4.5": {
+          "quality": 0.43133333333333335,
+          "tokens": 2473,
+          "signal": 0.98
+        },
+        "anthropic/claude-opus-4": {
+          "quality": 0.568,
+          "tokens": 1466,
+          "signal": 1
+        },
+        "openai/gpt-5": {
+          "quality": 0.4,
+          "tokens": 10712,
+          "signal": 1
+        }
+      },
+      "tech-002": {
+        "anthropic/claude-opus-4": {
+          "quality": 0.6238461538461538,
+          "tokens": 1427,
+          "signal": 0.97
+        },
+        "anthropic/claude-haiku-4.5": {
+          "quality": 0.6799999999999999,
+          "tokens": 1761,
+          "signal": 0.4
+        },
+        "openai/gpt-5": {
+          "quality": 0.7288888888888889,
+          "tokens": 15487,
+          "signal": 1
+        }
+      },
+      "tech-004": {
+        "anthropic/claude-opus-4": {
+          "quality": 0.8140000000000001,
+          "tokens": 1346,
+          "signal": 0.95
+        },
+        "anthropic/claude-haiku-4.5": {
+          "quality": 0.58,
+          "tokens": 2008,
+          "signal": 0.95
+        },
+        "openai/gpt-5": {
+          "quality": 0.52,
+          "tokens": 10877,
+          "signal": 0.98
+        }
+      },
+      "tech-003": {
+        "anthropic/claude-haiku-4.5": {
+          "quality": 0.7796551724137931,
+          "tokens": 5661,
+          "signal": 0.98
+        },
+        "anthropic/claude-opus-4": {
+          "quality": 0.7499310344827587,
+          "tokens": 2132,
+          "signal": 0.95
+        },
+        "openai/gpt-5": {
+          "quality": 0.8703448275862069,
+          "tokens": 13373,
+          "signal": 1
+        }
+      },
+      "tech-005": {
+        "anthropic/claude-opus-4": {
+          "quality": 0.8554545454545455,
+          "tokens": 1487,
+          "signal": 1
+        },
+        "anthropic/claude-haiku-4.5": {
+          "quality": 0.7100000000000001,
+          "tokens": 2059,
+          "signal": 1
+        },
+        "openai/gpt-5": {
+          "quality": 0.8914285714285715,
+          "tokens": 7443,
+          "signal": 1
+        }
+      }
+    }
+  },
+  "ladder": [
+    {
+      "label": "always_anthropic/claude-haiku-4.5",
+      "picks": [
+        "anthropic/claude-haiku-4.5",
+        "anthropic/claude-haiku-4.5",
+        "anthropic/claude-haiku-4.5",
+        "anthropic/claude-haiku-4.5",
+        "anthropic/claude-haiku-4.5",
+        "anthropic/claude-haiku-4.5",
+        "anthropic/claude-haiku-4.5",
+        "anthropic/claude-haiku-4.5",
+        "anthropic/claude-haiku-4.5",
+        "anthropic/claude-haiku-4.5",
+        "anthropic/claude-haiku-4.5",
+        "anthropic/claude-haiku-4.5",
+        "anthropic/claude-haiku-4.5",
+        "anthropic/claude-haiku-4.5",
+        "anthropic/claude-haiku-4.5",
+        "anthropic/claude-haiku-4.5",
+        "anthropic/claude-haiku-4.5",
+        "anthropic/claude-haiku-4.5",
+        "anthropic/claude-haiku-4.5",
+        "anthropic/claude-haiku-4.5"
+      ],
+      "quality": 0.6544921175950487,
+      "costUSD": 0.13434299999999996,
+      "qualityPerUSD": 4.871799182652232,
+      "pctOfOracle": 9.472305279989557,
+      "pctOfOracleQuality": 0.8550778068929895
+    },
+    {
+      "label": "always_openai/gpt-5",
+      "picks": [
+        "openai/gpt-5",
+        "openai/gpt-5",
+        "openai/gpt-5",
+        "openai/gpt-5",
+        "openai/gpt-5",
+        "openai/gpt-5",
+        "openai/gpt-5",
+        "openai/gpt-5",
+        "openai/gpt-5",
+        "openai/gpt-5",
+        "openai/gpt-5",
+        "openai/gpt-5",
+        "openai/gpt-5",
+        "openai/gpt-5",
+        "openai/gpt-5",
+        "openai/gpt-5",
+        "openai/gpt-5",
+        "openai/gpt-5",
+        "openai/gpt-5",
+        "openai/gpt-5"
+      ],
+      "quality": 0.6795466973097837,
+      "costUSD": 2.50104,
+      "qualityPerUSD": 0.27170564937377395,
+      "pctOfOracle": 0.5282809821740366,
+      "pctOfOracleQuality": 0.8878109972541247
+    },
+    {
+      "label": "always_anthropic/claude-opus-4",
+      "picks": [
+        "anthropic/claude-opus-4",
+        "anthropic/claude-opus-4",
+        "anthropic/claude-opus-4",
+        "anthropic/claude-opus-4",
+        "anthropic/claude-opus-4",
+        "anthropic/claude-opus-4",
+        "anthropic/claude-opus-4",
+        "anthropic/claude-opus-4",
+        "anthropic/claude-opus-4",
+        "anthropic/claude-opus-4",
+        "anthropic/claude-opus-4",
+        "anthropic/claude-opus-4",
+        "anthropic/claude-opus-4",
+        "anthropic/claude-opus-4",
+        "anthropic/claude-opus-4",
+        "anthropic/claude-opus-4",
+        "anthropic/claude-opus-4",
+        "anthropic/claude-opus-4",
+        "anthropic/claude-opus-4",
+        "anthropic/claude-opus-4"
+      ],
+      "quality": 0.6959544130148939,
+      "costUSD": 1.265985,
+      "qualityPerUSD": 0.5497335379288807,
+      "pctOfOracle": 1.0688543798055785,
+      "pctOfOracleQuality": 0.9092472730840041
+    },
+    {
+      "label": "oracle_quality",
+      "picks": [
+        "anthropic/claude-opus-4",
+        "anthropic/claude-haiku-4.5",
+        "openai/gpt-5",
+        "openai/gpt-5",
+        "anthropic/claude-opus-4",
+        "openai/gpt-5",
+        "anthropic/claude-haiku-4.5",
+        "openai/gpt-5",
+        "openai/gpt-5",
+        "openai/gpt-5",
+        "anthropic/claude-opus-4",
+        "openai/gpt-5",
+        "anthropic/claude-haiku-4.5",
+        "anthropic/claude-haiku-4.5",
+        "anthropic/claude-opus-4",
+        "anthropic/claude-opus-4",
+        "openai/gpt-5",
+        "openai/gpt-5",
+        "anthropic/claude-opus-4",
+        "openai/gpt-5"
+      ],
+      "quality": 0.7682348687519378,
+      "costUSD": 1.681845,
+      "qualityPerUSD": 0.45678101653359127,
+      "pctOfOracle": 0.8881255307314655,
+      "pctOfOracleQuality": 1.0036799055196142
+    },
+    {
+      "label": "router_v1(always-cheapest)",
+      "picks": [
+        "anthropic/claude-haiku-4.5",
+        "anthropic/claude-haiku-4.5",
+        "anthropic/claude-haiku-4.5",
+        "anthropic/claude-haiku-4.5",
+        "anthropic/claude-haiku-4.5",
+        "anthropic/claude-haiku-4.5",
+        "anthropic/claude-haiku-4.5",
+        "anthropic/claude-haiku-4.5",
+        "anthropic/claude-haiku-4.5",
+        "anthropic/claude-haiku-4.5",
+        "anthropic/claude-haiku-4.5",
+        "anthropic/claude-haiku-4.5",
+        "anthropic/claude-haiku-4.5",
+        "anthropic/claude-haiku-4.5",
+        "anthropic/claude-haiku-4.5",
+        "anthropic/claude-haiku-4.5",
+        "anthropic/claude-haiku-4.5",
+        "anthropic/claude-haiku-4.5",
+        "anthropic/claude-haiku-4.5",
+        "anthropic/claude-haiku-4.5"
+      ],
+      "quality": 0.6544921175950487,
+      "costUSD": 0.13434299999999996,
+      "qualityPerUSD": 4.871799182652232,
+      "pctOfOracle": 9.472305279989557,
+      "pctOfOracleQuality": 0.8550778068929895
+    },
+    {
+      "label": "router_v2(claude-haiku-4.5→claude-opus-4@0.5)",
+      "picks": [
+        "anthropic/claude-haiku-4.5",
+        "anthropic/claude-haiku-4.5",
+        "anthropic/claude-haiku-4.5",
+        "anthropic/claude-opus-4",
+        "anthropic/claude-haiku-4.5",
+        "anthropic/claude-opus-4",
+        "anthropic/claude-haiku-4.5",
+        "anthropic/claude-haiku-4.5",
+        "anthropic/claude-haiku-4.5",
+        "anthropic/claude-haiku-4.5",
+        "anthropic/claude-haiku-4.5",
+        "anthropic/claude-haiku-4.5",
+        "anthropic/claude-haiku-4.5",
+        "anthropic/claude-opus-4",
+        "anthropic/claude-haiku-4.5",
+        "anthropic/claude-haiku-4.5",
+        "anthropic/claude-opus-4",
+        "anthropic/claude-haiku-4.5",
+        "anthropic/claude-haiku-4.5",
+        "anthropic/claude-haiku-4.5"
+      ],
+      "quality": 0.651181394984326,
+      "costUSD": 0.377343,
+      "qualityPerUSD": 1.725701536756548,
+      "pctOfOracle": 3.3553049223605504,
+      "pctOfOracleQuality": 0.850752429469637
+    },
+    {
+      "label": "router_v2(claude-haiku-4.5→claude-opus-4@0.6)",
+      "picks": [
+        "anthropic/claude-haiku-4.5",
+        "anthropic/claude-haiku-4.5",
+        "anthropic/claude-haiku-4.5",
+        "anthropic/claude-opus-4",
+        "anthropic/claude-haiku-4.5",
+        "anthropic/claude-opus-4",
+        "anthropic/claude-haiku-4.5",
+        "anthropic/claude-haiku-4.5",
+        "anthropic/claude-haiku-4.5",
+        "anthropic/claude-haiku-4.5",
+        "anthropic/claude-haiku-4.5",
+        "anthropic/claude-haiku-4.5",
+        "anthropic/claude-haiku-4.5",
+        "anthropic/claude-opus-4",
+        "anthropic/claude-haiku-4.5",
+        "anthropic/claude-haiku-4.5",
+        "anthropic/claude-opus-4",
+        "anthropic/claude-haiku-4.5",
+        "anthropic/claude-haiku-4.5",
+        "anthropic/claude-haiku-4.5"
+      ],
+      "quality": 0.651181394984326,
+      "costUSD": 0.377343,
+      "qualityPerUSD": 1.725701536756548,
+      "pctOfOracle": 3.3553049223605504,
+      "pctOfOracleQuality": 0.850752429469637
+    },
+    {
+      "label": "router_v2(claude-haiku-4.5→claude-opus-4@0.7)",
+      "picks": [
+        "anthropic/claude-haiku-4.5",
+        "anthropic/claude-haiku-4.5",
+        "anthropic/claude-haiku-4.5",
+        "anthropic/claude-opus-4",
+        "anthropic/claude-haiku-4.5",
+        "anthropic/claude-opus-4",
+        "anthropic/claude-haiku-4.5",
+        "anthropic/claude-haiku-4.5",
+        "anthropic/claude-haiku-4.5",
+        "anthropic/claude-haiku-4.5",
+        "anthropic/claude-haiku-4.5",
+        "anthropic/claude-haiku-4.5",
+        "anthropic/claude-haiku-4.5",
+        "anthropic/claude-opus-4",
+        "anthropic/claude-haiku-4.5",
+        "anthropic/claude-haiku-4.5",
+        "anthropic/claude-opus-4",
+        "anthropic/claude-haiku-4.5",
+        "anthropic/claude-haiku-4.5",
+        "anthropic/claude-haiku-4.5"
+      ],
+      "quality": 0.651181394984326,
+      "costUSD": 0.377343,
+      "qualityPerUSD": 1.725701536756548,
+      "pctOfOracle": 3.3553049223605504,
+      "pctOfOracleQuality": 0.850752429469637
+    },
+    {
+      "label": "router_v2(claude-haiku-4.5→claude-opus-4@0.8)",
+      "picks": [
+        "anthropic/claude-haiku-4.5",
+        "anthropic/claude-haiku-4.5",
+        "anthropic/claude-haiku-4.5",
+        "anthropic/claude-opus-4",
+        "anthropic/claude-haiku-4.5",
+        "anthropic/claude-opus-4",
+        "anthropic/claude-haiku-4.5",
+        "anthropic/claude-haiku-4.5",
+        "anthropic/claude-haiku-4.5",
+        "anthropic/claude-haiku-4.5",
+        "anthropic/claude-haiku-4.5",
+        "anthropic/claude-haiku-4.5",
+        "anthropic/claude-haiku-4.5",
+        "anthropic/claude-opus-4",
+        "anthropic/claude-haiku-4.5",
+        "anthropic/claude-haiku-4.5",
+        "anthropic/claude-opus-4",
+        "anthropic/claude-haiku-4.5",
+        "anthropic/claude-haiku-4.5",
+        "anthropic/claude-haiku-4.5"
+      ],
+      "quality": 0.651181394984326,
+      "costUSD": 0.377343,
+      "qualityPerUSD": 1.725701536756548,
+      "pctOfOracle": 3.3553049223605504,
+      "pctOfOracleQuality": 0.850752429469637
+    },
+    {
+      "label": "oracle_cost_optimal(eps=0.03)",
+      "picks": [
+        "anthropic/claude-opus-4",
+        "anthropic/claude-haiku-4.5",
+        "anthropic/claude-haiku-4.5",
+        "openai/gpt-5",
+        "anthropic/claude-opus-4",
+        "openai/gpt-5",
+        "anthropic/claude-haiku-4.5",
+        "openai/gpt-5",
+        "openai/gpt-5",
+        "anthropic/claude-opus-4",
+        "anthropic/claude-opus-4",
+        "openai/gpt-5",
+        "anthropic/claude-haiku-4.5",
+        "anthropic/claude-haiku-4.5",
+        "anthropic/claude-opus-4",
+        "anthropic/claude-opus-4",
+        "openai/gpt-5",
+        "openai/gpt-5",
+        "anthropic/claude-opus-4",
+        "openai/gpt-5"
+      ],
+      "quality": 0.7654182020852711,
+      "costUSD": 1.488213,
+      "qualityPerUSD": 0.5143203305476239,
+      "pctOfOracle": 1,
+      "pctOfOracleQuality": 1
+    }
+  ]
+}
