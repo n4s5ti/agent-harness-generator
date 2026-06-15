@@ -20,7 +20,7 @@ import { fileURLToPath } from 'node:url';
 import { runDraco, type DracoCorpus } from './runner.js';
 import { openRouterTransport, type OpenRouterTransport } from './fusion.js';
 import { liveUrlChecker, type UrlChecker } from './scorer.js';
-import { runAblation, runThreeWayAblation } from './ablation.js';
+import { runAblation, runThreeWayAblation, runAugmentAblation } from './ablation.js';
 import { DRACO_CHEAP_MODELS, DRACO_CHEAP_SINGLE_MODEL, DRACO_CHEAP_JUDGE } from './optimized.js';
 
 const here = dirname(fileURLToPath(import.meta.url));
@@ -114,6 +114,24 @@ async function main() {
       const outPath = resolve(out);
       mkdirSync(dirname(outPath), { recursive: true });
       writeFileSync(outPath, JSON.stringify(r, null, 2) + '\n', 'utf-8');
+      process.stderr.write(`[draco] wrote ${outPath}\n`);
+    }
+    return;
+  }
+
+  // ADR-038 arm 1: --augment runs vanilla vs augment-not-replace (verify→prune).
+  if (has('augment')) {
+    const ag = await runAugmentAblation(corpus, { transport, transportKind: kind, checkUrl, judgeTransport, limit, onProgress, ...cheapOpts });
+    process.stdout.write(`\nDRACO ${kind.toUpperCase()} AUGMENT — vanilla vs augment-not-replace (verify→prune)\n`);
+    if (kind === 'mock') process.stdout.write('NOTE: MOCK transport — machinery only, not a live result.\n');
+    process.stdout.write(`  vanilla (raw dossier):      ${ag.vanilla.score.toFixed(4)}\n`);
+    process.stdout.write(`  augment (verify→prune):     ${ag.augment.score.toFixed(4)}  (${ag.delta >= 0 ? '+' : ''}${ag.delta.toFixed(4)} vs vanilla)\n`);
+    process.stdout.write(`  augment ${ag.augmentWins ? 'WINS' : 'does not win'}\n`);
+    process.stdout.write(`  by dimension: grounding ${ag.deltaByDimension.grounding.toFixed(2)} · coverage ${ag.deltaByDimension.coverage.toFixed(2)} · balance ${ag.deltaByDimension.balance.toFixed(2)} · cleanliness ${ag.deltaByDimension.cleanliness.toFixed(2)}${ag.deltaByDimension.faithfulness != null ? ` · faithfulness ${ag.deltaByDimension.faithfulness.toFixed(2)}` : ''}\n`);
+    if (out) {
+      const outPath = resolve(out);
+      mkdirSync(dirname(outPath), { recursive: true });
+      writeFileSync(outPath, JSON.stringify(ag, null, 2) + '\n', 'utf-8');
       process.stderr.write(`[draco] wrote ${outPath}\n`);
     }
     return;

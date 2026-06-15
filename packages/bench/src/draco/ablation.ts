@@ -23,6 +23,7 @@ import {
   vanillaResearch,
   singleModelHarness,
 } from './optimized.js';
+import { augmentedResearch } from './augment.js';
 import type { DracoCorpus } from './runner.js';
 
 export interface ArmResult {
@@ -303,5 +304,98 @@ export async function runThreeWayAblation(corpus: DracoCorpus, opts: AblationOpt
     },
     thesisHolds: vanilla.score <= harness.score && harness.score <= fusion.score && fusion.score > vanilla.score,
     ordering,
+  };
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// AUGMENT ABLATION (ADR-038 arm 1) — vanilla vs augment-not-replace.
+//
+// Measures whether refining the strong direct dossier with an independent
+// verify→prune pass (augment.ts) beats the raw vanilla dossier on the SAME
+// scorer. The baseline showed the rebuild-everything harness loses to vanilla;
+// this tests the opposite design — keep vanilla's grounding, only prune.
+// ─────────────────────────────────────────────────────────────────────────────
+
+export interface AugmentReport {
+  corpusVersion: number;
+  transport: 'mock' | 'live';
+  judged: boolean;
+  judge?: { model: string; promptVersion: number };
+  vanilla: ArmResult;
+  augment: ArmResult;
+  /** augment.score − vanilla.score. Positive → augment wins. */
+  delta: number;
+  deltaByDimension: { grounding: number; coverage: number; balance: number; cleanliness: number; faithfulness?: number };
+  augmentWins: boolean;
+}
+
+export async function runAugmentAblation(corpus: DracoCorpus, opts: AblationOptions): Promise<AugmentReport> {
+  const judged = !!opts.judgeTransport;
+  const judgeModel = opts.judgeModel ?? DRACO_JUDGE.model;
+  const fusionModels = opts.fusionModels ?? DRACO_OPTIMIZED_MODELS;
+  if (judged) assertJudgeIndependent(judgeModel, fusionModels);
+  const baseModel = opts.singleModel ?? DRACO_SINGLE_MODEL;
+  const verifyModel = fusionModels.verify; // independent family, reused from the fusion map
+
+  let questions = corpus.questions;
+  if (opts.limit != null) questions = questions.slice(0, opts.limit);
+
+  const scoreOne = async (answer: string, q: typeof questions[number]) => {
+    const d = await scoreAnswer(answer, q.rubric, q.prompt, opts.checkUrl);
+    let f: number | undefined;
+    if (judged && opts.judgeTransport) f = (await judgeFaithfulness(answer, opts.judgeTransport, judgeModel)).faithfulness;
+    return { d, f };
+  };
+
+  const vDims: DimensionScores[] = [];
+  const aDims: DimensionScores[] = [];
+  const vFaith: number[] = [];
+  const aFaith: number[] = [];
+  let vTokens = 0;
+  let aTokens = 0;
+
+  let done = 0;
+  const rows = await mapPooled(questions, DRACO_CONCURRENCY, async (q) => {
+    const [v, a] = await Promise.all([
+      vanillaResearch({ id: q.id, prompt: q.prompt }, baseModel, opts.transport),
+      augmentedResearch({ id: q.id, prompt: q.prompt }, { baseModel, verifyModel, transport: opts.transport }),
+    ]);
+    const [vs, as] = await Promise.all([scoreOne(v.answer, q), scoreOne(a.answer, q)]);
+    opts.onProgress?.(++done, questions.length, q.id);
+    return { v, a, vs, as };
+  });
+  for (const r of rows) {
+    vTokens += r.v.totalTokens; vDims.push(r.vs.d); if (r.vs.f != null) vFaith.push(r.vs.f);
+    aTokens += r.a.totalTokens; aDims.push(r.as.d); if (r.as.f != null) aFaith.push(r.as.f);
+  }
+
+  const score = (ds: DimensionScores[], ff: number[]) =>
+    mean(ds.map((d, i) => {
+      const vals = [d.grounding, d.coverage, d.balance, d.cleanliness];
+      if (judged) vals.push(ff[i] ?? 0);
+      return vals.reduce((x, y) => x + y, 0) / vals.length;
+    }));
+
+  const vScore = score(vDims, vFaith);
+  const aScore = score(aDims, aFaith);
+  const vd = avgDims(vDims, judged ? vFaith : null);
+  const ad = avgDims(aDims, judged ? aFaith : null);
+
+  return {
+    corpusVersion: corpus.version,
+    transport: opts.transportKind,
+    judged,
+    ...(judged ? { judge: { model: judgeModel, promptVersion: DRACO_JUDGE.promptVersion } } : {}),
+    vanilla: { arm: 'single', score: vScore, perDimension: vd, totalTokens: vTokens },
+    augment: { arm: 'fusion', score: aScore, perDimension: ad, totalTokens: aTokens },
+    delta: aScore - vScore,
+    deltaByDimension: {
+      grounding: ad.grounding - vd.grounding,
+      coverage: ad.coverage - vd.coverage,
+      balance: ad.balance - vd.balance,
+      cleanliness: ad.cleanliness - vd.cleanliness,
+      ...(judged ? { faithfulness: (ad as { faithfulness: number }).faithfulness - (vd as { faithfulness: number }).faithfulness } : {}),
+    },
+    augmentWins: aScore > vScore,
   };
 }
