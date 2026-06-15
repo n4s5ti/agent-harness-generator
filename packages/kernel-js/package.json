@@ -39,11 +39,19 @@
   ],
   "scripts": {
     "build": "tsc",
-    "test": "vitest run --passWithNoTests",
+    "test": "vitest run",
     "lint": "tsc --noEmit"
   },
-  "keywords": ["agent-harness", "mcp", "wasm", "kernel", "ruflo"],
-  "publishConfig": { "access": "public" },
+  "keywords": [
+    "agent-harness",
+    "mcp",
+    "wasm",
+    "kernel",
+    "ruflo"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
   "dependencies": {
     "@ruvector/emergent-time": "^0.1.0"
   },
@@ -51,7 +59,9 @@
     "@ruvector/rvf": "^0.2.0"
   },
   "peerDependenciesMeta": {
-    "@ruvector/rvf": { "optional": true }
+    "@ruvector/rvf": {
+      "optional": true
+    }
   },
   "optionalDependencies": {
     "@ruflo/kernel-darwin-arm64": "0.1.0",
@@ -60,5 +70,7 @@
     "@ruflo/kernel-linux-arm64-gnu": "0.1.0",
     "@ruflo/kernel-win32-x64-msvc": "0.1.0"
   },
-  "engines": { "node": ">=20.0.0" }
+  "engines": {
+    "node": ">=20.0.0"
+  }
 }
