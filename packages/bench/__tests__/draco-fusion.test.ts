@@ -105,9 +105,34 @@ describe('DRACO fusion — live transport guards', () => {
     expect((init as RequestInit).headers).toMatchObject({ Authorization: 'Bearer test-key' });
   });
 
-  it('surfaces a non-OK HTTP status', async () => {
+  it('surfaces a non-OK HTTP status (no retries → fast fail)', async () => {
     const fetchImpl = vi.fn(async () => ({ ok: false, status: 429, json: async () => ({}) })) as unknown as typeof fetch;
-    const t = openRouterTransport({ apiKey: 'k', fetchImpl });
+    // maxRetries:0 disables backoff so the guard test stays instant.
+    const t = openRouterTransport({ apiKey: 'k', fetchImpl, maxRetries: 0 });
     await expect(t('m', [{ role: 'user', content: 'q' }])).rejects.toThrow(/HTTP 429/);
+    expect(fetchImpl).toHaveBeenCalledOnce();
+  });
+
+  it('fails fast on a non-transient 4xx (bad model slug) without retrying', async () => {
+    const fetchImpl = vi.fn(async () => ({ ok: false, status: 400, json: async () => ({}) })) as unknown as typeof fetch;
+    const t = openRouterTransport({ apiKey: 'k', fetchImpl, maxRetries: 5 });
+    await expect(t('bad/model', [{ role: 'user', content: 'q' }])).rejects.toThrow(/HTTP 400/);
+    expect(fetchImpl).toHaveBeenCalledOnce(); // 400 is not transient — never retried
+  });
+
+  it('retries a transient 429 then succeeds (honours Retry-After)', async () => {
+    let calls = 0;
+    const fetchImpl = vi.fn(async () => {
+      calls++;
+      if (calls === 1) {
+        return { ok: false, status: 429, headers: { get: () => '0' }, json: async () => ({}) };
+      }
+      return { ok: true, status: 200, json: async () => ({ choices: [{ message: { content: 'recovered' } }], usage: { total_tokens: 7 } }) };
+    }) as unknown as typeof fetch;
+    const t = openRouterTransport({ apiKey: 'k', fetchImpl, maxRetries: 3 });
+    const out = await t('m', [{ role: 'user', content: 'q' }]);
+    expect(out.text).toBe('recovered');
+    expect(out.tokens).toBe(7);
+    expect(calls).toBe(2); // one 429, one success
   });
 });

@@ -64,6 +64,39 @@ function mean(xs: number[]): number {
   return xs.length === 0 ? 0 : xs.reduce((s, x) => s + x, 0) / xs.length;
 }
 
+/**
+ * How many QUESTIONS run concurrently. The old runner was one-call-at-a-time
+ * (slow but rate-limit-safe). Naive `Promise.all(questions.map(...))` flipped to
+ * the other extreme: on a 20-Q three-way run it fires ~60 pipelines at once,
+ * which hammers OpenRouter into a 429 storm — the fusion transport throws on a
+ * non-2xx, that rejects the whole batch, and the run dies with no output
+ * (observed iter 160: 0-byte output, no artifact). A small BOUNDED pool is the
+ * fix: parallel enough to be ~Nx faster, capped so we never burst past the rate
+ * limit. Override with DRACO_CONCURRENCY for fatter accounts.
+ */
+const DRACO_CONCURRENCY = Math.max(1, parseInt(process.env.DRACO_CONCURRENCY ?? '4', 10) || 4);
+
+/**
+ * Map `items` through async `fn` with at most `limit` running at once, preserving
+ * INPUT ORDER in the result (so downstream scoring stays deterministic w.r.t. the
+ * corpus). A pure helper — no deps. If any task rejects, the whole call rejects
+ * (we want a live run to fail loudly, not silently average over dropped questions).
+ */
+async function mapPooled<T, R>(items: T[], limit: number, fn: (item: T, index: number) => Promise<R>): Promise<R[]> {
+  const results = new Array<R>(items.length);
+  let next = 0;
+  const worker = async (): Promise<void> => {
+    for (;;) {
+      const i = next++;
+      if (i >= items.length) return;
+      results[i] = await fn(items[i], i);
+    }
+  };
+  const pool = Array.from({ length: Math.min(limit, items.length) }, () => worker());
+  await Promise.all(pool);
+  return results;
+}
+
 function avgDims(rows: DimensionScores[], faith: number[] | null) {
   const base = {
     grounding: mean(rows.map((r) => r.grounding)),
@@ -106,20 +139,23 @@ export async function runAblation(corpus: DracoCorpus, opts: AblationOptions): P
     return { dims, faith };
   };
 
-  for (const q of questions) {
-    // single arm
-    const single = await singleModelResearch({ id: q.id, prompt: q.prompt }, singleModel, opts.transport);
-    singleTokens += single.totalTokens;
-    const s = await scoreOne(single.answer, q);
-    singleDims.push(s.dims);
-    if (s.faith != null) singleFaith.push(s.faith);
-
-    // fusion arm
-    const fused = await fuseResearch({ id: q.id, prompt: q.prompt }, fusionModels, opts.transport);
-    fusionTokens += fused.totalTokens;
-    const f = await scoreOne(fused.answer, q);
-    fusionDims.push(f.dims);
-    if (f.faith != null) fusionFaith.push(f.faith);
+  // Bounded pool (iter 160): both arms per question run concurrently, questions
+  // through a capped pool. Order preserved → deterministic. See DRACO_CONCURRENCY.
+  const rows = await mapPooled(questions, DRACO_CONCURRENCY, async (q) => {
+    const [single, fused] = await Promise.all([
+      singleModelResearch({ id: q.id, prompt: q.prompt }, singleModel, opts.transport),
+      fuseResearch({ id: q.id, prompt: q.prompt }, fusionModels, opts.transport),
+    ]);
+    const [s, f] = await Promise.all([scoreOne(single.answer, q), scoreOne(fused.answer, q)]);
+    return { single, fused, s, f };
+  });
+  for (const r of rows) {
+    singleTokens += r.single.totalTokens;
+    singleDims.push(r.s.dims);
+    if (r.s.faith != null) singleFaith.push(r.s.faith);
+    fusionTokens += r.fused.totalTokens;
+    fusionDims.push(r.f.dims);
+    if (r.f.faith != null) fusionFaith.push(r.f.faith);
   }
 
   const meanOf = (dims: DimensionScores[], faith: number[]) => {
@@ -204,13 +240,13 @@ export async function runThreeWayAblation(corpus: DracoCorpus, opts: AblationOpt
     return { d, f };
   };
 
-  // Optimisation (iter 159): run the three arms PER QUESTION concurrently, and
-  // all questions concurrently. Each question's pipeline is internally
-  // sequential; ~corpus-size requests are in flight at once. On a 20-Q corpus
-  // this is ~20x faster than the old one-call-at-a-time loop. Results are
-  // collected in input order (Promise.all preserves order) so scoring is
-  // deterministic w.r.t. the corpus.
-  const perQ = await Promise.all(questions.map(async (q) => {
+  // Optimisation (iter 159, hardened iter 160): run questions through a BOUNDED
+  // pool (DRACO_CONCURRENCY, default 4). Within each question the three arms run
+  // concurrently; across questions at most `limit` are in flight. Far faster than
+  // the old one-call-at-a-time loop, but capped so a live run never bursts past
+  // the OpenRouter rate limit (the unbounded version 429-stormed and died with no
+  // output). mapPooled preserves input order → deterministic scoring.
+  const perQ = await mapPooled(questions, DRACO_CONCURRENCY, async (q) => {
     const [v, h, f] = await Promise.all([
       vanillaResearch({ id: q.id, prompt: q.prompt }, singleModel, opts.transport),
       singleModelHarness({ id: q.id, prompt: q.prompt }, singleModel, opts.transport),
@@ -218,7 +254,7 @@ export async function runThreeWayAblation(corpus: DracoCorpus, opts: AblationOpt
     ]);
     const [vs, hs, fs] = await Promise.all([scoreOne(v.answer, q), scoreOne(h.answer, q), scoreOne(f.answer, q)]);
     return { v, h, f, vs, hs, fs };
-  }));
+  });
   for (const r of perQ) {
     tokens.vanilla += r.v.totalTokens; dims.vanilla.push(r.vs.d); if (r.vs.f != null) faith.vanilla.push(r.vs.f);
     tokens.harness += r.h.totalTokens; dims.harness.push(r.hs.d); if (r.hs.f != null) faith.harness.push(r.hs.f);

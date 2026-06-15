@@ -112,6 +112,8 @@ export function openRouterTransport(opts: {
   apiKey?: string;
   baseUrl?: string;
   fetchImpl?: typeof fetch;
+  /** Retries for transient (429/5xx) failures before giving up. Default 5. */
+  maxRetries?: number;
 } = {}): OpenRouterTransport {
   const apiKey = opts.apiKey ?? process.env.OPENROUTER_API_KEY;
   const baseUrl = opts.baseUrl ?? 'https://openrouter.ai/api/v1';
@@ -123,26 +125,49 @@ export function openRouterTransport(opts: {
         'never hardcode it. For offline tests, inject a mock OpenRouterTransport instead.',
     );
   }
+  // Retry budget for transient failures. A bounded concurrency pool keeps bursts
+  // small, but cheap-tier OpenRouter still returns 429 (rate limit) / 5xx
+  // (upstream hiccup) under load. Without retry a single 429 throws and rejects
+  // the whole ablation batch (observed iter 160). Retry only the transient codes;
+  // 4xx other than 429 (e.g. 400 bad model slug) fails fast — retrying won't help.
+  const maxRetries = opts.maxRetries ?? 5;
+  const sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
   return async (modelId, messages) => {
-    const res = await doFetch(`${baseUrl}/chat/completions`, {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${apiKey}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ model: modelId, messages }),
-    });
-    if (!res.ok) {
-      throw new Error(`OpenRouter ${modelId} → HTTP ${res.status}`);
+    let lastStatus = 0;
+    for (let attempt = 0; attempt <= maxRetries; attempt++) {
+      const res = await doFetch(`${baseUrl}/chat/completions`, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${apiKey}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ model: modelId, messages }),
+      });
+      if (res.ok) {
+        const json = (await res.json()) as {
+          choices?: { message?: { content?: string } }[];
+          usage?: { total_tokens?: number };
+        };
+        return {
+          text: json.choices?.[0]?.message?.content ?? '',
+          tokens: json.usage?.total_tokens ?? 0,
+        };
+      }
+      lastStatus = res.status;
+      const transient = res.status === 429 || res.status >= 500;
+      if (!transient || attempt === maxRetries) {
+        throw new Error(`OpenRouter ${modelId} → HTTP ${res.status}${attempt > 0 ? ` (after ${attempt} retries)` : ''}`);
+      }
+      // Honour Retry-After when present, else exponential backoff (1s,2s,4s,…)
+      // with a small fixed jitter so retries from a burst don't realign.
+      const retryAfter = Number(res.headers?.get?.('retry-after'));
+      const backoff = Number.isFinite(retryAfter) && retryAfter > 0
+        ? retryAfter * 1000
+        : Math.min(1000 * 2 ** attempt, 16000) + (attempt * 137) % 500;
+      await sleep(backoff);
     }
-    const json = (await res.json()) as {
-      choices?: { message?: { content?: string } }[];
-      usage?: { total_tokens?: number };
-    };
-    return {
-      text: json.choices?.[0]?.message?.content ?? '',
-      tokens: json.usage?.total_tokens ?? 0,
-    };
+    // Unreachable (loop returns or throws), but satisfies the type checker.
+    throw new Error(`OpenRouter ${modelId} → HTTP ${lastStatus}`);
   };
 }
 
