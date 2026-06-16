@@ -1,6 +1,6 @@
 {
   "name": "@metaharness/host-github-actions",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "GitHub Actions host adapter for agent-harness-generator. Emits .github/workflows/<name>.yml + a composite action.yml for non-interactive CI/CD agent harnesses (ADR-033).",
   "homepage": "https://github.com/ruvnet/agent-harness-generator",
   "repository": {
@@ -18,7 +18,11 @@
       "import": "./dist/index.js"
     }
   },
-  "files": ["dist/**", "README.md", "LICENSE"],
+  "files": [
+    "dist/**",
+    "README.md",
+    "LICENSE"
+  ],
   "scripts": {
     "build": "tsc",
     "test": "vitest run --passWithNoTests",
@@ -35,12 +39,18 @@
     "ruflo",
     "ADR-033"
   ],
-  "publishConfig": { "access": "public" },
-  "dependencies": { "@metaharness/kernel": "0.1.0" },
+  "publishConfig": {
+    "access": "public"
+  },
+  "dependencies": {
+    "@metaharness/kernel": "0.1.0"
+  },
   "devDependencies": {
     "@types/node": "^20.0.0",
     "typescript": "^5.4.0",
     "vitest": "^2.0.0"
   },
-  "engines": { "node": ">=20.0.0" }
+  "engines": {
+    "node": ">=20.0.0"
+  }
 }
