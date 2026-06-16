@@ -155,7 +155,8 @@ export function parseArgs(argv: string[]): CliArgs {
       out.templatePackage = argv[++i];
     } else if (a === '--host' || a === '-h') {
       const v = argv[++i];
-      if (v) (out.hosts ??= []).push(v);
+      // GH #10: accept repeated --host AND comma-separated (--host a,b).
+      if (v) for (const h of v.split(',').map(s => s.trim()).filter(Boolean)) (out.hosts ??= []).push(h);
     } else if (a === '--yes' || a === '-y') {
       out.yes = true;
     } else if (a === '--force' || a === '-f') {
@@ -198,7 +199,14 @@ export function templateDir(id: string): string {
 export interface ScaffoldOptions {
   name: string;
   template: string;
+  /** Primary host — drives the template ({{host}}, bin/init imports). */
   host: Host;
+  /**
+   * GH #10: full host set for a multi-host harness. Defaults to [host]. The
+   * primary (host) drives the template; every host's native config + npm dep is
+   * emitted, and manifest.hosts records the full set.
+   */
+  hosts?: Host[];
   description?: string;
   targetDir: string;
   force?: boolean;
@@ -237,20 +245,47 @@ export async function scaffold(opts: ScaffoldOptions): Promise<ScaffoldResult> {
     description: opts.description ?? 'My AI agent harness',
     host: opts.host,
   };
-  const rendered = await walkTemplate(dir, vars, { strict: false });
+  let rendered = await walkTemplate(dir, vars, { strict: false });
 
-  // ADR-045: emit the selected host's native config. The templates are
-  // claude-shaped; for any non-claude-code host we additionally merge the
-  // host adapter's output so `--host <X>` actually produces X's config
-  // (previously only the manifest recorded the host). Dependency-free +
-  // byte-parity with the web-UI generator (ADR-027).
-  for (const f of hostConfigFiles(opts.host, {
-    name: opts.name,
-    description: vars.description,
-    mcp: 'local',
-  })) {
-    if (rendered.some(r => r.path === f.path)) continue; // never clobber a template file
-    rendered.push({ path: f.path, content: f.content, rendered: false, unresolved: [] });
+  // GH #10: a harness may target multiple hosts. The primary (opts.host) drives
+  // the claude-shaped template; every host in the set gets its native config
+  // overlaid + its npm dep added + recorded in manifest.hosts.
+  const allHosts = (opts.hosts && opts.hosts.length ? opts.hosts : [opts.host]);
+  const hostSet = Array.from(new Set(allHosts));
+
+  // GH #11: the templates always emit Claude-Code files. When claude-code is
+  // NOT among the selected hosts, drop the Claude-Code-specific runtime config
+  // (`.claude/settings.json` + `.claude-plugin/**`) so an rvm/hermes/… harness
+  // isn't littered with Claude noise. CLAUDE.md + skills/commands stay (they're
+  // useful cross-host instructions).
+  if (!hostSet.includes('claude-code' as Host)) {
+    rendered = rendered.filter(r =>
+      r.path !== '.claude/settings.json' && !r.path.startsWith('.claude-plugin/'));
+  }
+
+  // ADR-045 + GH #10: emit EVERY selected host's native config.
+  for (const h of hostSet) {
+    for (const f of hostConfigFiles(h, { name: opts.name, description: vars.description, mcp: 'local' })) {
+      if (rendered.some(r => r.path === f.path)) continue; // never clobber a template/earlier file
+      rendered.push({ path: f.path, content: f.content, rendered: false, unresolved: [] });
+    }
+  }
+
+  // GH #10: add an npm dep for every selected host (the template only declares
+  // the primary {{host}}). Edit the rendered package.json in place.
+  if (hostSet.length > 1) {
+    const pkgIdx = rendered.findIndex(r => r.path === 'package.json');
+    if (pkgIdx !== -1) {
+      try {
+        const pkg = JSON.parse(rendered[pkgIdx]!.content);
+        pkg.dependencies = pkg.dependencies || {};
+        for (const h of hostSet) {
+          const dep = `@metaharness/host-${h}`;
+          if (!pkg.dependencies[dep]) pkg.dependencies[dep] = '^0.1.1';
+        }
+        rendered[pkgIdx]!.content = JSON.stringify(pkg, null, 2) + '\n';
+      } catch { /* leave package.json untouched if it doesn't parse */ }
+    }
   }
 
   const fileMap = asFileMap(rendered);
@@ -262,7 +297,7 @@ export async function scaffold(opts: ScaffoldOptions): Promise<ScaffoldResult> {
     meta: KERNEL_VERSION ? { kernel_version: KERNEL_VERSION } : {},
   });
   manifest.vars = vars;
-  manifest.hosts = [opts.host];
+  manifest.hosts = hostSet; // GH #10: full host set, not just the primary
   manifest.files = fingerprintFiles(fileMap);
   // Self-hash the manifest itself so `harness upgrade` can detect a hand-
   // edited manifest.
@@ -478,11 +513,16 @@ export async function main(argv: string[]): Promise<number> {
     return 2;
   }
 
-  const host = (args.hosts?.[0] ?? 'claude-code') as Host;
-  if (!HOSTS.includes(host)) {
-    console.error(`Unknown host: ${host}. Choose from: ${HOSTS.join(', ')}`);
-    return 2;
+  // GH #10: support a multi-host harness. The first --host is primary (drives
+  // the template); all are validated + emitted.
+  const hostList = (args.hosts && args.hosts.length ? args.hosts : ['claude-code']) as Host[];
+  for (const h of hostList) {
+    if (!HOSTS.includes(h)) {
+      console.error(`Unknown host: ${h}. Choose from: ${HOSTS.join(', ')}`);
+      return 2;
+    }
   }
+  const host = hostList[0]!;
 
   const template = args.template ?? 'minimal';
   // GH issue #9: honor `--target <path>` (write the harness AT <path>); default
@@ -496,12 +536,14 @@ export async function main(argv: string[]): Promise<number> {
       name: args.name,
       template,
       host,
+      hosts: hostList,
       description: args.description,
       targetDir,
       force: args.force,
       generatorVersion: '0.1.0',
     });
     console.log(`Scaffolded ${args.name} into ${targetDir}`);
+    if (hostList.length > 1) console.log(`Hosts: ${hostList.join(', ')}`);
     console.log(`Files: ${result.paths.length}`);
     console.log(`Manifest: ${result.manifestPath}`);
     if (result.unresolved.length > 0) {

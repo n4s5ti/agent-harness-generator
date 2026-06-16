@@ -82,4 +82,43 @@ describe('scaffold wires host config (ADR-045 end-to-end)', () => {
     const files = Object.keys(manifest.files);
     expect(files.some((p) => p.startsWith('.github/workflows/'))).toBe(true);
   });
+
+  // GH #10 — a single scaffold produces a multi-host harness.
+  it('emits config + dep + manifest entry for every host (multi-host)', async () => {
+    const dir = mkdtempSync(join(tmpdir(), 'mh-multi-'));
+    await scaffold({
+      name: 'multi', template: 'minimal',
+      host: 'claude-code' as never, hosts: ['claude-code', 'codex', 'opencode'] as never,
+      description: 'x', targetDir: dir, force: true, generatorVersion: '0.0.0-test',
+    });
+    expect(existsSync(join(dir, '.codex/config.toml'))).toBe(true);
+    expect(existsSync(join(dir, '.opencode/opencode.json'))).toBe(true);
+    const manifest = JSON.parse(readFileSync(join(dir, '.harness/manifest.json'), 'utf-8'));
+    expect(manifest.hosts).toEqual(['claude-code', 'codex', 'opencode']);
+    const deps = JSON.parse(readFileSync(join(dir, 'package.json'), 'utf-8')).dependencies;
+    expect(deps['@metaharness/host-codex']).toBeDefined();
+    expect(deps['@metaharness/host-opencode']).toBeDefined();
+  });
+
+  // GH #11 — non-Claude host doesn't get Claude-Code-specific runtime files.
+  it('omits .claude/settings.json + .claude-plugin when claude-code is not selected', async () => {
+    const dir = mkdtempSync(join(tmpdir(), 'mh-gate-'));
+    await scaffold({
+      name: 'rvm-only', template: 'minimal', host: 'rvm' as never, hosts: ['rvm'] as never,
+      description: 'x', targetDir: dir, force: true, generatorVersion: '0.0.0-test',
+    });
+    expect(existsSync(join(dir, '.claude/settings.json'))).toBe(false);
+    expect(existsSync(join(dir, '.claude-plugin'))).toBe(false);
+    expect(existsSync(join(dir, 'rvm.manifest.toml'))).toBe(true);
+  });
+
+  it('keeps .claude/settings.json when claude-code IS among the hosts', async () => {
+    const dir = mkdtempSync(join(tmpdir(), 'mh-keep-'));
+    await scaffold({
+      name: 'cc', template: 'minimal', host: 'claude-code' as never, hosts: ['claude-code', 'rvm'] as never,
+      description: 'x', targetDir: dir, force: true, generatorVersion: '0.0.0-test',
+    });
+    expect(existsSync(join(dir, '.claude/settings.json'))).toBe(true);
+    expect(existsSync(join(dir, 'rvm.manifest.toml'))).toBe(true);
+  });
 });

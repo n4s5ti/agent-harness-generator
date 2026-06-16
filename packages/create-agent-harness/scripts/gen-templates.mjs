@@ -84,7 +84,7 @@ function packageJsonTmpl() {
   "devDependencies": {
     "@types/node": "^20.0.0",
     "typescript": "^5.4.0",
-    "vitest": "^2.0.0"
+    "vitest": "^3.0.0"
   },
   "engines": {
     "node": ">=20.0.0"
