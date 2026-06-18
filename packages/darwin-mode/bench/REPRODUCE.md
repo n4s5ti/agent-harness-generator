@@ -41,6 +41,7 @@ LLM, deterministic). **LLM** = one or more live OpenRouter calls (set
 | 125 | Consolidated `runSweBenchTask()` corpus-ready runner | `node --experimental-strip-types bench/experiments/swe-bench-run.mjs` | `results/swe-bench-run.json` | one entry point: materialize→derive F2P/P2P→select→whole-file fix→git-diff→criterion; RESOLVED 4/4,18/18 | LLM |
 | 126 | Repair loop + regression-aware feedback + robust parsing | `node --experimental-strip-types bench/experiments/swe-bench-repair.mjs` | `results/swe-bench-repair.json` | single-fault RESOLVED (2 attempts); two-fault whole-file repair regresses P2P (honest limitation → step 3 needs surgical patching) | LLM |
 | 127 | Search/replace patch primitive (fixes ADR-126) | `node --experimental-strip-types bench/experiments/swe-bench-searchreplace.mjs` | `results/swe-bench-searchreplace.json` | two-fault (small+LARGE file) RESOLVED 5/5 F2P, 17/17 P2P NO regression, 1 attempt, 875B surgical diff, $0.004 | LLM |
+| 128 | contextBuilder camelCase tokenization | `node --experimental-strip-types bench/experiments/camelcase-selection.mjs` | `results/camelcase-selection.json` | camelCase split lifts pareto.ts rank 12→1; symbol≠filename (poincareDistance∈phenotype.ts) still unmatched → needs content indexing | det |
 
 DRACO (`results/draco-quality-cost-frontier.json`, ADR-037–040 lineage) and the
 human-readable summary (`results/RESULTS.md`) accompany these.

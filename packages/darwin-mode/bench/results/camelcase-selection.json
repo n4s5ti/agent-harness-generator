@@ -1,0 +1,34 @@
+{
+  "experiment": "ADR-128 — contextBuilder camelCase tokenization",
+  "query": "paretoFront returns dominated items; poincareDistance fails near the boundary",
+  "candidateFiles": 21,
+  "deterministic": true,
+  "llmCalls": 0,
+  "old_tokenizer": {
+    "pareto.ts": {
+      "rank": 12,
+      "score": 0
+    },
+    "phenotype.ts": {
+      "rank": 13,
+      "score": 0
+    }
+  },
+  "new_tokenizer": {
+    "pareto.ts": {
+      "rank": 1,
+      "score": 1
+    },
+    "phenotype.ts": {
+      "rank": 13,
+      "score": 0
+    }
+  },
+  "improved": [
+    "pareto.ts"
+  ],
+  "stillUnmatched": [
+    "phenotype.ts"
+  ],
+  "verdict": "PARTIAL FIX: camelCase tokenization lifts symbols whose stem matches the filename (pareto.ts rank 12→1); it cannot help when the symbol name differs from the filename (poincareDistance ∈ phenotype.ts stays unmatched) — that needs content/symbol indexing (step-3 item)."
+}

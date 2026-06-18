@@ -72,9 +72,14 @@ export interface ContextItem {
   score: number;
 }
 
-/** Split a string into lowercased alphanumeric terms of length >= 2. */
+/**
+ * Split a string into lowercased alphanumeric terms of length >= 2. camelCase
+ * boundaries are split first, so a bug report naming "paretoFront" matches the file
+ * "pareto.ts" (ADR-127 finding: camelCase symbols did not tokenise to path stems).
+ */
 function terms(text: string): string[] {
   return text
+    .replace(/([a-z0-9])([A-Z])/g, '$1 $2')
     .toLowerCase()
     .split(/[^a-z0-9]+/)
     .filter((t) => t.length >= 2);
