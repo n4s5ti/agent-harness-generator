@@ -47,3 +47,5 @@ packages/bench/draco-current.json
 .claude-flow/
 **/ruvector.db
 ruvector.db
+**/agentdb.rvf
+**/agentdb.rvf.lock
