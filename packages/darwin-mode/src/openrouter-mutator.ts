@@ -7,7 +7,10 @@
 // safety gate in createChildVariant). Real OpenRouter calls; no fabrication.
 //
 // Key: OPENROUTER_API_KEY env, or falls back to /tmp/.orkey. Model: env
-// DARWIN_MUTATOR_MODEL (default anthropic/claude-haiku-4.5 — cheap tier).
+// DARWIN_MUTATOR_MODEL (default google/gemini-2.5-flash — the measured best
+// quality-per-dollar code model on TypeScript, the mutator's output language;
+// see ADR-085 polyglot benchmark. NOTE: do NOT default to haiku-4.5 if the
+// harness ever emits a compiled language — it fails to compile Rust/C++/C there).
 
 import { readFileSync } from 'node:fs';
 import type { CodeGenerator } from './mutator.js';
@@ -50,7 +53,7 @@ export class OpenRouterMutator implements CodeGenerator {
   readonly telemetry: MutatorTelemetry = { calls: 0, promptTokens: 0, completionTokens: 0, costUSD: 0 };
 
   constructor(opts: OpenRouterMutatorOptions = {}) {
-    this.model = opts.model ?? process.env.DARWIN_MUTATOR_MODEL ?? 'anthropic/claude-haiku-4.5';
+    this.model = opts.model ?? process.env.DARWIN_MUTATOR_MODEL ?? 'google/gemini-2.5-flash';
     this.maxTokens = opts.maxTokens ?? 2000;
     this.temperature = opts.temperature ?? 0.4;
   }
