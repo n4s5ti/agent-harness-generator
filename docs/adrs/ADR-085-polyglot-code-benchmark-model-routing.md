@@ -20,24 +20,35 @@ A self-contained harness (`packages/darwin-mode/bench/polyglot/`):
 - **Scoring**: each `(model × language)` cell makes one live OpenRouter call, writes the program, **compiles it (if compiled) and runs it against 8 hidden cases**. `quality` = pass rate 0-100. Cost = real `total_tokens × blended USD/Mtok`.
 - **Matrix**: 7 priced models × 6 languages (Python, JS, TS, Rust, C++, C) = 42 cells, fanned out concurrently. `.NET`, `Go`, and `javac` were not installed on the runner and are reported as unavailable rather than faked.
 
-## Results (real, 2026-06-18)
+## Results (real, 2026-06-18) — 15 models, US + China + France
 
-| model | tier | $/Mtok | avg quality | quality/$ | per-language (py/js/ts/rust/cpp/c) |
+| model | origin | $/Mtok | avgQ | quality/$ | py·js·ts·rs·cpp·c |
 |---|---|--:|--:|--:|---|
-| openai/gpt-5-mini | cheap | 2 | **100** | 43,122 | 100·100·100·100·100·100 |
-| google/gemini-2.5-flash | cheap | 1 | 98 | **167,378** | 100·100·100·88·100·100 |
-| anthropic/claude-sonnet-4 | mid | 9 | **100** | 19,741 | 100·100·100·100·100·100 |
-| openai/gpt-5 | frontier | 12 | **100** | 4,672 | 100·100·100·100·100·100 |
-| anthropic/claude-opus-4 | frontier | 45 | **100** | 4,027 | 100·100·100·100·100·100 |
-| anthropic/claude-haiku-4.5 | cheap | 3 | 50 | — | 100·100·100·**0·0·0** |
-| google/gemini-2.5-pro | mid | 7 | 50 | — | **0**·100·**0**·100·100·**0** |
+| **deepseek/deepseek-chat** (V3) | 🇨🇳 China | 0.4 | **100** | **519,931** | 100·100·100·100·100·100 |
+| moonshotai/kimi-k2 | 🇨🇳 China | 1 | **100** | 221,811 | 100·100·100·100·100·100 |
+| mistralai/mistral-large | 🇫🇷 France | 4 | **100** | 54,905 | 100·100·100·100·100·100 |
+| z-ai/glm-4.6 | 🇨🇳 China | 0.7 | **100** | 52,040 | 100·100·100·100·100·100 |
+| openai/gpt-5-mini | 🇺🇸 USA | 2 | **100** | 43,122 | 100·100·100·100·100·100 |
+| anthropic/claude-sonnet-4 | 🇺🇸 USA | 9 | **100** | 19,741 | 100·100·100·100·100·100 |
+| openai/gpt-5 | 🇺🇸 USA | 12 | **100** | 4,672 | 100·100·100·100·100·100 |
+| anthropic/claude-opus-4 | 🇺🇸 USA | 45 | **100** | 4,027 | 100·100·100·100·100·100 |
+| google/gemini-2.5-flash | 🇺🇸 USA | 1 | 98 | 167,378 | 100·100·100·**88**·100·100 |
+| deepseek/deepseek-r1 | 🇨🇳 China | 1 | 98 | 29,881 | 100·100·**88**·100·100·100 |
+| mistralai/mistral-medium-3 | 🇫🇷 France | 0.8 | 94 | 247,195 | 100·100·88·88·100·88 |
+| mistralai/codestral-2508 | 🇫🇷 France | 0.5 | 83 | 340,136 | 100·100·100·**0**·100·100 |
+| anthropic/claude-haiku-4.5 | 🇺🇸 USA | 3 | 50 | — | 100·100·100·**0·0·0** |
+| google/gemini-2.5-pro | 🇺🇸 USA | 7 | 50 | — | **0**·100·**0**·100·100·**0** |
+| qwen/qwen-2.5-coder-32b | 🇨🇳 China | 0.3 | — | — | excluded* |
+
+\* Qwen-2.5-Coder-32B: the default OpenRouter provider returned **empty output** for the benchmark prompt (a trivial prompt succeeds, and the same harness scores every other model) — recorded as a provider/endpoint issue, **not** a capability verdict.
 
 ### Findings
 
-1. **Cheap-beats-frontier holds for code — strongly on quality-per-dollar.** `gpt-5-mini` ($2) matches `opus-4` ($45) at a perfect 100% across all six languages, at **10.7× better quality-per-dollar**. `gemini-2.5-flash` ($1) is near-perfect (one Rust miss) at **41.6× better quality-per-dollar than opus-4**.
-2. **Reliability is NOT monotonic with price.** `haiku-4.5` ($3) is perfect on Python/JS/TS but **fails to compile** in Rust/C++/C — it cannot reliably write compiled-systems code for this task. And mid-tier `gemini-2.5-pro` ($7) is the **least reliable model in the field** (wrong output in Python/TS, compile failure in C). Price tier is a poor proxy for code correctness.
-3. **The operational rule is per-language routing, not "use the cheapest."** The right cheap model depends on the target language.
-4. **For the Darwin mutator specifically (TypeScript):** `gemini-2.5-flash`, `gpt-5-mini`, `haiku-4.5`, `sonnet-4`, `gpt-5`, and `opus-4` all score **100 on TS**; only `gemini-2.5-pro` fails. This is execution-based justification for the ADR-084 follow-on: **default `OpenRouterMutator` to `google/gemini-2.5-flash`** ($1/Mtok, 100 on TS, fastest), with `gpt-5-mini` as a fallback. Do **not** route to `haiku-4.5` if the harness ever emits a compiled language.
+1. **Cheap-beats-frontier for code — globally, and decisively.** **8 of 15 models score a perfect 100% across all six languages**, and the four cheapest of those eight are **non-US** (DeepSeek V3 $0.4, GLM-4.6 $0.7, Kimi-K2 $1, Mistral-Large $4). **DeepSeek V3 ($0.4/Mtok) tops the entire field at 519,931 quality/$ — ~129× better than `opus-4`**, which has the *worst* quality/$ of any perfect-scoring model despite the highest price. The two US frontier models (gpt-5, opus-4) sit at the **bottom** of the quality-per-dollar ranking.
+2. **Reliability is NOT monotonic with price.** `haiku-4.5` ($3) is perfect on Python/JS/TS but **fails to compile** Rust/C++/C; mid-tier `gemini-2.5-pro` ($7) is the least reliable model in the field. Ironically the *code-specialized* `codestral` fails Rust. Tier/price is a poor proxy for per-language code correctness.
+3. **Reasoning models are expensive here.** `deepseek-r1` passed almost everything but burned 5k–7.6k tokens and up to **260 s** on Rust/C++ — for a task the $0.4 V3 nails in ~500 tokens / ~10 s. Reasoning is the wrong tool for small, well-specified codegen.
+4. **The operational rule is per-language routing, not "use the cheapest."**
+5. **For the Darwin mutator (TypeScript):** every model except `gemini-2.5-pro` scores 100 on TS. The default `OpenRouterMutator` model is `google/gemini-2.5-flash` (fastest perfect-on-TS, $1); **`deepseek/deepseek-chat` is the top quality-per-dollar alternative** (100 on TS at $0.4, more reliable across languages, ~9 s vs ~2 s). Do **not** route to `haiku-4.5` if the harness ever emits a compiled language.
 
 ## Consequences
 

@@ -74,24 +74,32 @@ quality is equal-or-higher, so the saving carries **no quality penalty**.
 > Default the Darwin mutator to `google/gemini-2.5-flash`. Reserve frontier
 > models only for surfaces where DRACO shows a measured quality gap.
 
-## 4. Polyglot code benchmark (execution-scored) — ADR-085
+## 4. Polyglot code benchmark (execution-scored, 15 models US+China+France) — ADR-085
 
-7 models × 6 languages (Python/JS/TS/Rust/C++/C) each solve merge-intervals; every
+15 models × 6 languages (Python/JS/TS/Rust/C++/C) solve merge-intervals; every
 program is **compiled and run** against 8 hidden cases. `quality` = pass rate.
 
-| model | tier | $/Mtok | avg quality | quality/$ | weakest language |
-|---|---|--:|--:|--:|---|
-| openai/gpt-5-mini | cheap | 2 | **100** | 43,122 | — (perfect) |
-| google/gemini-2.5-flash | cheap | 1 | 98 | **167,378** | rust (88) |
-| anthropic/claude-sonnet-4 | mid | 9 | 100 | 19,741 | — (perfect) |
-| openai/gpt-5 | frontier | 12 | 100 | 4,672 | — (perfect) |
-| anthropic/claude-opus-4 | frontier | 45 | 100 | 4,027 | — (perfect) |
-| anthropic/claude-haiku-4.5 | cheap | 3 | 50 | — | rust/cpp/c **compile-fail** |
-| google/gemini-2.5-pro | mid | 7 | 50 | — | py/ts/c → 0 (worst overall) |
+| model | origin | $/Mtok | avgQ | quality/$ |
+|---|---|--:|--:|--:|
+| **deepseek/deepseek-chat** (V3) | 🇨🇳 | 0.4 | **100** | **519,931** |
+| moonshotai/kimi-k2 | 🇨🇳 | 1 | 100 | 221,811 |
+| mistralai/mistral-large | 🇫🇷 | 4 | 100 | 54,905 |
+| z-ai/glm-4.6 | 🇨🇳 | 0.7 | 100 | 52,040 |
+| openai/gpt-5-mini | 🇺🇸 | 2 | 100 | 43,122 |
+| anthropic/claude-sonnet-4 | 🇺🇸 | 9 | 100 | 19,741 |
+| openai/gpt-5 | 🇺🇸 | 12 | 100 | 4,672 |
+| anthropic/claude-opus-4 | 🇺🇸 | 45 | 100 | 4,027 |
+| google/gemini-2.5-flash | 🇺🇸 | 1 | 98 | 167,378 |
+| deepseek/deepseek-r1 | 🇨🇳 | 1 | 98 | 29,881 |
+| mistralai/mistral-medium-3 | 🇫🇷 | 0.8 | 94 | 247,195 |
+| mistralai/codestral-2508 | 🇫🇷 | 0.5 | 83 | 340,136 |
+| anthropic/claude-haiku-4.5 | 🇺🇸 | 3 | 50 | — (rust/cpp/c compile-fail) |
+| google/gemini-2.5-pro | 🇺🇸 | 7 | 50 | — (py/ts/c → 0) |
+| qwen/qwen-2.5-coder-32b | 🇨🇳 | 0.3 | — | excluded (provider empty output) |
 
-- **Cheap-beats-frontier for code:** gpt-5-mini ($2) = opus-4 ($45) at perfect 100%, 10.7× better quality-per-dollar; gemini-2.5-flash ($1) = 41.6×.
-- **Reliability is NOT monotonic with price:** haiku-4.5 can't compile Rust/C++/C; mid-tier gemini-2.5-pro is the least reliable model in the field. → **route per language.**
-- **Mutator routing (TS):** all models except gemini-2.5-pro score 100 on TypeScript. Default `OpenRouterMutator` → `google/gemini-2.5-flash` (cheapest, fastest, 100 on TS). Raw data: `polyglot-code-frontier.json`.
+- **Cheap-beats-frontier, globally:** 8/15 score perfect 100% across all 6 languages; the 4 cheapest of those are non-US. **DeepSeek V3 ($0.4) tops the field at 519,931 quality/$ — ~129× better than opus-4**, which is the worst quality/$ despite the highest price.
+- **Reliability ≠ price:** haiku-4.5 can't compile Rust/C++/C; gemini-2.5-pro is least reliable; even code-specialized codestral fails Rust. → **route per language.**
+- **Mutator routing (TS):** all but gemini-2.5-pro score 100 on TS. Default = `google/gemini-2.5-flash` (fastest perfect-on-TS); `deepseek/deepseek-chat` is the top quality/$ alternative. Raw: `polyglot-code-frontier.json` (15 models, 90 cells).
 
 ## Reproduce
 
