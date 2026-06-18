@@ -1,0 +1,23 @@
+{
+  "experiment": "ADR-098 step 1 — long-horizon context validation harness",
+  "steps": 50,
+  "window": 30,
+  "fileCountRange": [
+    5,
+    54
+  ],
+  "coreFile": "payment_gateway_core.ts",
+  "deterministic": true,
+  "llmCalls": 0,
+  "relevanceRanked": {
+    "threadRetentionRate": 1,
+    "lostThreadAtStep": null,
+    "filesWhenLost": null
+  },
+  "naiveRecency": {
+    "threadRetentionRate": 0.52,
+    "lostThreadAtStep": 26,
+    "filesWhenLost": 31
+  },
+  "verdict": "VALIDATED: relevance-ranked harness holds the thread across all 50 steps; naive recency loses the old load-bearing file as the repo grows"
+}
