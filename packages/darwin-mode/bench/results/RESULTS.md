@@ -192,3 +192,19 @@ includes django/sympy multi-file bugs. Leaderboard leaders hit 65–88% on Verif
 loops + frontier models at $1–20/instance; this is a single-shot cheap-model **baseline** ($0.009/
 instance). Dominant loss: 67% empty-patch (selection/SEARCH miss on huge repos). This run also
 generates ADR-145's router labels (per-instance deepseek resolve outcomes).
+
+## 9. LLM localization — recall +15pp, but the "emission wall" (ADR-146)
+
+`--localize` (LLM picks files from paths+signatures) on the full 300, vs the ADR-144 baseline:
+
+| metric | baseline | + localize |
+|---|---|---|
+| selection recall | 44.7% | **59.7%** (+15pp) |
+| patch production | 33.3% | 31.7% (flat) |
+| **resolved** | 23/300 = 7.7% [5.2,11.2] | 24/300 = **8.0% [5.4,11.6]** (within noise) |
+| empties: emission-wall | 35% (70) | **51% (104)** |
+
+**Finding:** localization finds the gold file +15pp more often, but resolve-rate doesn't move — the
+bottleneck **relocated from retrieval to patch-emission** ("can't find" → "can't write"). 34 newly-
+correctly-localized files all failed patch-emission. → justifies the closed-loop repair loop (ADR-143)
+as the next lever, stacked on `--localize`.
