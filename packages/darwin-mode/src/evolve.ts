@@ -22,6 +22,7 @@ import {
 import { profileRepo } from './repo_profiler.js';
 import { runVariantTasks } from './sandbox.js';
 import { runVariantTasksMock } from './mock-sandbox.js';
+import { runVariantTasksAgent } from './tier2-sandbox.js';
 import { scoreVariant } from './scorer.js';
 import {
   behavioralNiche,
@@ -110,9 +111,11 @@ async function evaluateVariant(
   // loop, so the trace depends on surface content (manifold becomes live). The
   // default 'real' mode runs the repo test command (surface-independent).
   const traces =
-    cfg.sandboxMode === 'mock'
-      ? await runVariantTasksMock(variant, cfg.mockTasks)
-      : await runVariantTasks(variant, profile, cfg.tasks, { taskTimeoutMs: timeout });
+    cfg.sandboxMode === 'agent'
+      ? await runVariantTasksAgent(variant) // Tier 2: execute the variant's real surface code (ADR-106)
+      : cfg.sandboxMode === 'mock'
+        ? await runVariantTasksMock(variant, cfg.mockTasks)
+        : await runVariantTasks(variant, profile, cfg.tasks, { taskTimeoutMs: timeout });
   const score = scoreVariant(
     variant.id,
     traces,

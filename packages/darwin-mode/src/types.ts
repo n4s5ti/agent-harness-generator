@@ -137,9 +137,13 @@ export interface EvolutionConfig {
    * 'mock' runs the deterministic surface-driven agent loop so traces depend on
    * the harness surfaces (activating ADR-091/092/094/097/100). Reproducible.
    */
-  sandboxMode?: 'real' | 'mock';
+  sandboxMode?: 'real' | 'mock' | 'agent';
   /** Custom scripted suite for 'mock' mode (ADR-102); defaults to DEFAULT_MOCK_TASKS. */
   mockTasks?: import('./mock-sandbox.js').MockTask[];
+  /**
+   * 'agent' sandbox (ADR-106, Tier 2): executes the variant's REAL surface code
+   * in a child `node --experimental-strip-types` process. Requires Node ≥ 22.
+   */
   /**
    * Tie-break policy when variants share the top finalScore (ADR-072's scorer
    * ceilings at 0.985, so ties are the common case). 'insertion' (default) is
