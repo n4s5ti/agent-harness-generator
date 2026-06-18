@@ -1,0 +1,35 @@
+{
+  "experiment": "ADR-139 — averaged validation of the deepseek default (vs gemini)",
+  "corpus": [
+    "kernel-js",
+    "create-agent-harness",
+    "vertical-base"
+  ],
+  "runsPerModel": 4,
+  "config": "searchreplace / a2 / k6",
+  "results": {
+    "new default (deepseek/searchreplace)": {
+      "runs": [
+        "3/3",
+        "3/3",
+        "3/3",
+        "3/3"
+      ],
+      "meanResolved": 3,
+      "sd": 0,
+      "meanCost": 0.01
+    },
+    "old default (gemini/searchreplace)": {
+      "runs": [
+        "2/3",
+        "3/3",
+        "2/3",
+        "2/3"
+      ],
+      "meanResolved": 2.25,
+      "sd": 0.43,
+      "meanCost": 0.01
+    }
+  },
+  "verdict": "DEFAULT VALIDATED: deepseek mean 3/3 (sd 0, $0.01) ≥ gemini 2.25/3 (sd 0.43, $0.01) on both resolve-rate AND cost across 4 runs — the ADR-135 default change holds under averaging"
+}
