@@ -150,9 +150,12 @@ export interface EvolutionConfig {
    * touched. 'niche-steering' (ADR-092) goes further — actively seeds the next
    * generation from survivors nearest an UNDER-EXPLORED region of the Poincaré
    * ball (preferring the high-complexity frontier), navigating the manifold
-   * rather than just maintaining spread. All are deterministic.
+   * rather than just maintaining spread. 'clade' (ADR-094, Huxley-Gödel) selects
+   * parents by descendant POTENTIAL — Thompson sampling over clade
+   * metaproductivity — since the best-scoring variant is a poor parent once its
+   * subtree is exhausted; τ is scheduled from the SGM budget. All deterministic.
    */
-  selection?: 'score' | 'quality-diversity' | 'behavioral-diversity' | 'niche-steering';
+  selection?: 'score' | 'quality-diversity' | 'behavioral-diversity' | 'niche-steering' | 'clade';
   /**
    * Opt-in genetic crossover (ADR-089). When true and a generation has ≥2
    * parents, the first child of each parent recombines that parent's surfaces

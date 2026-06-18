@@ -15,7 +15,7 @@
 // swapped for an LLM-backed generator behind the SAME gate.
 
 import { cp, mkdir, readFile, writeFile } from 'node:fs/promises';
-import { join } from 'node:path';
+import { join, resolve } from 'node:path';
 import { FILE_BY_SURFACE, SURFACES, validateGeneratedCode } from './safety.js';
 import type { HarnessVariant, MutationSurface, RunTrace } from './types.js';
 
@@ -291,6 +291,9 @@ export async function createCrossoverVariant(
  * so no extraneous entry can leak in.
  */
 export async function copyVariantDir(src: string, dest: string): Promise<void> {
+  // Defensive: a child whose id collides with its parent's would make src===dest
+  // (cp throws EINVAL). Never copy a directory onto itself.
+  if (resolve(src) === resolve(dest)) return;
   await mkdir(dest, { recursive: true });
   await cp(src, dest, { recursive: true, dereference: true, force: true });
 }

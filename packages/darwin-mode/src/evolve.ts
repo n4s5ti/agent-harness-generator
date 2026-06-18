@@ -29,6 +29,7 @@ import {
   underExploredTarget,
 } from './phenotype.js';
 import { buildLinkage, LinkageGraph, linkedCrossoverBlock } from './epistasis.js';
+import { cladeThompsonSelect } from './clade.js';
 import type { MutationSurface } from './types.js';
 import { evaluateChildAgainstParent } from './bench/runner.js';
 import { admitWithStatisticalGate, makeRiskBudget } from './bench/risk.js';
@@ -252,13 +253,16 @@ export async function evolve(config: EvolutionConfig): Promise<EvolutionResult> 
         : null;
     for (let pIdx = 0; pIdx < parents.length; pIdx++) {
       const parent = parents[pIdx];
-      for (let index = 0; index < config.childrenPerGeneration; index++) {
+      for (let localIndex = 0; localIndex < config.childrenPerGeneration; localIndex++) {
+        // Unique per generation across ALL parents, so sibling ids never collide
+        // (and never coincide with an existing variant's id → no self-copy).
+        const index = pIdx * config.childrenPerGeneration + localIndex;
         // Opt-in crossover (ADR-089): the first child of each parent recombines
         // with the next parent's surfaces; the rest are ordinary mutations. With
         // epistasis (ADR-093) the inherited subset is the next parent's linked block.
         const other = parents[(pIdx + 1) % parents.length];
         const child =
-          canCross && index === 0
+          canCross && localIndex === 0
             ? await createCrossoverVariant(
                 parent,
                 other,
@@ -368,6 +372,20 @@ export async function evolve(config: EvolutionConfig): Promise<EvolutionResult> 
     // sample the whole archive so we explore sideways instead of dead-ending.
     // Opt-in MAP-Elites (config.selection): the stall fallback draws elites from
     // DISTINCT surface niches so exploration stays diverse at the score ceiling.
+    // ADR-094: clade-metaproductivity selection picks parents by descendant
+    // POTENTIAL (Thompson sampling over the subtree's success rate), not current
+    // score — the best scorer is a spent parent. τ is scheduled from the SGM
+    // budget: full budget → explore, spent budget → exploit. Bypasses the
+    // promoted-first rule (HGM), falling back only if nothing is scored yet.
+    if (config.selection === 'clade') {
+      const tau =
+        riskBudget && riskBudget.total > 0 ? riskBudget.spent / riskBudget.total : 1;
+      const cladeParents = cladeThompsonSelect(archive, tau, 2, seed + generation);
+      parents = cladeParents.length > 0 ? cladeParents : promoted.length > 0 ? promoted : archive.selectParents(2);
+      if (parents.length === 0) break;
+      continue;
+    }
+
     let stallFallback: HarnessVariant[];
     if (config.selection === 'niche-steering') {
       // Steer toward an under-explored Poincaré region; if the manifold is full

@@ -114,7 +114,7 @@ async function main(): Promise<void> {
   if (command !== 'evolve') {
     process.stderr.write(
       'usage: metaharness-darwin <evolve|bench> …\n' +
-        '  evolve <repo> [--generations N] [--children N] [--concurrency N] [--seed N] [--bench <suite.json>] [--tie faster] [--selection quality-diversity|behavioral-diversity|niche-steering] [--crossover] [--epistasis] [--risk-budget N]\n' +
+        '  evolve <repo> [--generations N] [--children N] [--concurrency N] [--seed N] [--bench <suite.json>] [--tie faster] [--selection quality-diversity|behavioral-diversity|niche-steering|clade] [--crossover] [--epistasis] [--risk-budget N]\n' +
         '  bench create <repo> [--out <suite.json>]\n' +
         '  bench verify <suite.json>\n',
     );
@@ -132,7 +132,10 @@ async function main(): Promise<void> {
   const tieBreaker = flag('--tie', 'insertion') === 'faster' ? 'faster' : 'insertion';
   const selRaw = flag('--selection', 'score');
   const selection =
-    selRaw === 'quality-diversity' || selRaw === 'behavioral-diversity' || selRaw === 'niche-steering'
+    selRaw === 'quality-diversity' ||
+    selRaw === 'behavioral-diversity' ||
+    selRaw === 'niche-steering' ||
+    selRaw === 'clade'
       ? selRaw
       : 'score';
   const crossover = process.argv.includes('--crossover');
