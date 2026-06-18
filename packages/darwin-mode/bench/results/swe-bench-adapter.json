@@ -1,0 +1,22 @@
+{
+  "experiment": "ADR-098 step 2 — SWE-bench BenchmarkRunner adapter (real resolved criterion)",
+  "instance_id": "synthetic__darwin-pareto-dominance-1",
+  "model": "google/gemini-2.5-flash",
+  "FAIL_TO_PASS_count": 4,
+  "PASS_TO_PASS_count": 18,
+  "criterion": "resolved ⇔ all FAIL_TO_PASS green AND all PASS_TO_PASS stay green",
+  "armA_realLLM": {
+    "resolved": true,
+    "f2p": "4/4",
+    "p2p": "18/18",
+    "chose": "pareto.ts",
+    "tokens": 15683,
+    "cost_usd": 0.0022657239
+  },
+  "armB_testGamingPatch": {
+    "resolved": false,
+    "f2p": "1/4",
+    "p2p": "18/18"
+  },
+  "verdict": "ADAPTER VALIDATED: real LLM fix RESOLVED; test-gaming patch correctly UNRESOLVED (all-FAIL_TO_PASS-must-pass has teeth)"
+}
