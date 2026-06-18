@@ -1,0 +1,13 @@
+{
+  "hypothesis": "archive retention enables sequential accumulation (crossover optional); without retention, crossover is necessary",
+  "seeds": [
+    7,
+    11
+  ],
+  "crossedTreasure": {
+    "pool=archive, crossover=true": "2/2",
+    "pool=archive, crossover=false": "2/2",
+    "pool=generation, crossover=true": "1/2",
+    "pool=generation, crossover=false": "1/2"
+  }
+}

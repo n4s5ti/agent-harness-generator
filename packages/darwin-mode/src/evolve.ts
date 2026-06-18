@@ -453,6 +453,21 @@ export async function evolve(config: EvolutionConfig): Promise<EvolutionResult> 
     // sample the whole archive so we explore sideways instead of dead-ending.
     // Opt-in MAP-Elites (config.selection): the stall fallback draws elites from
     // DISTINCT surface niches so exploration stays diverse at the score ceiling.
+    // ADR-115: memoryless (μ,λ) selection — parents only from THIS generation's
+    // scored children, with NO archive retention. Used to test whether the
+    // whole-archive retention (ADR-073) is what enables sequential two-surface
+    // accumulation. Default 'archive' keeps the retained-archive behaviour.
+    if (config.selectionPool === 'generation') {
+      const genScored = children
+        .map((c) => c.child)
+        .filter((v) => scoreById.has(v.id))
+        .sort((a, b) => scoreById.get(b.id)!.finalScore - scoreById.get(a.id)!.finalScore);
+      parents = genScored.slice(0, 2);
+      if (parents.length === 0) parents = promoted.length > 0 ? promoted : archive.selectParents(2);
+      if (parents.length === 0) break;
+      continue;
+    }
+
     // ADR-094: clade-metaproductivity selection picks parents by descendant
     // POTENTIAL (Thompson sampling over the subtree's success rate), not current
     // score — the best scorer is a spent parent. τ is scheduled from the SGM

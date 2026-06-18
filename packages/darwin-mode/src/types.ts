@@ -147,6 +147,12 @@ export interface EvolutionConfig {
   /** Custom agent-task suite for 'agent' mode (ADR-106); defaults to DEFAULT_AGENT_TASKS. */
   agentTasks?: import('./tier2-sandbox.js').AgentTask[];
   /**
+   * Parent pool (ADR-115). 'archive' (default) retains the whole archive
+   * (ADR-073). 'generation' is memoryless (μ,λ): parents come only from the
+   * current generation's children — used to ablate archive retention.
+   */
+  selectionPool?: 'archive' | 'generation';
+  /**
    * Tie-break policy when variants share the top finalScore (ADR-072's scorer
    * ceilings at 0.985, so ties are the common case). 'insertion' (default) is
    * fully reproducible — earliest insertion wins. 'faster' breaks ties by lowest
