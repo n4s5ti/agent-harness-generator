@@ -64,7 +64,10 @@ export function selectFiles(problem, srcDir, files, buildContext, k = 6) {
   return merged.slice(0, k);
 }
 
-export async function runSweBenchTask(task, { model = 'google/gemini-2.5-flash', key, patchMode = 'searchreplace' } = {}) {
+// Default model: deepseek-chat is the measured SWE-fix optimum (ADR-135: 3/3 resolve at the
+// lowest cost; the prior gemini-2.5-flash default scored only 2/3). patchMode defaults to
+// search/replace (ADR-127). Callers may override both.
+export async function runSweBenchTask(task, { model = 'deepseek/deepseek-chat', key, patchMode = 'searchreplace' } = {}) {
   key = (key || process.env.OPENROUTER_API_KEY || readFileSync('/tmp/.orkey', 'utf8')).trim();
   patchMode = task.patchMode ?? patchMode;
 
