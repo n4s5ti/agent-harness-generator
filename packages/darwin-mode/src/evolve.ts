@@ -17,6 +17,8 @@ import { createChildVariant, DeterministicMutator, summarizeFailedTraces } from 
 import { profileRepo } from './repo_profiler.js';
 import { runVariantTasks } from './sandbox.js';
 import { scoreVariant } from './scorer.js';
+import { evaluateChildAgainstParent } from './bench/runner.js';
+import type { PromotionDecision } from './bench/types.js';
 import type {
   ArchiveRecord,
   EvolutionConfig,
@@ -197,11 +199,44 @@ export async function evolve(config: EvolutionConfig): Promise<EvolutionResult> 
       evaluateVariant(child, profile, config, scoreById.get(parent.id) ?? null),
     );
 
+    // Opt-in graded promotion (ADR-076): when a hash-pinned suite is supplied,
+    // evaluate each child vs its parent over the suite and let the STATISTICAL
+    // decision override the single-run promote flag. Same bounded concurrency.
+    let benchByChild: Map<string, PromotionDecision> | null = null;
+    if (config.benchSuite) {
+      const suite = config.benchSuite;
+      benchByChild = new Map();
+      const decisions = await mapLimit(children, concurrency, async ({ child, parent }) => {
+        const { decision } = await evaluateChildAgainstParent({
+          parent,
+          child,
+          profile,
+          suite,
+          seed,
+          samples: config.benchSamples,
+          minDelta: config.benchMinDelta,
+        });
+        return { id: child.id, decision };
+      });
+      for (const d of decisions) benchByChild.set(d.id, d.decision);
+    }
+
     // Commit sequentially (single-writer to the archive + one save), honouring
     // the per-generation cost breaker.
     let spent = 0;
     const promoted: HarnessVariant[] = [];
     for (const ev of evals) {
+      const decision = benchByChild?.get(ev.variant.id);
+      if (decision) {
+        // The graded gate is authoritative when present.
+        ev.score.promoted = decision.promote;
+        ev.score.reason = `bench(ADR-076): ${decision.reasons.join('; ')}`;
+        await writeFile(
+          join(config.workRoot, 'runs', `${ev.variant.id}.bench.json`),
+          JSON.stringify(decision, null, 2),
+          'utf8',
+        );
+      }
       await commit(archive, config.workRoot, ev);
       scoreById.set(ev.variant.id, ev.score);
       tracesById.set(ev.variant.id, ev.traces);

@@ -5,6 +5,7 @@
 //
 //   metaharness-darwin evolve <repo> [--generations N] [--children N]
 //                                    [--concurrency N] [--seed N]
+//                                    [--bench <suite.json>] [--tie faster]
 //   metaharness-darwin bench create <repo> [--out <suite.json>]
 //   metaharness-darwin bench verify <suite.json>
 //
@@ -113,7 +114,7 @@ async function main(): Promise<void> {
   if (command !== 'evolve') {
     process.stderr.write(
       'usage: metaharness-darwin <evolve|bench> …\n' +
-        '  evolve <repo> [--generations N] [--children N] [--concurrency N] [--seed N]\n' +
+        '  evolve <repo> [--generations N] [--children N] [--concurrency N] [--seed N] [--bench <suite.json>] [--tie faster]\n' +
         '  bench create <repo> [--out <suite.json>]\n' +
         '  bench verify <suite.json>\n',
     );
@@ -122,6 +123,13 @@ async function main(): Promise<void> {
 
   const repoRoot = resolve(process.argv[3] ?? process.cwd());
   const workRoot = resolve(repoRoot, '.metaharness');
+
+  // Opt-in graded promotion (ADR-076/087): --bench <suite.json> loads a
+  // hash-verified suite (throws on tamper) and routes promotion through the
+  // statistical gate. --tie faster opts into efficiency tie-breaking (ADR-086).
+  const benchPath = flag('--bench', '');
+  const benchSuite = benchPath ? await loadSuite(resolve(benchPath)) : undefined;
+  const tieBreaker = flag('--tie', 'insertion') === 'faster' ? 'faster' : 'insertion';
 
   const result = await evolve({
     repoRoot,
@@ -136,6 +144,8 @@ async function main(): Promise<void> {
       'verify generated harness safety',
       'check trace quality',
     ],
+    ...(benchSuite ? { benchSuite } : {}),
+    tieBreaker,
   });
 
   printReport(result);

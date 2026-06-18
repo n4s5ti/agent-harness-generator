@@ -145,6 +145,18 @@ export interface EvolutionConfig {
    * still passes the same validateGeneratedCode safety gate.
    */
   generator?: import('./mutator.js').CodeGenerator;
+  /**
+   * Opt-in graded promotion (ADR-076). A hash-pinned benchmark suite. When set,
+   * each child is evaluated against its parent over the suite in the real
+   * sandbox, and the STATISTICAL promotion decision overrides the single-run
+   * ADR-072 promote flag (the decision is also written to runs/<id>.bench.json).
+   * Default unset → the lightweight single-run promotion is used.
+   */
+  benchSuite?: import('./bench/types.js').BenchSuite;
+  /** Bootstrap samples for the statistical promotion gate (ADR-076). */
+  benchSamples?: number;
+  /** Minimum mean-delta a child must clear under the bench promotion gate. */
+  benchMinDelta?: number;
 }
 
 /** The outcome of an `evolve` run. */
