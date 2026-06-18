@@ -38,3 +38,11 @@ Run: `evolve()` mock mode, 20 generations × 8 children, crossover + epistasis, 
 ## Validation
 
 348 tests unchanged (this is an experiment over the existing engine; `EvolutionConfig.mockTasks` added to supply the landscape). Multi-seed result committed in `bench/results/deception-experiment.json`; harness in `bench/experiments/deception.mjs`.
+
+## Follow-up: why does clade trail behavioral-diversity? (investigation + negative result)
+
+Instrumented seed 7 (where clade stayed stuck): clade explored **21** distinct `(retry, window)` pairs and reached `retry 5, window 50`, yet produced **0** variants combining *both* improvements — whereas behavioral-diversity produced **123**. So clade *explores* fine but rarely **pairs complementary stepping-stones** for crossover: on the plateau every clade has ~0 successes, so its Thompson sampling does not specifically select a high-retry parent *and* a high-window parent as the two breeders.
+
+A fix was tried: rank a wider clade-Thompson pool, then pick the two parents from **distinct behavioural niches** (`pickDiverseByNiche`). Measured across the same 5 seeds it was **net-neutral — still 4/5**, merely shifting which seed fails (7 now crosses, 23 now doesn't). Root cause of the wash: the behavioural niche (trace-derived: fail/timeout/verbosity/duration) does **not** separate the *genotypic* stepping-stones (a high-retry and a high-window variant often share a niche because they solve the same easy tasks), so "distinct niche" can't reliably pick complementary breeders. **The change was reverted** (no measured payoff; keep clade simple).
+
+Honest conclusion: closing clade's gap would need a *genotypic*/parameter-aware diversity signal for parent pairing, not the trace-based behavioural niche. Until then, **`behavioral-diversity` remains the recommended selection for deceptive/epistatic landscapes** (5/5 vs clade 4/5). Negative results recorded rather than hidden.
