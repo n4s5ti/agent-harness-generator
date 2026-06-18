@@ -42,6 +42,7 @@ LLM, deterministic). **LLM** = one or more live OpenRouter calls (set
 | 126 | Repair loop + regression-aware feedback + robust parsing | `node --experimental-strip-types bench/experiments/swe-bench-repair.mjs` | `results/swe-bench-repair.json` | single-fault RESOLVED (2 attempts); two-fault whole-file repair regresses P2P (honest limitation → step 3 needs surgical patching) | LLM |
 | 127 | Search/replace patch primitive (fixes ADR-126) | `node --experimental-strip-types bench/experiments/swe-bench-searchreplace.mjs` | `results/swe-bench-searchreplace.json` | two-fault (small+LARGE file) RESOLVED 5/5 F2P, 17/17 P2P NO regression, 1 attempt, 875B surgical diff, $0.004 | LLM |
 | 128 | contextBuilder camelCase tokenization | `node --experimental-strip-types bench/experiments/camelcase-selection.mjs` | `results/camelcase-selection.json` | camelCase split lifts pareto.ts rank 12→1; symbol≠filename (poincareDistance∈phenotype.ts) still unmatched → needs content indexing | det |
+| 129 | Symbol-index file selection (closes ADR-127/128) | `node --experimental-strip-types bench/experiments/symbol-index-selection.mjs` | `results/symbol-index-selection.json` | symbol indexing selects phenotype.ts (via poincareDistance def) that path-only missed; camelCase bug report resolves e2e | det |
 
 DRACO (`results/draco-quality-cost-frontier.json`, ADR-037–040 lineage) and the
 human-readable summary (`results/RESULTS.md`) accompany these.

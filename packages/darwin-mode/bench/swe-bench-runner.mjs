@@ -47,6 +47,23 @@ const evaluate = (F, P, after) => ({
   p2p: `${P.filter((t) => after[t] === 'passed').length}/${P.length}`,
 });
 
+// File selection (ADR-129): the contextBuilder ranks by PATH-term overlap only, so it misses
+// a file whose name differs from the symbol named in the bug report (ADR-128: poincareDistance
+// lives in phenotype.ts). We augment it with SYMBOL indexing — files that DEFINE a symbol named
+// in the problem statement are prioritized — then fill the rest from the path ranking. Keeps
+// buildContext pure (path-only surface); the symbol scan is orchestration-layer IO.
+export function selectFiles(problem, srcDir, files, buildContext, k = 6) {
+  const pathRanked = (buildContext(problem, files) ?? []).map((c) => c.path);
+  // Only treat camelCase / snake_case tokens as symbols — plain English words ("returns",
+  // "boundary") are all-lowercase and would spuriously match common identifiers.
+  const syms = [...new Set(problem.match(/[A-Za-z_][A-Za-z0-9_]{3,}/g) ?? [])].filter((s) => /[a-z][A-Z]/.test(s) || s.includes('_'));
+  const defines = (c, s) => new RegExp(`(?:function|const|let|var|class|interface|type|enum)\\s+${s}\\b`).test(c) || new RegExp(`\\b${s}\\s*[:=]\\s*(?:\\(|function|async|\\{)`).test(c);
+  const symbolFiles = files.filter((f) => { const c = readFileSync(join(srcDir, f), 'utf8'); return syms.some((s) => defines(c, s)); });
+  const merged = [];
+  for (const f of [...symbolFiles, ...pathRanked]) if (!merged.includes(f)) merged.push(f);
+  return merged.slice(0, k);
+}
+
 export async function runSweBenchTask(task, { model = 'google/gemini-2.5-flash', key, patchMode = 'searchreplace' } = {}) {
   key = (key || process.env.OPENROUTER_API_KEY || readFileSync('/tmp/.orkey', 'utf8')).trim();
   patchMode = task.patchMode ?? patchMode;
@@ -68,7 +85,7 @@ export async function runSweBenchTask(task, { model = 'google/gemini-2.5-flash',
   const hr = mkdtempSync(join(tmpdir(), 'swe-h-')); writeFileSync(join(hr, 'package.json'), '{"name":"h","version":"1.0.0"}');
   const b = await generateBaselineHarness(await profileRepo(hr), mkdtempSync(join(tmpdir(), 'swe-hw-')));
   const { buildContext } = await import(`${b.dir}/context_builder.ts`);
-  const selected = (buildContext(task.problem_statement, realFiles) ?? []).map((c) => c.path).slice(0, 6);
+  const selected = selectFiles(task.problem_statement, join(work, 'src'), realFiles, buildContext, 6);
 
   // 4–6. Repair loop: each attempt emits a WHOLE corrected file (ADR-124), applies it, and
   // re-scores; if unresolved, the still-failing tests + assertion messages are fed back so

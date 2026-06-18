@@ -1,0 +1,32 @@
+{
+  "experiment": "ADR-129 — symbol-index selection",
+  "query": "paretoFront returns dominated items; poincareDistance fails near the boundary",
+  "candidateFiles": 21,
+  "deterministic": true,
+  "llmCalls": 0,
+  "pathOnly_top6": [
+    "pareto.ts",
+    "archive.ts",
+    "clade.ts",
+    "cli.ts",
+    "curriculum.ts",
+    "epistasis.ts"
+  ],
+  "symbolAugmented_top6": [
+    "pareto.ts",
+    "phenotype.ts",
+    "archive.ts",
+    "clade.ts",
+    "cli.ts",
+    "curriculum.ts"
+  ],
+  "targetsInPathOnly": {
+    "pareto.ts": true,
+    "phenotype.ts": false
+  },
+  "targetsInAugmented": {
+    "pareto.ts": true,
+    "phenotype.ts": true
+  },
+  "verdict": "FIXED: symbol indexing selects BOTH buggy files (incl. phenotype.ts, found by its poincareDistance definition); path-only ranking missed it"
+}
