@@ -114,7 +114,9 @@ export async function evolve(config: EvolutionConfig): Promise<EvolutionResult> 
 
   const seed = config.seed ?? 0;
   const concurrency = config.concurrency ?? DEFAULT_CONCURRENCY;
-  const mutator = new DeterministicMutator(seed);
+  // ADR-071: pluggable generator. Default deterministic; config.generator can
+  // be an LLM-backed CodeGenerator (e.g. OpenRouterMutator) — same safety gate.
+  const mutator = config.generator ?? new DeterministicMutator(seed);
 
   // --- baseline ---
   const baseline = await generateBaselineHarness(profile, config.workRoot);

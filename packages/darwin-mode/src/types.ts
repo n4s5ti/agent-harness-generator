@@ -131,6 +131,12 @@ export interface EvolutionConfig {
   costBudgetSeconds?: number;
   /** Deterministic seed for mutation selection (reproducibility). Default 0. */
   seed?: number;
+  /**
+   * Pluggable code generator (ADR-071). Default is the DeterministicMutator;
+   * pass an LLM-backed one (e.g. OpenRouterMutator) to evolve via a model — it
+   * still passes the same validateGeneratedCode safety gate.
+   */
+  generator?: import('./mutator.js').CodeGenerator;
 }
 
 /** The outcome of an `evolve` run. */
