@@ -17,6 +17,7 @@
 //   templates      — the seven baseline mutation-surface sources
 //   generator      — RepoProfile → baseline variant
 //   mutator        — bounded, validated child mutations + the CodeGenerator hook
+//   openrouter-mutator — optional LLM-backed CodeGenerator (same safety gate)
 //   sandbox        — gate-first, shell-free, env-scrubbed task runner
 //   scorer         — the frozen weighted scorer + strict promotion gate (ADR-072)
 //   archive        — the population tree + archive-wide selection (ADR-073)
@@ -28,6 +29,7 @@ export * from './repo_profiler.js';
 export * from './templates.js';
 export * from './generator.js';
 export * from './mutator.js';
+export * from './openrouter-mutator.js';
 export * from './sandbox.js';
 export * from './scorer.js';
 export * from './archive.js';
