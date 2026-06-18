@@ -43,11 +43,20 @@ export interface MockTask {
   difficulty: 1 | 2 | 3 | 4 | 5;
 }
 
-/** A fixed, graded scripted suite spanning easy→hard (drives the curriculum). */
+/**
+ * A graduated scripted ladder (drives the curriculum, ADR-097). Each rung needs
+ * slightly more retry budget and/or context than the last, so an incremental
+ * surface improvement solves incrementally MORE rungs — a climbable gradient
+ * (not a deceptive all-or-nothing plateau). The lower rungs reward retry-budget
+ * growth alone; the upper rungs additionally require a wider context window, so
+ * the full ladder rewards combining both surfaces (crossover/epistasis).
+ */
 export const DEFAULT_MOCK_TASKS: readonly MockTask[] = [
-  { id: 'mock-easy', failAttempts: 0, requiredContext: 10, backoffMs: 20, difficulty: 1 },
-  { id: 'mock-medium', failAttempts: 2, requiredContext: 30, backoffMs: 40, difficulty: 3 },
-  { id: 'mock-hard', failAttempts: 3, requiredContext: 60, backoffMs: 60, difficulty: 5 },
+  { id: 'mock-1', failAttempts: 0, requiredContext: 10, backoffMs: 20, difficulty: 1 },
+  { id: 'mock-2', failAttempts: 1, requiredContext: 20, backoffMs: 20, difficulty: 2 },
+  { id: 'mock-3', failAttempts: 1, requiredContext: 30, backoffMs: 30, difficulty: 3 },
+  { id: 'mock-4', failAttempts: 2, requiredContext: 50, backoffMs: 40, difficulty: 4 },
+  { id: 'mock-5', failAttempts: 2, requiredContext: 70, backoffMs: 50, difficulty: 5 },
 ];
 
 function intAfter(re: RegExp, text: string, fallback: number): number {

@@ -1,0 +1,16 @@
+{
+  "experiment": "End-to-end self-improvement under the live (mock) manifold (ADR-103)",
+  "date": "2026-06-18",
+  "method": "evolve() in sandboxMode 'mock' over the graduated context-gated ladder (DEFAULT_MOCK_TASKS), 12 generations × 6 children, seed 11, crossover+epistasis, promotionDelta 0.001. Best-so-far finalScore tracked per generation. Deterministic/reproducible (no LLM, no wall-clock).",
+  "result_by_selection": {
+    "clade": { "trajectory": "0:0.765 1:0.875 3:0.985 (then stable)", "baselineScore": 0.765, "winnerScore": 0.985, "baselineContextWindow": 30, "winnerContextWindow": 70, "improved": true },
+    "behavioral-diversity": { "trajectory": "0:0.765 1:0.875 3:0.985 (then stable)", "baselineScore": 0.765, "winnerScore": 0.985, "winnerContextWindow": 70, "improved": true }
+  },
+  "conclusion": "Under the live manifold the loop genuinely self-improves: it evolves the contextBuilder surface (window 30->70) to solve more rungs of the ladder, climbing finalScore 0.765 -> 0.985 and reaching the gate ceiling by generation 3.",
+  "honest_caveats": [
+    "Mock mode: a deterministic simulated agent loop on surface PARAMETERS, not a real LLM coding task (Tier 2 deferred).",
+    "Climb is via context-window widening (the surface that mutates upward); the retry budget does NOT mutate upward past baseline {1,2,3} — a DeterministicMutator limitation found during this run.",
+    "This smooth ladder does not differentiate selection strategies (clade vs behavioral-diversity reach the ceiling identically); a deceptive/epistatic landscape would be needed to separate them.",
+    "Earlier deceptive (retry+context coupled) and retry-gated ladders did NOT climb (greedy promotion cannot cross an epistatic plateau, and retry never mutates up) — reported honestly."
+  ]
+}

@@ -57,22 +57,23 @@ describe('extractSurfaceParams', () => {
 describe('simulateAgentLoop', () => {
   const base: SurfaceParams = { maxAttempts: 3, contextWindow: 40, memoryThreshold: 0.5, planSteps: 2 };
 
+  const hard = { id: 'h', failAttempts: 5, requiredContext: 60, backoffMs: 30, difficulty: 5 } as const;
+
   it('solves a task only with enough retries AND enough context', () => {
-    const hard = DEFAULT_MOCK_TASKS[2]; // failAttempts 3, requiredContext 60
     expect(simulateAgentLoop(base, hard).solved).toBe(false); // 3 attempts, 40 window — too little
-    const strong = simulateAgentLoop({ ...base, maxAttempts: 6, contextWindow: 60 }, hard);
+    const strong = simulateAgentLoop({ ...base, maxAttempts: 7, contextWindow: 60 }, hard);
     expect(strong.solved).toBe(true);
   });
 
   it('duration grows with retries (deterministic, surface-derived)', () => {
-    const few = simulateAgentLoop({ ...base, maxAttempts: 1 }, DEFAULT_MOCK_TASKS[1]);
-    const many = simulateAgentLoop({ ...base, maxAttempts: 6 }, DEFAULT_MOCK_TASKS[1]);
+    const few = simulateAgentLoop({ ...base, maxAttempts: 1 }, hard);
+    const many = simulateAgentLoop({ ...base, maxAttempts: 6 }, hard);
     expect(many.durationMs).toBeGreaterThan(few.durationMs);
   });
 
   it('is deterministic', () => {
-    const a = simulateAgentLoop(base, DEFAULT_MOCK_TASKS[1]);
-    const b = simulateAgentLoop(base, DEFAULT_MOCK_TASKS[1]);
+    const a = simulateAgentLoop(base, hard);
+    const b = simulateAgentLoop(base, hard);
     expect(a).toEqual(b);
   });
 });
