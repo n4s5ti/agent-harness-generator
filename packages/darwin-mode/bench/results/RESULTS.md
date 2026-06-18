@@ -2,7 +2,7 @@
 
 All numbers below are **real**: live OpenRouter API calls + the PR's own scorer +
 blind LLM judges. Nothing is fabricated. Reproduce with the scripts noted per
-section. Date: **2026-06-17**.
+section. Date: **2026-06-18** (§1–4 model/cost frontier; §5 real-substrate + SWE arc).
 
 ## 1. Darwin `evolve()` — Deterministic vs OpenRouter mutator (PR #37 src)
 
@@ -101,6 +101,25 @@ program is **compiled and run** against 8 hidden cases. `quality` = pass rate.
 - **Reliability ≠ price:** haiku-4.5 can't compile Rust/C++/C; gemini-2.5-pro is least reliable; even code-specialized codestral fails Rust. → **route per language.**
 - **Mutator routing (TS):** all but gemini-2.5-pro score 100 on TS. Default = `google/gemini-2.5-flash` (fastest perfect-on-TS); `deepseek/deepseek-chat` is the top quality/$ alternative. Raw: `polyglot-code-frontier.json` (15 models, 90 cells).
 
+## 5. Real-substrate self-improvement + the SWE-bench arc (ADRs 102–130)
+
+§1–4 are the model/cost frontier. This section is the harness **evolving and solving real tasks** — the core "evolve it" claim. Every number is a committed result artifact (`bench/results/`, indexed in `bench/REPRODUCE.md`); the architecture synthesis is `docs/adrs/ADR-108`.
+
+| What | ADR | Number |
+|---|---|---|
+| Manifold goes live (mock substrate) | 102 | `nicheEntropy 0 → 0.69`; finalScores `flat 0.985 → 0.435–0.802` |
+| Self-improvement | 103 | evolves contextBuilder window 30→70, `finalScore 0.765 → 0.985` |
+| Real surface **code** drives outcome (Tier-2) | 106 | window 30/50/80 → solves **1/2/3** tasks; self-improves 0.618→0.985 |
+| Real LLM fixes a real test | 107 | FAIL→PASS in 1 call, **$0.0005** |
+| Evolution lifts real-LLM pass-rate (multi-domain) | 119 | **0/5 → 5/5** across 5 domains, window 30→50 |
+| Fixes THIS package's own code | 120/121 | real `pareto.ts` bug FIXED, verified by the package's **own vitest suite**, $0.004 |
+| Long-horizon context (50 steps) | 122 | relevance-ranked **100%** thread-retention vs naive recency **52%** |
+| Real SWE resolved-criterion | 123 | `FAIL_TO_PASS ∧ PASS_TO_PASS`; real LLM **RESOLVED 4/4, 18/18**; test-gaming patch UNRESOLVED |
+| Surgical search/replace patch | 126/127 | whole-file regresses large files; search/replace **RESOLVES 5/5 F2P, 17/17 P2P**, 875 B diff, $0.004 |
+| SWE resolve-rate as a fitness function | 130 | scores a harness config population; fitness selects `searchreplace/3` — equal resolve, **~35% cheaper** |
+
+**Honest boundary:** the in-loop evolution uses deterministic mock/agent substrates; the SWE results are real LLM on real code but **not yet in-loop at corpus scale** nor on an **external** benchmark (ADR-098 step 3 — user-gated dataset + budget). No leaderboard number is claimed until a real external run exists. Self-corrected claims (111/112/114/115) and surfaced limitations (116/126/128) are part of the record.
+
 ## Reproduce
 
 - §1: `node /tmp/darwin-bench.mjs /tmp/darwin-target anthropic/claude-haiku-4.5`
@@ -108,3 +127,4 @@ program is **compiled and run** against 8 hidden cases. `quality` = pass rate.
 - §2: the DRACO swarm (`/tmp/draco-swarm/run-model.mjs <model>` per model at
   `max_tokens=8000`, then 3 blind judges per dossier). Raw dossiers + usage in
   `draco-quality-cost-frontier.json`.
+- §5: every row has a one-command repro in `bench/REPRODUCE.md` (rows 102–130) against its `bench/results/*.json` artifact.
