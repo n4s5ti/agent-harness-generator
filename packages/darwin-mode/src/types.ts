@@ -155,7 +155,13 @@ export interface EvolutionConfig {
    * metaproductivity — since the best-scoring variant is a poor parent once its
    * subtree is exhausted; τ is scheduled from the SGM budget. All deterministic.
    */
-  selection?: 'score' | 'quality-diversity' | 'behavioral-diversity' | 'niche-steering' | 'clade';
+  selection?:
+    | 'score'
+    | 'quality-diversity'
+    | 'behavioral-diversity'
+    | 'niche-steering'
+    | 'clade'
+    | 'pareto';
   /**
    * Opt-in genetic crossover (ADR-089). When true and a generation has ≥2
    * parents, the first child of each parent recombines that parent's surfaces

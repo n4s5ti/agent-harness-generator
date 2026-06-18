@@ -34,6 +34,8 @@ import type { MutationSurface } from './types.js';
 import { evaluateChildAgainstParent } from './bench/runner.js';
 import { benjaminiHochberg } from './bench/stats.js';
 import { curriculumSuite, maxDifficulty, nextCurriculumLevel } from './curriculum.js';
+import { paretoFront } from './pareto.js';
+import { statSync, readdirSync } from 'node:fs';
 import { admitWithStatisticalGate, makeRiskBudget } from './bench/risk.js';
 import type { RiskBudget } from './bench/risk.js';
 import type { BenchmarkResult, PromotionDecision } from './bench/types.js';
@@ -119,6 +121,26 @@ async function evaluateVariant(
 /** Cost proxy for the breaker: cumulative variant-seconds in a generation. */
 function traceSeconds(traces: RunTrace[]): number {
   return traces.reduce((s, t) => s + t.durationMs, 0) / 1000;
+}
+
+/**
+ * Total bytes of a variant's surface files — a DETERMINISTIC parsimony signal
+ * (mutations change code size). Unlike trace-derived behaviour (which is
+ * surface-independent in the current sandbox), code size genuinely differs
+ * across variants, so it is a non-degenerate secondary objective for Pareto
+ * selection (ADR-100). Returns Infinity if the directory is unreadable.
+ */
+function variantBytes(dir: string): number {
+  try {
+    let total = 0;
+    for (const name of readdirSync(dir)) {
+      const st = statSync(join(dir, name));
+      if (st.isFile()) total += st.size;
+    }
+    return total;
+  } catch {
+    return Infinity;
+  }
 }
 
 /** Mean wall-clock per trace; `Infinity` when a variant has no traces (sinks last). */
@@ -442,6 +464,18 @@ export async function evolve(config: EvolutionConfig): Promise<EvolutionResult> 
       stallFallback = archive.selectElites(2, (v) => behavioralNiche(tracesById.get(v.id) ?? []));
     } else if (config.selection === 'quality-diversity') {
       stallFallback = archive.selectElites(2);
+    } else if (config.selection === 'pareto') {
+      // Non-dominated over (finalScore ↑, code parsimony ↑ = bytes ↓). Keeps both
+      // capable and parsimonious variants as parents (ADR-100). Cap at 2 by score.
+      const sized = archive
+        .all()
+        .filter((r) => r.score !== null)
+        .map((r) => ({ v: r.variant, score: r.score!.finalScore, bytes: variantBytes(r.variant.dir) }));
+      const front = paretoFront(sized, (o) => [o.score, -o.bytes]);
+      stallFallback = (front.length > 0 ? front : sized)
+        .sort((a, b) => b.score - a.score || a.bytes - b.bytes)
+        .slice(0, 2)
+        .map((o) => o.v);
     } else {
       stallFallback = archive.selectParents(2);
     }
