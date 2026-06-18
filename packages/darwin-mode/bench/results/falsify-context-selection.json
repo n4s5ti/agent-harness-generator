@@ -1,0 +1,18 @@
+{
+  "question": "Does the contextBuilder RANKING matter, or only the window size?",
+  "note": "distractors have FLAT term-overlap with the prompt (equal scores), so the real contextBuilder falls back to input order — same as first-N. Verdict below.",
+  "results": {
+    "real-contextBuilder": {
+      "window-30": 1,
+      "window-70": 3
+    },
+    "first-N": {
+      "window-30": 1,
+      "window-70": 3
+    },
+    "random-N": {
+      "window-30": 3,
+      "window-70": 3
+    }
+  }
+}

@@ -42,3 +42,9 @@ This is the ADR-098 **nucleus**: every layer that a real SWE-bench run needs is 
 ## Validation
 
 PoC + result committed (`bench/experiments/real-surface-llm-eval.mjs`, `bench/results/real-surface-llm-eval.json`). No package code changed; 349 tests unaffected.
+
+---
+
+## Correction (ADR-111)
+
+A falsification (ADR-111) showed the contrast here is a **context-window-SIZE** effect, not contextBuilder **ranking** quality: a no-ranking first-N selector solves identically at the same window, because the distractors share the buggy file's terms (flat overlap → ranking == input order). Honest restatement: *the contextBuilder's window parameter gates how many files the LLM sees, and that gates solvability.* Ranking quality was not tested here. See ADR-111.

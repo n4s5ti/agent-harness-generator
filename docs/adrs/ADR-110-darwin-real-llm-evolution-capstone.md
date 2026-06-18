@@ -42,3 +42,9 @@ This is the ADR-098 behaviour, demonstrated end-to-end at micro scale: *evolving
 ## Validation
 
 Capstone experiment + result committed (`bench/experiments/real-llm-evolution.mjs`, `bench/results/real-llm-evolution.json`). No package code changed; 349 tests unaffected.
+
+---
+
+## Correction (ADR-111)
+
+A falsification (ADR-111) showed this is a **1-D, monotonic, noise-free window-size sweep**: a hill-climber or random restart finds `window >= 66` trivially, and a no-ranking first-N selector matches the real contextBuilder at every window. Honest restatement: this proves the **surface->real-LLM->real-test pipeline is wired end-to-end and an evolvable surface parameter causally gates real-LLM capability** — it is **not** a demonstration of non-trivial evolutionary search on the real substrate (that is shown only on the mock substrate, ADR-105). See ADR-111.
