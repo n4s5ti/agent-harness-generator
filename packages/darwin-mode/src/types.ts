@@ -132,6 +132,13 @@ export interface EvolutionConfig {
   /** Deterministic seed for mutation selection (reproducibility). Default 0. */
   seed?: number;
   /**
+   * Evaluation substrate (ADR-101/102). 'real' (default) runs the repo's test
+   * command — surface-independent, so the behavioural manifold is degenerate.
+   * 'mock' runs the deterministic surface-driven agent loop so traces depend on
+   * the harness surfaces (activating ADR-091/092/094/097/100). Reproducible.
+   */
+  sandboxMode?: 'real' | 'mock';
+  /**
    * Tie-break policy when variants share the top finalScore (ADR-072's scorer
    * ceilings at 0.985, so ties are the common case). 'insertion' (default) is
    * fully reproducible — earliest insertion wins. 'faster' breaks ties by lowest

@@ -1,0 +1,8 @@
+{
+  "experiment": "Agent-Executing Sandbox Tier 1 (ADR-101/102) — does surface-driven evaluation make the behavioural manifold live?",
+  "date": "2026-06-18",
+  "method": "Same evolve() run (5 generations, 4 children, seed 5, selection behavioral-diversity) under two sandbox modes. Niche entropy = Shannon entropy of behavioralNiche over the scored archive; distinctScores = unique finalScore values. Deterministic.",
+  "real": { "mode": "real (repo test command, surface-independent)", "scoredVariants": 21, "distinctNiches": 1, "nicheEntropy": 0, "distinctScores": [0.985] },
+  "mock": { "mode": "mock (deterministic surface-driven agent loop)", "scoredVariants": 37, "distinctNiches": 2, "nicheEntropy": 0.6899, "distinctScores": [0.435, 0.618333, 0.801667] },
+  "conclusion": "Mock mode makes BOTH the behavioural manifold (entropy 0 -> 0.69) and the fitness signal (flat 0.985 -> spread 0.435-0.802) non-degenerate. The keystone (ADR-101) works: surface-dependent traces activate the whole selection stack. Reproducible (deterministic, no LLM/wall-clock)."
+}

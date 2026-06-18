@@ -35,6 +35,7 @@ export * from './epistasis.js';
 export * from './clade.js';
 export * from './curriculum.js';
 export * from './pareto.js';
+export * from './mock-sandbox.js';
 export * from './sandbox.js';
 export * from './scorer.js';
 export * from './archive.js';

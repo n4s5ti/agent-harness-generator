@@ -21,6 +21,7 @@ import {
 } from './mutator.js';
 import { profileRepo } from './repo_profiler.js';
 import { runVariantTasks } from './sandbox.js';
+import { runVariantTasksMock } from './mock-sandbox.js';
 import { scoreVariant } from './scorer.js';
 import {
   behavioralNiche,
@@ -105,9 +106,13 @@ async function evaluateVariant(
   parentScore: ScoreCard | null,
 ): Promise<Evaluation> {
   const timeout = cfg.taskTimeoutMs ?? DEFAULT_TASK_TIMEOUT_MS;
-  const traces = await runVariantTasks(variant, profile, cfg.tasks, {
-    taskTimeoutMs: timeout,
-  });
+  // ADR-102: in 'mock' mode the surfaces actually drive a deterministic agent
+  // loop, so the trace depends on surface content (manifold becomes live). The
+  // default 'real' mode runs the repo test command (surface-independent).
+  const traces =
+    cfg.sandboxMode === 'mock'
+      ? await runVariantTasksMock(variant)
+      : await runVariantTasks(variant, profile, cfg.tasks, { taskTimeoutMs: timeout });
   const score = scoreVariant(
     variant.id,
     traces,
