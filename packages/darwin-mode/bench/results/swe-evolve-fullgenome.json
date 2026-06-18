@@ -1,0 +1,53 @@
+{
+  "experiment": "ADR-136 — evolve the full genome (model + patchMode + maxAttempts)",
+  "corpus": [
+    "kernel-js",
+    "create-agent-harness",
+    "vertical-base"
+  ],
+  "modelGene": [
+    "gemini-2.5-flash",
+    "deepseek-chat",
+    "gpt-5-mini"
+  ],
+  "generations": 3,
+  "configsEvaluated": 5,
+  "trajectory": [
+    {
+      "gen": 0,
+      "best": "gemini-2.5-flash/wholefile/a1",
+      "bestResolved": "3/3",
+      "bestCost": 0.0142,
+      "evaluatedThisGen": [
+        "gemini-2.5-flash/wholefile/a1:3/3",
+        "gemini-2.5-flash/searchreplace/a2:2/3"
+      ]
+    },
+    {
+      "gen": 1,
+      "best": "gemini-2.5-flash/wholefile/a1",
+      "bestResolved": "3/3",
+      "bestCost": 0.0142,
+      "evaluatedThisGen": [
+        "gemini-2.5-flash/searchreplace/a1:2/3",
+        "deepseek-chat/wholefile/a1:2/3"
+      ]
+    },
+    {
+      "gen": 2,
+      "best": "gemini-2.5-flash/wholefile/a1",
+      "bestResolved": "3/3",
+      "bestCost": 0.0142,
+      "evaluatedThisGen": [
+        "gemini-2.5-flash/wholefile/a2:3/3"
+      ]
+    }
+  ],
+  "evolvedWinner": {
+    "genome": "gemini-2.5-flash/wholefile/a1",
+    "resolved": "3/3",
+    "cost_usd": 0.0142
+  },
+  "totalCost_usd": 0.0527,
+  "verdict": "evolution autonomously selected model 'gemini-2.5-flash' (winner gemini-2.5-flash/wholefile/a1, 3/3, $0.0142) — the harness self-optimizes its own model, no hand-picking (cf. ADR-135 manual frontier)"
+}
