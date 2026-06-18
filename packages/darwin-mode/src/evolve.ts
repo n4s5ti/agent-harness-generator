@@ -22,6 +22,7 @@ import {
 import { profileRepo } from './repo_profiler.js';
 import { runVariantTasks } from './sandbox.js';
 import { scoreVariant } from './scorer.js';
+import { behavioralNiche } from './phenotype.js';
 import { evaluateChildAgainstParent } from './bench/runner.js';
 import { admitWithStatisticalGate, makeRiskBudget } from './bench/risk.js';
 import type { RiskBudget } from './bench/risk.js';
@@ -316,9 +317,11 @@ export async function evolve(config: EvolutionConfig): Promise<EvolutionResult> 
     // Opt-in MAP-Elites (config.selection): the stall fallback draws elites from
     // DISTINCT surface niches so exploration stays diverse at the score ceiling.
     const stallFallback =
-      config.selection === 'quality-diversity'
-        ? archive.selectElites(2)
-        : archive.selectParents(2);
+      config.selection === 'behavioral-diversity'
+        ? archive.selectElites(2, (v) => behavioralNiche(tracesById.get(v.id) ?? []))
+        : config.selection === 'quality-diversity'
+          ? archive.selectElites(2)
+          : archive.selectParents(2);
     parents = promoted.length > 0 ? promoted : stallFallback;
     if (parents.length === 0) break;
   }

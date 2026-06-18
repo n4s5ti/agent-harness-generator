@@ -144,9 +144,12 @@ export interface EvolutionConfig {
    * 'score' (default) takes the top finalScore variants (ADR-073). 'quality-
    * diversity' (MAP-Elites) takes the elite per behaviour niche (mutated
    * surface) so the population keeps exploring all surfaces instead of
-   * collapsing onto one at the 0.985 ceiling. Deterministic either way.
+   * collapsing onto one at the 0.985 ceiling. 'behavioral-diversity' (ADR-091)
+   * bins by HYPERBOLIC behavioural niche (Poincaré-ball phenotype from run
+   * traces) so diversity tracks how a variant *behaves*, not which file it
+   * touched. All three are deterministic.
    */
-  selection?: 'score' | 'quality-diversity';
+  selection?: 'score' | 'quality-diversity' | 'behavioral-diversity';
   /**
    * Opt-in genetic crossover (ADR-089). When true and a generation has ≥2
    * parents, the first child of each parent recombines that parent's surfaces

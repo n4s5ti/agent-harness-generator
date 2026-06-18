@@ -30,6 +30,7 @@ export * from './templates.js';
 export * from './generator.js';
 export * from './mutator.js';
 export * from './openrouter-mutator.js';
+export * from './phenotype.js';
 export * from './sandbox.js';
 export * from './scorer.js';
 export * from './archive.js';
