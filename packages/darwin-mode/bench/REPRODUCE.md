@@ -33,6 +33,8 @@ LLM, deterministic). **LLM** = one or more live OpenRouter calls (set
 | 117 | Real multi-file SWE nucleus | `node --experimental-strip-types bench/experiments/swe-nucleus.mjs` | `results/swe-nucleus.json` | real ctxb selects → real LLM reasons over real code → real test FIXED | LLM |
 | 118 | SWE suite generalizes | `node --experimental-strip-types bench/experiments/swe-suite.mjs` | `results/swe-suite.json` | 5/5 varied real bugs fixed, correct file chosen each, $0.001 | LLM |
 | 119 | Multi-domain evolution | `node --experimental-strip-types bench/experiments/swe-evolution.mjs` | `results/swe-evolution.json` | evolution lifts real-test pass-rate 0/5→5/5 (window 30→50), 5 cached calls | LLM |
+| 120 | SWE loop on THIS package's real code | `node --experimental-strip-types bench/experiments/swe-realcode.mjs` | `results/swe-realcode.json` | real ctxb picks pareto.ts of 21 real src files → real LLM fixes real TS → real test FIXED, $0.004 | LLM |
+| 121 | …verified by the package's own vitest suite | `node --experimental-strip-types bench/experiments/swe-realtests.mjs` | `results/swe-realtests.json` | same loop, oracle = real committed `pareto.test.ts` (vitest) FAIL→PASS, $0.004 | LLM |
 
 DRACO (`results/draco-quality-cost-frontier.json`, ADR-037–040 lineage) and the
 human-readable summary (`results/RESULTS.md`) accompany these.
