@@ -199,6 +199,13 @@ export interface EvolutionConfig {
   riskBudgetTotal?: number;
   /** Cost-per-solve ceiling as a multiple of the parent (SGM). Default 1.20. */
   costCeilingFactor?: number;
+  /**
+   * Opt-in Benjamini–Hochberg FDR target (ADR-096). Only meaningful with
+   * benchSuite. When set (e.g. 0.05), promotions are corrected for multiple
+   * testing across each generation's candidates — a child stays promoted only if
+   * it survives the generation-wide BH correction. Strictly tightens promotion.
+   */
+  fdrQ?: number;
 }
 
 /** The outcome of an `evolve` run. */

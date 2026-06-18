@@ -129,6 +129,8 @@ export interface BootstrapResult {
   /** meanDelta > minDelta ∧ lower95 > 0. */
   promote: boolean;
   samples: number;
+  /** One-sided bootstrap p-value for H0: delta ≤ 0 (fraction of resamples ≤ 0). */
+  pValue: number;
 }
 
 /** The full, auditable promotion verdict for a child vs its parent. */
@@ -145,6 +147,8 @@ export interface PromotionDecision {
   parentRegressionRate: number;
   childSafetyViolations: number;
   cleanReplay: boolean;
+  /** One-sided bootstrap p-value for the child>parent win (for FDR control, ADR-096). */
+  pValue: number;
 }
 
 /** A node in the lineage tree used for descendant-potential analysis. */

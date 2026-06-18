@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: MIT
 import { describe, expect, it } from 'vitest';
-import { bootstrapDelta, makeRng } from '../../src/bench/stats.js';
+import { bootstrapDelta, makeRng, benjaminiHochberg } from '../../src/bench/stats.js';
 
 /** Deterministic pseudo-distribution around `centre` ± `spread`, seeded. */
 function distribution(centre: number, spread: number, n: number, seed: number): number[] {
@@ -63,6 +63,7 @@ describe('bootstrapDelta', () => {
       upper95: 0,
       promote: false,
       samples: 5000,
+      pValue: 1,
     });
     expect(bootstrapDelta([0.5], [], { seed: 7, samples: 100 })).toEqual({
       meanDelta: 0,
@@ -70,6 +71,7 @@ describe('bootstrapDelta', () => {
       upper95: 0,
       promote: false,
       samples: 100,
+      pValue: 1,
     });
   });
 
@@ -87,5 +89,39 @@ describe('bootstrapDelta', () => {
   it('honours the samples option', () => {
     const res = bootstrapDelta([0.5], [0.7], { seed: 7, samples: 250 });
     expect(res.samples).toBe(250);
+  });
+
+  it('reports a low p-value for a clear win and a high one for no difference', () => {
+    const win = bootstrapDelta([0.2, 0.3], [0.9, 0.95], { seed: 1, samples: 2000 });
+    const tie = bootstrapDelta([0.5, 0.5], [0.5, 0.5], { seed: 1, samples: 2000 });
+    expect(win.pValue).toBeLessThan(0.05);
+    expect(tie.pValue).toBeGreaterThan(0.5); // delta==0 counts as ≤0
+  });
+});
+
+describe('benjaminiHochberg (FDR control, ADR-096)', () => {
+  it('rejects nothing when all p-values are large', () => {
+    expect(benjaminiHochberg([0.4, 0.6, 0.9], 0.05)).toEqual([false, false, false]);
+  });
+
+  it('rejects the clearly-significant hypotheses at q=0.05', () => {
+    // 4 hypotheses; two tiny p-values should survive BH, two large should not.
+    const rejected = benjaminiHochberg([0.001, 0.002, 0.40, 0.80], 0.05);
+    expect(rejected[0]).toBe(true);
+    expect(rejected[1]).toBe(true);
+    expect(rejected[2]).toBe(false);
+    expect(rejected[3]).toBe(false);
+  });
+
+  it('is stricter than the per-comparison threshold (controls false discoveries)', () => {
+    // p=0.04 would pass a naive α=0.05 test, but among 10 hypotheses where it is
+    // the only smallish one, BH at q=0.05 rejects it (no false discovery).
+    const ps = [0.04, ...Array(9).fill(0.9)];
+    expect(benjaminiHochberg(ps, 0.05)[0]).toBe(false);
+  });
+
+  it('handles empty input and q<=0', () => {
+    expect(benjaminiHochberg([], 0.05)).toEqual([]);
+    expect(benjaminiHochberg([0.001], 0)).toEqual([false]);
   });
 });

@@ -125,5 +125,6 @@ export function decidePromotion(input: {
     parentRegressionRate,
     childSafetyViolations,
     cleanReplay,
+    pValue: bootstrap.pValue,
   };
 }

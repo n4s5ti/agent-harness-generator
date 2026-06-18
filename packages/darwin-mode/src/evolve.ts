@@ -32,6 +32,7 @@ import { buildLinkage, LinkageGraph, linkedCrossoverBlock } from './epistasis.js
 import { cladeThompsonSelect } from './clade.js';
 import type { MutationSurface } from './types.js';
 import { evaluateChildAgainstParent } from './bench/runner.js';
+import { benjaminiHochberg } from './bench/stats.js';
 import { admitWithStatisticalGate, makeRiskBudget } from './bench/risk.js';
 import type { RiskBudget } from './bench/risk.js';
 import type { BenchmarkResult, PromotionDecision } from './bench/types.js';
@@ -340,6 +341,25 @@ export async function evolve(config: EvolutionConfig): Promise<EvolutionResult> 
           };
         }
         benchByChild.set(e.id, decision);
+      }
+
+      // ADR-096: Benjamini–Hochberg FDR control across THIS generation's
+      // candidates. With many concurrent tests, per-comparison gates over-promote
+      // by chance; BH corrects it. It can only DEMOTE (never promotes a child
+      // that failed its clauses) — a child stays promoted iff it already passed
+      // AND survives the generation-wide correction at q = config.fdrQ.
+      if (config.fdrQ !== undefined) {
+        const entries = [...benchByChild.entries()];
+        const significant = benjaminiHochberg(entries.map(([, d]) => d.pValue), config.fdrQ);
+        entries.forEach(([id, d], i) => {
+          if (d.promote && !significant[i]) {
+            benchByChild!.set(id, {
+              ...d,
+              promote: false,
+              reasons: [...d.reasons, `FDR(BH q=${config.fdrQ}): not significant after multiple-testing correction`],
+            });
+          }
+        });
       }
     }
 

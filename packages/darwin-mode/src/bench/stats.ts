@@ -62,18 +62,20 @@ export function bootstrapDelta(
   const minDelta = opts?.minDelta ?? 0.05;
 
   if (parentScores.length === 0 || childScores.length === 0) {
-    return { meanDelta: 0, lower95: 0, upper95: 0, promote: false, samples };
+    return { meanDelta: 0, lower95: 0, upper95: 0, promote: false, samples, pValue: 1 };
   }
 
   const rng = makeRng(seed);
   const deltas: number[] = new Array(samples);
   let sum = 0;
+  let nonPositive = 0;
   for (let i = 0; i < samples; i += 1) {
     const parent = parentScores[Math.floor(rng() * parentScores.length)];
     const child = childScores[Math.floor(rng() * childScores.length)];
     const delta = child - parent;
     deltas[i] = delta;
     sum += delta;
+    if (delta <= 0) nonPositive += 1;
   }
 
   deltas.sort((x, y) => x - y);
@@ -82,6 +84,30 @@ export function bootstrapDelta(
   const lower95 = round6(deltas[Math.floor(samples * 0.025)]);
   const upper95 = round6(deltas[Math.floor(samples * 0.975)]);
   const promote = meanDelta > minDelta && lower95 > 0;
+  // One-sided bootstrap p-value for H0: delta ≤ 0 (the share of resamples ≤ 0).
+  const pValue = round6(nonPositive / samples);
 
-  return { meanDelta, lower95, upper95, promote, samples };
+  return { meanDelta, lower95, upper95, promote, samples, pValue };
+}
+
+/**
+ * Benjamini–Hochberg false-discovery-rate control (ADR-096). Given a set of
+ * one-sided p-values and a target FDR `q`, return a boolean per hypothesis:
+ * `true` ⇒ rejected H0 (i.e. a statistically real discovery after correcting
+ * for multiple testing). Standard step-up: sort ascending, find the largest k
+ * with p_(k) ≤ (k/m)·q, reject all hypotheses with p ≤ that threshold. Pure and
+ * deterministic. Empty input ⇒ empty output; q ≤ 0 ⇒ reject nothing.
+ */
+export function benjaminiHochberg(pValues: readonly number[], q: number): boolean[] {
+  const m = pValues.length;
+  const result = new Array<boolean>(m).fill(false);
+  if (m === 0 || q <= 0) return result;
+  const order = pValues.map((p, i) => ({ p, i })).sort((a, b) => a.p - b.p);
+  let cutoff = -1; // largest p that passes the BH threshold
+  for (let rank = 1; rank <= m; rank += 1) {
+    if (order[rank - 1].p <= (rank / m) * q) cutoff = order[rank - 1].p;
+  }
+  if (cutoff < 0) return result;
+  for (let j = 0; j < m; j += 1) if (pValues[j] <= cutoff) result[j] = true;
+  return result;
 }
