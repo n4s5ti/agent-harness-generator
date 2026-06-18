@@ -1,0 +1,13 @@
+{
+  "experiment": "Real-LLM evaluation proof-of-concept (ADR-107, toward ADR-098)",
+  "date": "2026-06-18",
+  "method": "A merge-intervals function with a real bug (does not merge touching intervals) + a real Node test covering that case. The test FAILS; one OpenRouter call is asked to return the corrected file; the file is applied; the REAL test command is the verdict. One call — not wired into evolve (which would cost one call per variant per generation).",
+  "model": "google/gemini-2.5-flash",
+  "beforePass": false,
+  "afterPass": true,
+  "verdict": "FIXED (real test now passes)",
+  "tokens": 353,
+  "cost_usd": 0.000477279,
+  "latency_ms": 1448,
+  "significance": "Demonstrates the production evaluation path end-to-end — real model + real failing test + real test verdict — for ~$0.0005, reusing the real-test-as-oracle approach. Bridges Tier-2 (real surface code on synthetic tasks, ADR-106) toward real-LLM-on-real-SWE-tasks (ADR-098)."
+}
