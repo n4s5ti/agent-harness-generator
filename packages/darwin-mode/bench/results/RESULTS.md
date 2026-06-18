@@ -101,7 +101,7 @@ program is **compiled and run** against 8 hidden cases. `quality` = pass rate.
 - **Reliability ≠ price:** haiku-4.5 can't compile Rust/C++/C; gemini-2.5-pro is least reliable; even code-specialized codestral fails Rust. → **route per language.**
 - **Mutator routing (TS):** all but gemini-2.5-pro score 100 on TS. Default = `google/gemini-2.5-flash` (fastest perfect-on-TS); `deepseek/deepseek-chat` is the top quality/$ alternative. Raw: `polyglot-code-frontier.json` (15 models, 90 cells).
 
-## 5. Real-substrate self-improvement + the SWE-bench arc (ADRs 102–133)
+## 5. Real-substrate self-improvement + the SWE-bench arc (ADRs 102–134)
 
 §1–4 are the model/cost frontier. This section is the harness **evolving and solving real tasks** — the core "evolve it" claim. Every number is a committed result artifact (`bench/results/`, indexed in `bench/REPRODUCE.md`); the architecture synthesis is `docs/adrs/ADR-108`.
 
@@ -120,6 +120,7 @@ program is **compiled and run** against 8 hidden cases. `quality` = pass rate.
 | Runner generalizes to an external package | 131 | resolves a real bug in **kernel-js** (a different package), 2/2 F2P, 1 attempt, $0.003 |
 | Multi-package cross-package resolve-rate | 132 | **4/4** across kernel-js, create-agent-harness, vertical-base, darwin-mode — one runner, $0.017 |
 | Evolve the harness vs real SWE fitness | 133 | `(1+λ)` loop over 3 external packages; elite improves gen0→gen1 (3/3 at lower cost) — the "evolve it" loop, end-to-end |
+| Capability-driven evolution (completes 133) | 134 | discriminating corpus: `searchreplace/a1` resolves the multi-fault 2/2, `wholefile/a1` only 1/2 — evolution selects search/replace by **capability** |
 
 **Honest boundary:** the in-loop evolution uses deterministic mock/agent substrates; the SWE results are real LLM on real code but **not yet in-loop at corpus scale** nor on an **external** benchmark (ADR-098 step 3 — user-gated dataset + budget). No leaderboard number is claimed until a real external run exists. Self-corrected claims (111/112/114/115) and surfaced limitations (116/126/128) are part of the record.
 
