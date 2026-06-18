@@ -130,14 +130,38 @@ export function poincareDistance(u: readonly number[], v: readonly number[]): nu
  * behaviour ⇒ same niche; deterministic. Plugs into `selectElites` as the
  * descriptor: `selectElites(k, v => behavioralNiche(tracesById.get(v.id) ?? []))`.
  */
-export function behavioralNiche(traces: RunTrace[], shells = 4, sectors = 6): string {
-  const [x, y] = poincareEmbed(behaviorFeatures(traces));
+/** Poincaré polar niche of a disk point: radial shell (depth) × angular sector. */
+export function poincareNicheOf(x: number, y: number, shells = 4, sectors = 6): string {
   const r = Math.sqrt(x * x + y * y);
   const shell = Math.min(shells - 1, Math.floor(r * shells));
   let theta = Math.atan2(y, x);
   if (theta < 0) theta += 2 * Math.PI;
   const sector = Math.min(sectors - 1, Math.floor((theta / (2 * Math.PI)) * sectors));
   return `h${shell}_s${sector}`;
+}
+
+/** Flat Cartesian niche of a disk point: a uniform `bins × bins` square grid. */
+export function euclideanNicheOf(x: number, y: number, bins = 5): string {
+  const cell = (v: number) => Math.min(bins - 1, Math.max(0, Math.floor(((v + 1) / 2) * bins)));
+  return `e${cell(x)}_${cell(y)}`;
+}
+
+export function behavioralNiche(traces: RunTrace[], shells = 4, sectors = 6): string {
+  const [x, y] = poincareEmbed(behaviorFeatures(traces));
+  return poincareNicheOf(x, y, shells, sectors);
+}
+
+/**
+ * FLAT Euclidean niche over the SAME embedded behaviour point — a square
+ * `bins × bins` grid on the disk. This is the ablation comparator for ADR-095:
+ * it bins the identical `poincareEmbed` coordinate with a uniform Cartesian grid
+ * instead of the polar/hyperbolic radial-shell grid, so a controlled run can
+ * measure what the hyperbolic geometry actually buys. Deterministic.
+ */
+export function euclideanNiche(traces: RunTrace[], bins = 5): string {
+  const [x, y] = poincareEmbed(behaviorFeatures(traces));
+  const cell = (v: number) => Math.min(bins - 1, Math.max(0, Math.floor(((v + 1) / 2) * bins)));
+  return `e${cell(x)}_${cell(y)}`;
 }
 
 // ── Active niche steering (ADR-092) — navigate the behavioural manifold ───────

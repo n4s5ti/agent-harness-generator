@@ -1,0 +1,31 @@
+{
+  "shells": 4,
+  "sectors": 6,
+  "bins": 5,
+  "strategies": 8,
+  "samples": 40,
+  "results": [
+    {
+      "regime": "hierarchical",
+      "poincare": {
+        "distinctNiches": 12,
+        "strategySeparation": 1
+      },
+      "euclidean": {
+        "distinctNiches": 11,
+        "strategySeparation": 0.929
+      }
+    },
+    {
+      "regime": "uniform",
+      "poincare": {
+        "distinctNiches": 11,
+        "strategySeparation": 0.857
+      },
+      "euclidean": {
+        "distinctNiches": 8,
+        "strategySeparation": 0.929
+      }
+    }
+  ]
+}
