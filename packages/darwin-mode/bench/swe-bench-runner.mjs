@@ -57,7 +57,9 @@ export function selectFiles(problem, srcDir, files, buildContext, k = 6) {
   // Only treat camelCase / snake_case tokens as symbols — plain English words ("returns",
   // "boundary") are all-lowercase and would spuriously match common identifiers.
   const syms = [...new Set(problem.match(/[A-Za-z_][A-Za-z0-9_]{3,}/g) ?? [])].filter((s) => /[a-z][A-Z]/.test(s) || s.includes('_'));
-  const defines = (c, s) => new RegExp(`(?:function|const|let|var|class|interface|type|enum)\\s+${s}\\b`).test(c) || new RegExp(`\\b${s}\\s*[:=]\\s*(?:\\(|function|async|\\{)`).test(c);
+  // Language-agnostic definition forms: JS/TS (function/const/class/…) AND Python (def/class) —
+  // so the symbol index works on Python repos too (ADR-142 SWE-bench: Python uses `def`).
+  const defines = (c, s) => new RegExp(`(?:function|def|const|let|var|class|interface|type|enum)\\s+${s}\\b`).test(c) || new RegExp(`\\b${s}\\s*[:=]\\s*(?:\\(|function|async|\\{)`).test(c);
   const symbolFiles = files.filter((f) => { const c = readFileSync(join(srcDir, f), 'utf8'); return syms.some((s) => defines(c, s)); });
   const merged = [];
   for (const f of [...symbolFiles, ...pathRanked]) if (!merged.includes(f)) merged.push(f);

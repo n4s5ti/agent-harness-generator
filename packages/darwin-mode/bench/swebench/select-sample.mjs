@@ -9,6 +9,7 @@ for (const off of [0, 100, 200]) {
 }
 const inst = pages.map(x => ({
   instance_id: x.instance_id, repo: x.repo, base_commit: x.base_commit,
+  problem_statement: x.problem_statement || '',
   patchChars: (x.patch || '').length,
   filesChanged: ((x.patch || '').match(/diff --git/g) || []).length,
   f2p: JSON.parse(x.FAIL_TO_PASS || '[]').length,

@@ -1,0 +1,80 @@
+// SPDX-License-Identifier: MIT
+//
+// ADR-142 (pilot) — the SWE-bench SOLVER shim. Reuses the validated Darwin harness (relevance-
+// ranked contextBuilder + symbol-index selectFiles + search/replace patch primitive, ADR-127/129)
+// on REAL external Python repos. Per instance: shallow-fetch the repo at base_commit, select files,
+// ask deepseek-chat for search/replace edits, apply, `git diff` → a model_patch for predictions.jsonl.
+// The official `swebench` Docker harness does the test execution + resolved scoring (this shim never
+// runs tests). Open-loop single-shot (no local feedback — that needs the Docker env; Stage B can add it).
+//
+// Run: OPENROUTER_API_KEY=$(cat /tmp/.orkey) node --experimental-strip-types --no-warnings \
+//   bench/swebench/solve.mjs [--instance <id>] [--k 12] [--out preds.jsonl]
+import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, existsSync, appendFileSync, statSync } from 'node:fs';
+import { execSync } from 'node:child_process';
+import { tmpdir } from 'node:os';
+import { join, dirname, isAbsolute } from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { generateBaselineHarness } from '../../dist/generator.js';
+import { profileRepo } from '../../dist/repo_profiler.js';
+import { selectFiles } from '../swe-bench-runner.mjs';
+
+const HERE = dirname(fileURLToPath(import.meta.url));
+const args = process.argv.slice(2);
+const argv = (f, d) => { const i = args.indexOf(f); return i >= 0 ? args[i + 1] : d; };
+const onlyInstance = argv('--instance', null);
+const K = +argv('--k', 12);
+const MODEL = argv('--model', 'deepseek/deepseek-chat');
+const rel = (p) => (isAbsolute(p) ? p : join(HERE, p));
+const OUT = rel(argv('--out', 'predictions.jsonl'));
+const REPORT = rel(argv('--report', 'solve-report.json'));
+const key = (process.env.OPENROUTER_API_KEY || readFileSync('/tmp/.orkey', 'utf8')).trim();
+
+let manifest = JSON.parse(readFileSync(join(HERE, 'pilot-sample-25.json'), 'utf8')).instances;
+if (onlyInstance) manifest = manifest.filter((i) => i.instance_id === onlyInstance);
+
+// One baseline contextBuilder for all instances (the harness's real relevance ranker).
+const hr = mkdtempSync(join(tmpdir(), 'sb-h-')); mkdirSync(join(hr, 'src'), { recursive: true });
+writeFileSync(join(hr, 'package.json'), '{"name":"h","version":"1.0.0"}'); writeFileSync(join(hr, 'src', 'i.js'), 'export const x=1;\n');
+const base = await generateBaselineHarness(await profileRepo(hr), mkdtempSync(join(tmpdir(), 'sb-hw-')));
+const { buildContext } = await import(`${base.dir}/context_builder.ts`);
+
+const g = (cwd, c) => execSync(c, { cwd, stdio: ['ignore', 'pipe', 'pipe'], maxBuffer: 1 << 28, env: { ...process.env, GIT_TERMINAL_PROMPT: '0' } });
+function fetchRepo(repo, sha) {
+  const work = mkdtempSync(join(tmpdir(), 'sbrepo-'));
+  g(work, 'git init -q'); g(work, `git remote add origin https://github.com/${repo}.git`);
+  try { g(work, `git fetch --depth 1 origin ${sha} -q`); g(work, 'git checkout -q FETCH_HEAD'); }
+  catch { g(work, 'git fetch --depth 1 origin -q'); g(work, `git fetch --depth 200 origin -q`); g(work, `git checkout -q ${sha}`); }
+  return work;
+}
+
+writeFileSync(OUT, ''); // fresh
+const report = []; let totalCost = 0, totalTok = 0;
+for (const inst of manifest) {
+  const t0 = Date.now(); let row = { instance_id: inst.instance_id, repo: inst.repo };
+  try {
+    const work = fetchRepo(inst.repo, inst.base_commit);
+    // candidate source files: tracked .py, excluding tests/vendored, size-bounded
+    const all = g(work, "git ls-files '*.py'").toString().split('\n').filter(Boolean)
+      .filter((f) => !/(^|\/)(tests?|testing|_pytest\/_.*|site-packages|node_modules|\.tox|build|dist)\//i.test(f) && !/(^|\/)(test_|conftest)/i.test(f) && !/_test\.py$/.test(f))
+      .filter((f) => { try { return statSync(join(work, f)).size <= 100_000; } catch { return false; } });
+    const selected = selectFiles(inst.problem_statement, work, all, buildContext, K);
+    row.candidateFiles = all.length; row.selected = selected;
+    const seen = selected.map((f) => `# ===== ${f} =====\n${readFileSync(join(work, f), 'utf8').slice(0, 45000)}`).join('\n\n');
+    const prompt = `Fix the bug described below by editing the selected real source files. For EACH change emit a block EXACTLY:\nFILE: <one selected path>\n<<<SEARCH\n<exact lines copied verbatim from that file>\n=======\n<replacement lines>\n>>>REPLACE\nThe SEARCH text must match the file character-for-character (incl. indentation). Emit multiple blocks if needed. No prose outside blocks.\n--- problem statement ---\n${inst.problem_statement.slice(0, 6000)}\n--- selected source files ---\n${seen}\n`;
+    const res = await fetch('https://openrouter.ai/api/v1/chat/completions', { method: 'POST', headers: { Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ model: MODEL, messages: [{ role: 'user', content: prompt }], max_tokens: 4096, temperature: 0 }) });
+    const j = await res.json();
+    totalTok += j.usage?.total_tokens ?? 0; totalCost += j.usage?.cost ?? 0; row.cost_usd = j.usage?.cost ?? 0;
+    const raw = j.choices?.[0]?.message?.content ?? '';
+    if (process.env.SWE_RAWDUMP) writeFileSync(rel(`raw-${inst.instance_id}.txt`), raw);
+    let applied = 0; const re = /FILE:\s*([^\n]+)\n<<<SEARCH\n([\s\S]*?)\n=======\n([\s\S]*?)\n>>>REPLACE/g;
+    for (let m; (m = re.exec(raw)); ) { const f = m[1].trim(); if (!selected.includes(f)) continue; const fp = join(work, f); if (!existsSync(fp)) continue; const cur = readFileSync(fp, 'utf8'); if (m[2].length && cur.includes(m[2])) { writeFileSync(fp, cur.replace(m[2], m[3])); applied++; } }
+    row.blocksApplied = applied;
+    const diff = applied ? g(work, 'git diff').toString() : '';
+    row.patchBytes = diff.length;
+    appendFileSync(OUT, JSON.stringify({ instance_id: inst.instance_id, model_name_or_path: 'darwin-deepseek-searchreplace', model_patch: diff }) + '\n');
+  } catch (e) { row.error = String(e).split('\n')[0].slice(0, 200); appendFileSync(OUT, JSON.stringify({ instance_id: inst.instance_id, model_name_or_path: 'darwin-deepseek-searchreplace', model_patch: '' }) + '\n'); }
+  row.sec = Math.round((Date.now() - t0) / 1000); report.push(row);
+  console.error(`[${report.length}/${manifest.length}] ${inst.instance_id} files=${row.candidateFiles ?? '?'} applied=${row.blocksApplied ?? 0} patch=${row.patchBytes ?? 0}B ${row.sec}s ${row.error ? 'ERR:' + row.error : ''}`);
+}
+writeFileSync(REPORT, JSON.stringify({ model: MODEL, k: K, n: report.length, totalTokens: totalTok, totalCost_usd: Math.round(totalCost * 10000) / 10000, instances: report }, null, 2));
+console.error(`\nDONE ${report.length} instances | applied-a-patch: ${report.filter((r) => r.blocksApplied).length} | $${Math.round(totalCost * 10000) / 10000} | preds → ${OUT}`);
