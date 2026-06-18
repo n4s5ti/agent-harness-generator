@@ -161,6 +161,13 @@ export interface EvolutionConfig {
    */
   crossover?: boolean;
   /**
+   * Opt-in epistatic linkage (ADR-093). Only meaningful with crossover. When
+   * true, evolve() learns a surface co-occurrence graph from high-fitness
+   * lineages and crossover inherits the LINKED block of the donor surface
+   * (keeping co-adapted surfaces together) instead of a random subset.
+   */
+  epistasis?: boolean;
+  /**
    * Pluggable code generator (ADR-071). Default is the DeterministicMutator;
    * pass an LLM-backed one (e.g. OpenRouterMutator) to evolve via a model — it
    * still passes the same validateGeneratedCode safety gate.

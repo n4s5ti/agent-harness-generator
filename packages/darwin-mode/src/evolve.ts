@@ -28,6 +28,8 @@ import {
   nearestToTarget,
   underExploredTarget,
 } from './phenotype.js';
+import { buildLinkage, LinkageGraph, linkedCrossoverBlock } from './epistasis.js';
+import type { MutationSurface } from './types.js';
 import { evaluateChildAgainstParent } from './bench/runner.js';
 import { admitWithStatisticalGate, makeRiskBudget } from './bench/risk.js';
 import type { RiskBudget } from './bench/risk.js';
@@ -231,20 +233,40 @@ export async function evolve(config: EvolutionConfig): Promise<EvolutionResult> 
     // Build this generation's children from the current parents.
     const children: Array<{ child: HarnessVariant; parent: HarnessVariant }> = [];
     const canCross = config.crossover === true && parents.length >= 2;
+    // ADR-093: when epistasis is on, learn the surface-linkage graph from the
+    // archive so crossover keeps co-adapted surfaces together (topology-aware).
+    const linkage: LinkageGraph | null =
+      canCross && config.epistasis === true
+        ? buildLinkage(
+            archive
+              .all()
+              .filter((r) => r.score !== null)
+              .map((r) => ({
+                surfaces: archive
+                  .lineageOf(r.variant.id)
+                  .map((id) => archive.get(id)?.variant.mutationSurface)
+                  .filter((s): s is MutationSurface => s !== undefined),
+                score: r.score!.finalScore,
+              })),
+          )
+        : null;
     for (let pIdx = 0; pIdx < parents.length; pIdx++) {
       const parent = parents[pIdx];
       for (let index = 0; index < config.childrenPerGeneration; index++) {
         // Opt-in crossover (ADR-089): the first child of each parent recombines
-        // with the next parent's surfaces; the rest are ordinary mutations.
+        // with the next parent's surfaces; the rest are ordinary mutations. With
+        // epistasis (ADR-093) the inherited subset is the next parent's linked block.
+        const other = parents[(pIdx + 1) % parents.length];
         const child =
           canCross && index === 0
             ? await createCrossoverVariant(
                 parent,
-                parents[(pIdx + 1) % parents.length],
+                other,
                 config.workRoot,
                 generation,
                 index,
                 seed,
+                linkage ? linkedCrossoverBlock(linkage, other.mutationSurface) : undefined,
               )
             : await createChildVariant(
                 parent,

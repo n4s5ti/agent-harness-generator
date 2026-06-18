@@ -237,17 +237,25 @@ export async function createCrossoverVariant(
   generation: number,
   index: number,
   seed = 0,
+  surfacesFromB?: readonly MutationSurface[],
 ): Promise<HarnessVariant> {
   const id = `g${generation}_x${index}`;
   const dir = join(workRoot, 'variants', id);
   await copyVariantDir(parentA.dir, dir);
 
-  // Deterministically choose which surfaces come from B (bit per surface).
-  const bits = hash(seed, generation, index, parentA.id, parentB.id, 'crossover');
-  let fromB = SURFACES.filter((_, i) => ((bits >> i) & 1) === 1);
-  // Force a PROPER, non-empty recombination: never all-A and never all-B.
-  if (fromB.length === 0) fromB = [SURFACES[bits % SURFACES.length]];
-  if (fromB.length === SURFACES.length) fromB = fromB.slice(0, SURFACES.length - 1);
+  // Which surfaces come from B: an explicit epistatic block (ADR-093 topology-
+  // aware crossover) when supplied, else a deterministic random bit-subset.
+  let fromB: MutationSurface[];
+  if (surfacesFromB && surfacesFromB.length > 0) {
+    fromB = [...new Set(surfacesFromB)].filter((s) => SURFACES.includes(s));
+    if (fromB.length >= SURFACES.length) fromB = fromB.slice(0, SURFACES.length - 1);
+  } else {
+    const bits = hash(seed, generation, index, parentA.id, parentB.id, 'crossover');
+    fromB = SURFACES.filter((_, i) => ((bits >> i) & 1) === 1);
+    // Force a PROPER, non-empty recombination: never all-A and never all-B.
+    if (fromB.length === 0) fromB = [SURFACES[bits % SURFACES.length]];
+    if (fromB.length === SURFACES.length) fromB = fromB.slice(0, SURFACES.length - 1);
+  }
 
   const adopted: MutationSurface[] = [];
   for (const surface of fromB) {
