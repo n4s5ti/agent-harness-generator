@@ -1,0 +1,48 @@
+{
+  "model": "google/gemini-2.5-flash",
+  "fixed": "5/5",
+  "choseCorrectFile": 5,
+  "totalCostUSD": 0.00114,
+  "perTask": [
+    {
+      "id": "intervals",
+      "buggyRankedTop": true,
+      "llmChose": "intervals.js",
+      "choseCorrect": true,
+      "fixed": true,
+      "cost": 0.000325413
+    },
+    {
+      "id": "slugify",
+      "buggyRankedTop": true,
+      "llmChose": "slug.js",
+      "choseCorrect": true,
+      "fixed": true,
+      "cost": 0.000172656
+    },
+    {
+      "id": "gcd",
+      "buggyRankedTop": true,
+      "llmChose": "gcd.js",
+      "choseCorrect": true,
+      "fixed": true,
+      "cost": 0.00019602
+    },
+    {
+      "id": "chunk",
+      "buggyRankedTop": true,
+      "llmChose": "chunk.js",
+      "choseCorrect": true,
+      "fixed": true,
+      "cost": 0.000237996
+    },
+    {
+      "id": "query",
+      "buggyRankedTop": true,
+      "llmChose": "query.js",
+      "choseCorrect": true,
+      "fixed": true,
+      "cost": 0.00020691
+    }
+  ]
+}
