@@ -32,3 +32,7 @@ export * from './sandbox.js';
 export * from './scorer.js';
 export * from './archive.js';
 export * from './evolve.js';
+
+// The benchmark + SOTA "Darwin Plus" layer (ADR-076…081) is namespaced to avoid
+// name collisions (e.g. scoreWeights) with the lightweight ADR-072 scorer.
+export * as bench from './bench/index.js';

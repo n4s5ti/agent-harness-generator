@@ -1,16 +1,21 @@
 #!/usr/bin/env node
 // SPDX-License-Identifier: MIT
 //
-// Darwin Mode CLI. One verb:
+// Darwin Mode CLI. Verbs:
 //
 //   metaharness-darwin evolve <repo> [--generations N] [--children N]
 //                                    [--concurrency N] [--seed N]
+//   metaharness-darwin bench create <repo> [--out <suite.json>]
+//   metaharness-darwin bench verify <suite.json>
 //
 // Writes a self-describing `.metaharness/` work tree under the repo and prints a
 // leaderboard + the winner's lineage. Dependency-free.
 
 import { resolve } from 'node:path';
 import { evolve } from './evolve.js';
+import { profileRepo } from './repo_profiler.js';
+import { loadSuite, makeSuite, saveSuite, verifySuite } from './bench/suite.js';
+import type { BenchmarkTask } from './bench/types.js';
 import type { EvolutionResult } from './types.js';
 
 function flag(name: string, fallback: string): string {
@@ -52,11 +57,65 @@ function printReport(result: EvolutionResult): void {
   }
 }
 
+/** `bench create <repo>` / `bench verify <suite.json>` (ADR-076). */
+async function runBench(): Promise<void> {
+  const sub = process.argv[3];
+
+  if (sub === 'create') {
+    const repoRoot = resolve(process.argv[4] ?? process.cwd());
+    const profile = await profileRepo(repoRoot);
+    const out = resolve(flag('--out', resolve(repoRoot, '.metaharness/bench.json')));
+    // A scaffold task pinned to the repo's own test command. Hidden/regression
+    // commands are placeholders to be replaced with human-curated held-out tests.
+    const task: BenchmarkTask = {
+      id: 'task-0001',
+      repo: repoRoot,
+      commit: 'WORKDIR',
+      title: 'Repo native smoke task',
+      prompt: 'Keep the repository test suite green.',
+      publicTestCommand: profile.testCommand,
+      hiddenTestCommand: profile.testCommand,
+      regressionTestCommand: profile.testCommand,
+      timeoutMs: 300000,
+      maxCostUsd: 2,
+      allowedMutationFiles: [],
+      blockedFiles: ['.env', 'package-lock.json', 'pnpm-lock.yaml', 'yarn.lock', '.github/workflows'],
+      successCriteria: ['public test passes', 'hidden test passes', 'regression suite passes'],
+      difficulty: 1,
+      tags: ['smoke', 'repo-native'],
+    };
+    const suite = makeSuite('repo-native', '0.1.0', [task]);
+    await saveSuite(out, suite);
+    process.stdout.write(`Wrote suite (${suite.tasks.length} task, hash ${suite.taskHash.slice(0, 12)}…): ${out}\n`);
+    return;
+  }
+
+  if (sub === 'verify') {
+    const file = resolve(process.argv[4] ?? '');
+    const suite = await loadSuite(file); // throws on tamper
+    const check = verifySuite(suite);
+    process.stdout.write(`Suite ${suite.id}@${suite.version}: ${suite.tasks.length} tasks, hash ${check.ok ? 'OK' : 'MISMATCH'} (${check.actual.slice(0, 12)}…)\n`);
+    return;
+  }
+
+  process.stderr.write('usage: metaharness-darwin bench <create|verify> …\n');
+  process.exit(1);
+}
+
 async function main(): Promise<void> {
   const command = process.argv[2];
+
+  if (command === 'bench') {
+    await runBench();
+    return;
+  }
+
   if (command !== 'evolve') {
     process.stderr.write(
-      'usage: metaharness-darwin evolve <repo> [--generations N] [--children N] [--concurrency N] [--seed N]\n',
+      'usage: metaharness-darwin <evolve|bench> …\n' +
+        '  evolve <repo> [--generations N] [--children N] [--concurrency N] [--seed N]\n' +
+        '  bench create <repo> [--out <suite.json>]\n' +
+        '  bench verify <suite.json>\n',
     );
     process.exit(1);
   }
