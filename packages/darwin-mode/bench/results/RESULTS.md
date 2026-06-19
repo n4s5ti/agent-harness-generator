@@ -314,3 +314,19 @@ The free local 14b reaches **~61% of the hosted V3 open-loop baseline at $0 infe
 **25-instance samples are noisy** (the 14b's 8% on the hard-stratified-25 didn't hold) — full-300 is
 the honest denominator. The $0-local story remains: capable-but-below-hosted, and the repair lift
 (§11: 8→12% on the 25) is the multiplier to re-measure at full scale next.
+
+## 14. Barbarian & Scholar — cheap→frontier hybrid (ADR-148) — the ceiling of escalation
+
+Banked the 46 cheap Barbarian wins (deepseek-V3 + repair), escalated **only the 254-instance hard tail**
+to a Scholar (claude-sonnet-4 + repair); one official batch eval over the blended 300:
+
+| stage | resolved | Wilson 95% CI |
+|---|---|---|
+| + repair (deepseek, §10) | 46/300 = 15.3% | [11.7, 19.8] |
+| **+ Scholar hybrid** | **100/300 = 33.3%** | **[28.2, 38.8]** |
+
+**Hybrid >2× repair-alone, 4.3× the 7.7% baseline.** Scholar cracked **55/254 = 21.7%** of the tail
+deepseek failed. Blended cost **~$0.34/instance** (Scholar tail = $99.74) vs ~$2/inst to run frontier
+on all 300 — escalating only the residual is ~6× cheaper for the same ceiling. In-loop UNDER-counted
+the Scholar (37→55 batch; Docker-hang false-negatives) — batch authoritative. Still below the 65–88%
+agentic tier: that gap is architectural (ADR-149 verdict), not closable by escalation.
