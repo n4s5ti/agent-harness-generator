@@ -228,3 +228,36 @@ Docker container past the 1200s timeout and was killed → counts as unresolved 
 re-fetched after the concurrency clone-rate-limit fix). The test-feedback signal is what climbs the
 emission wall §9 identified. Next: hybrid cheap→frontier escalation on the residual hard tail
 (ADR-148), local-model repair (ADR-150).
+
+## 11. Local $0-inference models — the harness-lift, and where it stops (ADR-150)
+
+Same harness, pointed at **ruvultra ollama** (localhost, $0 inference) instead of OpenRouter
+(`--base-url` + `--api-key-env NONE`, ADR-150). All numbers below are **official batch eval** on the
+stratified-25 (the in-loop `evalOne` counter over-reported — see the discipline note).
+
+| model (local, $0) | open-loop | + repair | patches applied |
+|---|---|---|---|
+| qwen2.5-coder:7b | 1/25 = 4.0% | 1/25 = 4.0% | 13 → 18 |
+| qwen2.5-coder:32b | *measuring* | — | — |
+
+**Two findings:**
+
+1. **Harness-lift is real at the apply layer.** qwen-7b went **0/25 → 13/25 applying patches** once the
+   harness (a) served a 32k context (ollama default 4096 truncated the code prompts), (b) carried the
+   search/replace format contract in a **system message + worked example**, and (c) shrank per-file
+   context (`--slice`) so the prompt fit the window. Without these, a weak local model emits prose
+   summaries, not patches.
+
+2. **It does not convert to resolves on a 7B.** Repair raised patch-production (13→18) but the
+   resolve-rate stayed at 4.0% — the 7B reasoning ceiling binds: more *applying* patches, not more
+   *correct* ones. Contrast the hosted deepseek, where repair doubled resolves (7.7%→15.3%, §10):
+   a capable model has correct patches for the repair loop to converge toward.
+
+**Discipline note (why every number here is a batch eval):** on the 7b repair run the in-loop
+`evalOne` reported 5/25 resolved, but a clean batch eval on the final predictions returned 1/25 —
+4 transiently-"passing" patches did not reproduce. Only the official batch eval on final predictions
+is treated as authoritative (this is also how §10's 46/300 was produced, so it is unaffected). The
+in-loop counter is a progress indicator, never a reported number.
+
+**Open path:** a stronger *local* model (qwen-32b, gpt-oss:20b on the 48 GB Mac) where the repair
+loop has correct patches to find — testing whether the §10 hosted lift reproduces at $0.
