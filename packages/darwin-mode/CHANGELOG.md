@@ -2,6 +2,10 @@
 
 All notable changes to this package. Dates UTC.
 
+## 0.2.4 — 2026-06-19
+
+- New result (ADR-151): swapping the cheap base deepseek-V3 -> deepseek-v4-pro nearly doubles the repair floor **15.3% -> 29.3%** [24.5,34.7] on full SWE-bench Lite (same harness). Falsifies "paradigm exhausted regardless of model IQ."
+
 ## 0.2.3 — 2026-06-19
 
 - Add `LEARNINGS.md` — the measured findings distilled into harness defaults (repair=2x lever, cost-routing, Barbarian&Scholar tiering, format-contract, batch-eval discipline, capability floor).
