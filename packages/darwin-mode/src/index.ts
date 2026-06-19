@@ -30,6 +30,7 @@ export * from './templates.js';
 export * from './generator.js';
 export * from './mutator.js';
 export * from './openrouter-mutator.js';
+export * from './ruvllm-mutator.js';
 export * from './phenotype.js';
 export * from './epistasis.js';
 export * from './clade.js';

@@ -14,6 +14,7 @@
 
 import { resolve } from 'node:path';
 import { evolve } from './evolve.js';
+import { RuvllmMutator } from './ruvllm-mutator.js';
 import { profileRepo } from './repo_profiler.js';
 import { loadSuite, makeSuite, saveSuite, verifySuite } from './bench/suite.js';
 import type { BenchmarkTask } from './bench/types.js';
@@ -114,7 +115,7 @@ async function main(): Promise<void> {
   if (command !== 'evolve') {
     process.stderr.write(
       'usage: metaharness-darwin <evolve|bench> …\n' +
-        '  evolve <repo> [--generations N] [--children N] [--concurrency N] [--seed N] [--bench <suite.json>] [--tie faster] [--selection quality-diversity|behavioral-diversity|niche-steering|clade|pareto] [--crossover] [--epistasis] [--risk-budget N] [--fdr Q] [--curriculum] [--sandbox real|mock|agent]\n' +
+        '  evolve <repo> [--generations N] [--children N] [--concurrency N] [--seed N] [--bench <suite.json>] [--tie faster] [--selection quality-diversity|behavioral-diversity|niche-steering|clade|pareto] [--crossover] [--epistasis] [--risk-budget N] [--fdr Q] [--curriculum] [--sandbox real|mock|agent] [--mutator deterministic|ruvllm] [--ruvllm-url URL] [--ruvllm-model M]\n' +
         '  bench create <repo> [--out <suite.json>]\n' +
         '  bench verify <suite.json>\n',
     );
@@ -149,6 +150,15 @@ async function main(): Promise<void> {
   const sbRaw = flag('--sandbox', 'real');
   const sandboxMode = sbRaw === 'mock' || sbRaw === 'agent' ? sbRaw : 'real';
 
+  // ADR-259: pluggable mutator backend. Default = deterministic (no network, no key).
+  // --mutator ruvllm routes mutations to a local `ruvllm serve` endpoint (fully local,
+  // air-gapped, zero API cost). The OpenRouter LLM mutator stays library-only.
+  const mutatorRaw = flag('--mutator', 'deterministic');
+  const generator =
+    mutatorRaw === 'ruvllm'
+      ? new RuvllmMutator({ baseUrl: flag('--ruvllm-url', '') || undefined, model: flag('--ruvllm-model', '') || undefined })
+      : undefined;
+
   const result = await evolve({
     repoRoot,
     workRoot,
@@ -167,6 +177,7 @@ async function main(): Promise<void> {
     ...(fdrQ !== undefined ? { fdrQ } : {}),
     ...(curriculum ? { curriculum } : {}),
     ...(sandboxMode !== 'real' ? { sandboxMode } : {}),
+    ...(generator ? { generator } : {}),
     tieBreaker,
     selection,
     crossover,
