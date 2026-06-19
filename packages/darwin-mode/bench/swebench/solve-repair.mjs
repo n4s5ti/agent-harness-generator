@@ -103,8 +103,13 @@ async function localize(problem, work, files, k, pre = 120) {
   } catch { return { selected: lexTop.slice(0, k), cost: 0 }; }
 }
 
+// --concurrency N (default 1): run independent instances through a Promise pool. The machine is
+// 32-core; the Docker test-runs (the bottleneck) parallelize cleanly. Each instance uses its own
+// temp clone (mkdtemp) + unique eval runIds, so there are no cross-instance collisions.
+const CONCURRENCY = Math.max(1, +argv('--concurrency', 1));
+
 writeFileSync(OUT, ''); const report = []; let totalCost = 0;
-for (const inst of manifest) {
+async function runInstance(inst) {
   const t0 = Date.now(); const row = { instance_id: inst.instance_id, repo: inst.repo, attempts: 0, resolved: false };
   let bestPatch = '';
   try {
@@ -137,6 +142,12 @@ for (const inst of manifest) {
   row.sec = Math.round((Date.now() - t0) / 1000); report.push(row);
   console.error(`[${report.length}/${manifest.length}] ${inst.instance_id} attempts=${row.attempts} resolved=${row.resolved} ${row.sec}s ${row.error ? 'ERR:' + row.error : ''}`);
 }
+
+// Promise pool: keep CONCURRENCY instances in flight at once.
+let cursor = 0;
+async function worker() { while (cursor < manifest.length) { const inst = manifest[cursor++]; await runInstance(inst); } }
+await Promise.all(Array.from({ length: Math.min(CONCURRENCY, manifest.length) }, () => worker()));
+
 const resolved = report.filter((r) => r.resolved).length;
 writeFileSync(REPORT, JSON.stringify({ model: MODEL, attempts: ATTEMPTS, k: K, n: report.length, resolved, totalCost_usd: Math.round(totalCost * 10000) / 10000, instances: report }, null, 2));
 console.error(`\nDONE ${report.length} | resolved ${resolved}/${report.length} | $${Math.round(totalCost * 10000) / 10000} | preds → ${OUT}`);
