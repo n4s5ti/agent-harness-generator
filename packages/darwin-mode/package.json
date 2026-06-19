@@ -1,7 +1,7 @@
 {
   "name": "@metaharness/darwin",
-  "version": "0.2.1",
-  "description": "An LLM supercharger and cost optimizer: keep your model frozen and evolve the harness around it so a cheap model performs like an expensive one — measurably better, far cheaper. Mutate→sandbox→score→archive; promote only safe, measured wins. Validated on real SWE-bench Lite (~$0.01/instance). Dependency-free (Node built-ins).",
+  "version": "0.2.2",
+  "description": "An LLM supercharger and cost optimizer: freeze your model, evolve the harness around it. Measured on full SWE-bench Lite (300, official swebench Docker): open-loop 7.7% -> +repair 15.3% -> +Barbarian&Scholar hybrid 33.3%, at ~$0.01-$0.34/instance (vs $1-20 for frontier agents). Mutate->sandbox->score->archive. Dependency-free (Node built-ins).",
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
@@ -18,7 +18,8 @@
     "dist/**",
     "README.md",
     "SECURITY.md",
-    "LICENSE"
+    "LICENSE",
+    "CHANGELOG.md"
   ],
   "scripts": {
     "build": "tsc",

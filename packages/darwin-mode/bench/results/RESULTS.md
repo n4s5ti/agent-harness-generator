@@ -229,7 +229,11 @@ re-fetched after the concurrency clone-rate-limit fix). The test-feedback signal
 emission wall §9 identified. Next: hybrid cheap→frontier escalation on the residual hard tail
 (ADR-148), local-model repair (ADR-150).
 
-## 11. Local $0-inference models — the harness-lift, and where it stops (ADR-150)
+## 11. Local $0-inference models — the harness-lift, and where it stops (ADR-150) — *PROBE (n=25)*
+
+> ⚠️ **Superseded for the headline number by §13.** This section's qwen-14b open-loop **8%** is on the
+> noisy hard-stratified-**25**; the rigorous **full-300** value is **4.7%** (§13). Treat §11 as a
+> small-sample probe of the *capability-floor* effect, not a resolve-rate claim.
 
 Same harness, pointed at **ruvultra ollama** (localhost, $0 inference) instead of OpenRouter
 (`--base-url` + `--api-key-env NONE`, ADR-150). All numbers below are **official batch eval** on the
@@ -282,7 +286,10 @@ model clears a capability floor (~14B)** — the loop needs the model to occasio
 correct-ish patch to converge toward. n=25 -> wide CIs (the local deltas are +1 resolve). In-loop
 counters over-report (14b 7->3, 7b 5->1); only batch numbers are authoritative.
 
-## 12. OpenRouter fusion/router models — quick Darwin test (2026-06-19)
+## 12. OpenRouter fusion/router models — quick Darwin test (2026-06-19) — *PROBE (n=10 hard subset)*
+
+> ⚠️ **Probe, not a resolve-rate claim.** n=10 hardest subset. The robust signal is the **cost ratio**
+> ($/resolve, 31×); the resolve counts are directional only.
 
 OpenRouter exposes meta-routers that pick an underlying model per request (dynamic pass-through
 pricing). Tested two via Darwin's open-loop solver on the **hardest 10-instance** subset (django/

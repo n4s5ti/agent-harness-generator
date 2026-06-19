@@ -271,7 +271,9 @@ substrate is **no longer deferred** — it shipped (ADR-106→141) and now runs 
 - **Polyglot model frontier** (ADR-085): 15 models × 6 languages, execution-scored;
   DeepSeek-V3 ($0.4/Mtok) tops quality-per-dollar — cheap beats frontier for code.
 
-### Canonical SWE-bench Lite (real, official harness — ADR-142–146)
+### Canonical SWE-bench Lite (real, official harness — ADR-142–149)
+
+> Full reproducible evidence + per-run provenance: [`bench/results/RESULTS.md`](bench/results/RESULTS.md) · known-flaky exclusions: [`bench/swebench/KNOWN_FLAKY.md`](bench/swebench/KNOWN_FLAKY.md)
 
 Run on the **full 300** SWE-bench Lite (test) instances, scored by the **official
 `swebench` Docker harness** — no cherry-picking, tight CIs. Solver = relevance-ranked
