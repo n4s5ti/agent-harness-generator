@@ -299,3 +299,18 @@ opus-4.8): $0.21 vs $6.57. For Darwin-as-cost-optimizer, `pareto-code` is the st
 endpoint landing on a strong *new* deepseek at ~$0.04/instance. `fusion`'s Opus routing resolves +1 on
 10 but at ~$2/instance — a poor trade unless absolute capability is the only axis. n=10 hard subset →
 directional, not a resolve-rate claim; the cost ratio is the robust signal. Routers tested for ADR-145.
+
+## 13. Local 14b at FULL scale — the rigorous $0 number (corrects §11's 25-sample)
+
+The stratified-25 (§11) suggested qwen-14b open-loop ≈ 8%. The **full 300** corrects that optimism:
+
+| config | resolved | Wilson 95% CI |
+|---|---|---|
+| deepseek-V3 (hosted) open-loop | 23/300 = 7.7% | [5.2, 11.2] |
+| **qwen-14b (local $0) open-loop, full-300** | **14/300 = 4.7%** | **[2.8, 7.7]** |
+
+The free local 14b reaches **~61% of the hosted V3 open-loop baseline at $0 inference** (CIs overlap).
+159/300 patches applied; 1 errored (requests-2317 Docker hang, counted unresolved). Lesson:
+**25-instance samples are noisy** (the 14b's 8% on the hard-stratified-25 didn't hold) — full-300 is
+the honest denominator. The $0-local story remains: capable-but-below-hosted, and the repair lift
+(§11: 8→12% on the 25) is the multiplier to re-measure at full scale next.
