@@ -55,9 +55,37 @@ is the next measurement, expected to lift the local resolve-rate materially.
 Provenance fix: solve.mjs now labels predictions with the actual `--model` (was hardcoded
 `darwin-deepseek-searchreplace`).
 
+## Closed-loop repair on the local model — measured, and a discipline catch (2026-06-19)
+
+Ran the **closed-loop repair** track (qwen2.5-coder:7b, $0, localize + ≤3 test-feedback attempts,
+working `--k 4 --slice 7000` config) on the same stratified-25:
+
+| local qwen-7b | resolved (batch eval) | patches |
+|---|---|---|
+| open-loop | 1/25 = 4.0% [0.7, 19.5] | 13/25 |
+| closed-loop repair | **1/25 = 4.0%** [0.7, 19.5] | 18/25 |
+
+**Honest negative result: the repair loop did NOT lift the local 7B's final resolve-rate** (1/25
+either way), even though it raised patch-production (13→18) and resolved the same instance
+(`pytest-dev__pytest-5227`). The 7B reasoning ceiling dominates: more attempts produce more
+*applying* patches, but not more *correct* ones.
+
+**Discipline catch:** the repair solver's **in-loop** `evalOne` reported **5/25** resolved, but a
+clean **batch eval on the final predictions returned 1/25**. The in-loop signal over-counted (4 of
+5 "resolves" did not reproduce — transiently-passing patches that fail a clean re-eval). **Only the
+batch eval on final predictions is authoritative.** This is why every committed number in this repo
+comes from a batch eval — including ADR-149's 46/300, which is therefore unaffected. Follow-up:
+harden `evalOne`'s resolve detection (suspected stale-report or flaky-pass read) so the in-loop
+signal is trustworthy; until then it's a progress indicator only, never a reported number.
+
+Net for ADR-150: the **harness-lift is real at the apply layer** (0→13/25 applied, format wall
+broken) but **does not convert to resolves on a 7B** — the model is the binding constraint. The
+open path is a **stronger local model** (gpt-oss:20b on the Mac, qwen-32b) where repair has correct
+patches to converge toward, mirroring the hosted result (deepseek 7.7%→15.3%, ADR-149).
+
 ## Validation
 
-`--base-url`/`--api-key-env`/`--slice` + system-message format contract committed in the solvers;
-first local $0 number measured (1/25, above). Larger local models (gpt-oss:20b on the Mac, qwen-32b)
-and the closed-loop repair track are the next levers. Live Mac endpoint deferred to its ollama
-binding 0.0.0.0 (CLAUDE.local.md).
+`--base-url`/`--api-key-env`/`--slice` + system-message format contract committed in both solvers;
+local $0 numbers measured by batch eval (open-loop 1/25, closed-loop 1/25). Next: larger local models
+where the repair loop has correct patches to find. Live Mac endpoint deferred to its ollama binding
+0.0.0.0 (CLAUDE.local.md).
