@@ -64,11 +64,22 @@ function applyEdit(content, search, replace) {
   }
   return null;
 }
+function sleepSync(ms) { try { execSync(`sleep ${(ms / 1000).toFixed(1)}`); } catch { /**/ } }
 function fetchRepo(repo, sha) {
   const work = mkdtempSync(join(tmpdir(), 'sbrepo-'));
   g(work, 'git init -q'); g(work, `git remote add origin https://github.com/${repo}.git`);
-  try { g(work, `git fetch --depth 1 origin ${sha} -q`); g(work, 'git checkout -q FETCH_HEAD'); }
-  catch { g(work, 'git fetch --depth 200 origin -q'); g(work, `git checkout -q ${sha}`); }
+  // Concurrency hammers anonymous GitHub clones → rate-limit/abuse 'git fetch' failures
+  // (63/181 in the first concurrent run). Retry the fetch with backoff before giving up.
+  let last;
+  for (let attempt = 0; attempt < 4; attempt++) {
+    if (attempt) sleepSync(3000 * 2 ** (attempt - 1)); // 3,6,12s
+    try { g(work, `git fetch --depth 1 origin ${sha} -q`); g(work, 'git checkout -q FETCH_HEAD'); last = null; break; }
+    catch (e1) {
+      try { g(work, 'git fetch --depth 200 origin -q'); g(work, `git checkout -q ${sha}`); last = null; break; }
+      catch (e2) { last = e2; }
+    }
+  }
+  if (last) throw last;
   g(work, 'git config user.email b@b'); g(work, 'git config user.name b'); g(work, 'git commit -qam base --allow-empty');
   return work;
 }
