@@ -1,0 +1,148 @@
+// SPDX-License-Identifier: MIT
+//
+// ADR-153 — the AGENTIC execution loop (`--sandbox agentic`). A bounded ReAct loop where the model
+// drives a restricted, read-mostly tool surface inside the existing safety envelope, instead of the
+// single-shot localize→patch→repair of solve-repair.mjs. This targets the *measured* residual failure
+// mode (the model can't DISCOVER the context a one-shot localizer can't surface — call sites, the real
+// stack from a failing test, a helper's location) rather than the can't-EMIT mode repair already
+// climbed.
+//
+// This module is pure + dependency-injected (no fetch/Docker/git of its own) so it is unit-testable
+// offline: `solve-agentic.mjs` wires the real fetchRepo/llm/evalOne; the test wires a scripted model
+// + a temp git repo + a stub test-runner. Keeping the loop here, the I/O there.
+//
+// Tool surface (ADR-153 §"Proposal"): read · grep · ls (read-only navigation) · run_tests (the real
+// Docker oracle) · edit (the validated search/replace primitive) · submit (finalize). Bounded by
+// maxSteps + the same edit safety gate. Darwin's mutation surfaces become the loop's *policy*
+// (planner = step strategy, toolPolicy = ordering/budget, contextBuilder = what to read next).
+
+/** The system prompt: defines the tool protocol. One JSON action per turn, nothing else. */
+export const AGENTIC_SYSTEM =
+  'You are an autonomous bug-fixing agent working inside a real repository. Each turn, output EXACTLY '
+  + 'ONE JSON object on a single line — a tool call — and NOTHING else (no prose, no markdown). Tools:\n'
+  + '{"tool":"ls","dir":"path/"}            list a directory\n'
+  + '{"tool":"read","path":"f.py","start":1,"end":80}  read a file (range optional; omit for whole file)\n'
+  + '{"tool":"grep","pattern":"reg","glob":"*.py"}     search the repo (glob optional)\n'
+  + '{"tool":"edit","path":"f.py","search":"<exact lines incl. indentation>","replace":"<new lines>"}  apply a search/replace edit\n'
+  + '{"tool":"run_tests"}                   run the failing tests against your current edits; returns the trace\n'
+  + '{"tool":"submit"}                      finalize your patch and stop\n'
+  + 'Strategy: explore (read/grep/ls) to locate the fix, make minimal edit(s), run_tests, iterate on '
+  + 'the trace, then submit once tests pass. SEARCH must match the file character-for-character. Never '
+  + 'edit test files. Output ONE JSON action per turn.';
+
+/** Parse the model's turn into a single action object, tolerating stray prose/fences around the JSON. */
+export function parseAction(raw) {
+  if (!raw || typeof raw !== 'string') return { tool: 'noop', error: 'empty model output' };
+  // Prefer a fenced block, else the first {...} that parses.
+  const fence = raw.match(/```(?:json)?\s*([\s\S]*?)```/);
+  const candidates = [];
+  if (fence) candidates.push(fence[1]);
+  candidates.push(raw);
+  // also try each {...} span greedily-then-shrinking
+  const spanRe = /\{[\s\S]*\}/g;
+  for (let m; (m = spanRe.exec(raw)); ) candidates.push(m[0]);
+  for (const c of candidates) {
+    const t = c.trim();
+    try { const o = JSON.parse(t); if (o && typeof o.tool === 'string') return o; } catch { /* try next */ }
+  }
+  return { tool: 'noop', error: 'no parseable JSON action' };
+}
+
+/**
+ * Build the tool dispatcher over a working tree. All handlers return a string OBSERVATION fed back to
+ * the model. Injected primitives keep this offline-testable:
+ *   work        absolute path to the checked-out repo
+ *   readFile    (absPath) => string                     (node:fs readFileSync utf8)
+ *   listDir     (absPath) => string[]                    (node:fs readdirSync)
+ *   gitDiff     () => string                             (current working-tree diff)
+ *   grepRepo    (pattern, glob) => string                (ripgrep/git-grep; returns matches text)
+ *   applyEdit   (content, search, replace) => string|null  (the validated primitive from solve-repair)
+ *   writeFile   (absPath, content) => void
+ *   exists      (absPath) => boolean
+ *   isTestPath  (relPath) => boolean                     (guard: never edit tests)
+ *   runTests    () => { resolved, logTail }              (the real Docker oracle on the current diff)
+ *   MAX_OUT     observation char cap (default 4000)
+ */
+export function makeTools(io) {
+  const { join } = io.path;
+  const cap = (s, n = io.MAX_OUT ?? 4000) => (s.length > n ? s.slice(0, n) + `\n…[truncated ${s.length - n} chars]` : s);
+  const rel = (p) => String(p || '').replace(/^\.?\//, '');
+  const guardInside = (p) => {
+    // prevent path traversal outside the work tree
+    const abs = join(io.work, rel(p));
+    if (!abs.startsWith(io.work)) throw new Error('path escapes repository');
+    return abs;
+  };
+  return {
+    ls(a) {
+      try { const abs = guardInside(a.dir ?? '.'); const items = io.listDir(abs); return cap(items.join('\n') || '(empty)'); }
+      catch (e) { return `ls error: ${String(e.message || e)}`; }
+    },
+    read(a) {
+      try {
+        const abs = guardInside(a.path); if (!io.exists(abs)) return `read error: no such file ${rel(a.path)}`;
+        const lines = io.readFile(abs).split('\n');
+        const start = Math.max(1, a.start | 0 || 1); const end = a.end ? Math.min(lines.length, a.end | 0) : lines.length;
+        const body = lines.slice(start - 1, end).map((l, i) => `${start + i}\t${l}`).join('\n');
+        return cap(`${rel(a.path)} [${start}-${end}/${lines.length}]\n${body}`);
+      } catch (e) { return `read error: ${String(e.message || e)}`; }
+    },
+    grep(a) {
+      try { if (!a.pattern) return 'grep error: pattern required'; return cap(io.grepRepo(a.pattern, a.glob) || '(no matches)'); }
+      catch (e) { return `grep error: ${String(e.message || e)}`; }
+    },
+    edit(a) {
+      try {
+        const r = rel(a.path);
+        if (io.isTestPath(r)) return `edit rejected: ${r} is a test file (never edit tests)`;
+        const abs = guardInside(a.path); if (!io.exists(abs)) return `edit error: no such file ${r}`;
+        if (typeof a.search !== 'string' || typeof a.replace !== 'string') return 'edit error: search and replace must be strings';
+        const cur = io.readFile(abs); const next = io.applyEdit(cur, a.search, a.replace);
+        if (next == null || next === cur) return `edit failed: SEARCH text did not match ${r} (copy it character-for-character, indentation included)`;
+        io.writeFile(abs, next); return `edited ${r} (${next.length - cur.length >= 0 ? '+' : ''}${next.length - cur.length} chars)`;
+      } catch (e) { return `edit error: ${String(e.message || e)}`; }
+    },
+    run_tests() {
+      try {
+        const diff = io.gitDiff();
+        if (!diff.trim()) return 'run_tests: no edits applied yet — make an edit first';
+        const { resolved, logTail } = io.runTests();
+        return resolved ? 'run_tests: ALL TARGET TESTS PASS ✓ — call submit to finalize'
+          : cap(`run_tests: tests still failing:\n${logTail || '(no trace captured)'}`);
+      } catch (e) { return `run_tests error: ${String(e.message || e)}`; }
+    },
+  };
+}
+
+/**
+ * Run the bounded ReAct loop. Returns { patch, steps, submitted, resolvedInLoop, transcript }.
+ *   problem    the SWE-bench problem statement
+ *   io         dispatcher I/O (see makeTools) + gitDiff
+ *   llm        async (prompt, system) => { raw, cost }
+ *   maxSteps   step budget (default 20)
+ *   onStep     optional (n, action, observation) => void   (logging)
+ * The loop tracks the last diff that made tests pass (resolvedInLoop) and always returns the final
+ * working-tree diff as `patch` (submit finalizes; budget-exhaustion returns whatever was edited).
+ */
+export async function agenticSolve({ problem, io, llm, maxSteps = 20, onStep }) {
+  const tools = makeTools(io);
+  const transcript = [];
+  let submitted = false; let resolvedInLoop = false; let cost = 0;
+  const header = `--- problem statement ---\n${String(problem || '').slice(0, 6000)}\n--- begin. Output ONE JSON action. ---`;
+  for (let step = 1; step <= maxSteps && !submitted; step++) {
+    const convo = header + '\n' + transcript.map((t) => `>>> ${t.actionRaw}\n${t.obs}`).join('\n').slice(-12000);
+    let raw = '';
+    try { const r = await llm(convo, AGENTIC_SYSTEM); raw = r.raw; cost += r.cost || 0; }
+    catch (e) { transcript.push({ actionRaw: '(model error)', obs: String(e.message || e) }); break; }
+    const action = parseAction(raw);
+    let obs;
+    if (action.tool === 'submit') { submitted = true; obs = 'submitted.'; }
+    else if (action.tool === 'noop') obs = `error: ${action.error}. Output ONE valid JSON tool action.`;
+    else if (tools[action.tool]) { obs = tools[action.tool](action); if (action.tool === 'run_tests' && /ALL TARGET TESTS PASS/.test(obs)) resolvedInLoop = true; }
+    else obs = `error: unknown tool "${action.tool}". Valid: ls, read, grep, edit, run_tests, submit.`;
+    const actionRaw = JSON.stringify(action.tool === 'noop' ? { raw: raw.slice(0, 200) } : action).slice(0, 400);
+    transcript.push({ actionRaw, obs });
+    if (onStep) onStep(step, action, obs);
+  }
+  return { patch: io.gitDiff(), steps: transcript.length, submitted, resolvedInLoop, cost, transcript };
+}

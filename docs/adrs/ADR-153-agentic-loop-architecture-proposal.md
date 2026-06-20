@@ -1,6 +1,6 @@
 # ADR-153: Beyond escalation — the agentic-loop architecture for the 65–88% tier
 
-**Status**: Proposed (roadmap; the resolve-rate ceiling of the current paradigm is mapped)
+**Status**: Implemented — core + tests (2026-06-20); empirical at-scale run deferred (budget)
 **Date**: 2026-06-19
 **Project**: `ruvnet/agent-harness-generator`
 **Related**: ADR-149/151/152 (the 7.7→40.3% ladder), ADR-148 (tiering), issue #39
@@ -65,3 +65,27 @@ deliverable of this ADR is the *architecture + safety envelope*; the empirical n
 Frozen at **40.3%** (ADR-152) as the cheap-base + tiered-escalation ceiling. Further escalation tiers
 are recorded but yield diminishing pp at rising cost. The resolve-rate frontier now moves to this
 agentic architecture.
+
+## Implementation (2026-06-20)
+
+The architecture above is now code, with the loop logic separated from I/O so it is unit-testable
+offline (no network/Docker):
+
+- **`packages/darwin-mode/bench/swebench/agentic-loop.mjs`** — the pure, dependency-injected core:
+  `AGENTIC_SYSTEM` (the tool protocol prompt), `parseAction` (tolerant single-action JSON parser),
+  `makeTools` (the dispatcher: `ls`/`read`/`grep`/`edit`/`run_tests`/`submit` over an injected I/O
+  surface, with the safety guards — never edit test files, no path traversal, non-matching SEARCH
+  reports instead of corrupting), and `agenticSolve` (the bounded ReAct loop, `maxSteps` budget,
+  returns the final working-tree diff).
+- **`packages/darwin-mode/bench/swebench/solve-agentic.mjs`** — the CLI runner wiring the real
+  `fetchRepo`/`llm`/`evalOne`/git to the core (mirrors `solve-repair.mjs`: same flags, concurrency,
+  fetch-retry, per-instance cleanup; `--max-steps`, `--base-url` for local/$0 endpoints).
+- **`packages/darwin-mode/__tests__/agentic-loop.test.ts`** — 12 offline tests: a scripted model
+  drives the dispatcher over a real temp git repo (explore → edit → run_tests → submit → fix patch),
+  plus the safety guards and the messy-output parser. Part of the passing suite (366 tests).
+
+What remains is the **empirical at-scale run** (`solve-agentic.mjs` over full-300 → official batch
+eval), which is the deferred budget step — the current $500 is effectively spent ($486.52/$500). The
+loop runs $0 against a local endpoint (`--base-url http://localhost:11434/v1`), but the local 14b's
+capability floor (RESULTS §18: empty-diff rate) makes it a poor first probe of agentic gains; the
+meaningful number wants a capable base and is the next arc's first experiment.
