@@ -2,6 +2,10 @@
 
 All notable changes to this package. Dates UTC.
 
+## 0.2.6 — 2026-06-19
+
+- **3-tier hybrid = 175/300 = 58.3%** [52.7,63.8] on full SWE-bench Lite (ADR-154), VERIFIED (55/55 sage-added reproduced). v4-pro(88)->sonnet Scholar(+33)->opus Sage(+54). 7.6x the 7.7% baseline; conservative lower bound (Sage partial). Blended ~$0.74/instance.
+
 ## 0.2.5 — 2026-06-19
 
 - New ceiling (ADR-152): **v4-pro + Scholar hybrid = 121/300 = 40.3%** [34.9,46.0] on full SWE-bench Lite — 5.2x the 7.7% baseline. Two levers stack: stronger cheap base (v4-pro, 88/300) + frontier-tail escalation (sonnet-4 recovers 33/212). Blended ~$0.39/instance.
