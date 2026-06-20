@@ -459,7 +459,7 @@ sufficient — the higher-leverage step is evolving the *invariants* themselves.
 |---|---|---|
 | 1 | seeded corpus (deterministic regression) | ✅ landed |
 | 2 | real CVE corpus (realism) | ⛳ gap (needs real repos) |
-| 3 | fuzzable harness corpus (discovery) | ⛳ gap (needs real fuzzer) |
+| 3 | fuzzable harness corpus (discovery) | ◑ real fuzzer landed (`RealFuzzOracle`, python property fuzzer); corpus still small |
 | 4 | hard false-positive corpus (trust) | ◑ partial (`hardCorpus`, tricky decoys) |
 | 5 | replay receipts (auditability) | ✅ landed |
 | 6 | paired bootstrap (promotion) | ✅ landed |
@@ -489,8 +489,10 @@ the real CVE corpus + fuzzer behind the identical interfaces is the remaining st
 
 ### SOTA upgrade path
 
-1. Semgrep as the first real oracle (Addendum A Phase 2). 2. fuzzer-backed
-invariant falsification (real fuzzer behind `FuzzOracle`). 3. generated
+1. Semgrep as the first real oracle (Addendum A Phase 2 — landed; now the in-loop
+judge). 2. fuzzer-backed invariant falsification — **landed** (`RealFuzzOracle`,
+a real seeded property fuzzer that executes code and falsifies the totality
+invariant; TP 2 / FP 0 on the fixture, receipt `bench/results/fuzz-oracle-receipt.json`). 3. generated
 detection-rule synthesis (landed, mock). 4. generated invariant synthesis (landed,
 mock). 5. metaproductivity ranking in ruVector (landed). 6. CodeQL after Semgrep +
 fuzzing are stable. 7. publish DARWIN-SHIELD-BENCH as a reproducibility artifact.
