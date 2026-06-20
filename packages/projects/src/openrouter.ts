@@ -17,6 +17,12 @@ export function openRouterAvailable(): boolean {
   return !!openRouterKey();
 }
 
+/** Canonical lane models (ADR-167). The frontier lane is empirically selected:
+ *  Qwen3-235B-A22B won the bake-off on verified-per-cost (6/6, ~0.019 mUSD/verified),
+ *  beating GLM-5.2 (5/6, ~0.91) — and it is also cheap. Override via env in benches. */
+export const DEFAULT_CHEAP_MODEL = 'qwen/qwen-2.5-7b-instruct';
+export const DEFAULT_FRONTIER_MODEL = 'qwen/qwen3-235b-a22b-2507';
+
 export interface ChatMessage {
   role: 'system' | 'user' | 'assistant';
   content: string;

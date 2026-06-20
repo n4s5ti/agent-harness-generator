@@ -22,7 +22,7 @@ import { execFileSync } from 'node:child_process';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { OpenRouterClient, openRouterAvailable, tryParseJson, runDiscovery } from '../dist/index.js';
+import { OpenRouterClient, openRouterAvailable, tryParseJson, runDiscovery, DEFAULT_FRONTIER_MODEL } from '../dist/index.js';
 
 const here = dirname(fileURLToPath(import.meta.url));
 if (!openRouterAvailable()) {
@@ -54,8 +54,8 @@ def safe_sum(xs):
 
 const SEMGREP = process.env.SEMGREP_BIN || 'semgrep';
 const CHEAP = process.env.CHEAP_MODEL || 'qwen/qwen-2.5-7b-instruct';
-const FRONTIER = process.env.FRONTIER_MODEL || 'z-ai/glm-5.2';
-const PRICING = { [CHEAP]: { in: 0.04, out: 0.1 }, [FRONTIER]: { in: 1.2, out: 4.1 } };
+const FRONTIER = process.env.FRONTIER_MODEL || DEFAULT_FRONTIER_MODEL;
+const PRICING = { 'qwen/qwen-2.5-7b-instruct': { in: 0.04, out: 0.1 }, 'qwen/qwen3-235b-a22b-2507': { in: 0.09, out: 0.10 }, 'z-ai/glm-5.2': { in: 1.2, out: 4.1 } };
 
 function semgrepAvailable() {
   try { execFileSync(SEMGREP, ['--version'], { stdio: 'ignore', timeout: 15000 }); return true; } catch { return false; }

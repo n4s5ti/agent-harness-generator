@@ -21,7 +21,7 @@ import { execFileSync } from 'node:child_process';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { OpenRouterClient, openRouterAvailable } from '../dist/index.js';
+import { OpenRouterClient, openRouterAvailable, DEFAULT_FRONTIER_MODEL } from '../dist/index.js';
 
 const here = dirname(fileURLToPath(import.meta.url));
 if (!openRouterAvailable()) {
@@ -32,10 +32,11 @@ if (!openRouterAvailable()) {
 // Per-model pricing ($/M tokens), from OpenRouter at time of writing (for cost math).
 const PRICING = {
   'qwen/qwen-2.5-7b-instruct': { in: 0.04, out: 0.10 },
+  'qwen/qwen3-235b-a22b-2507': { in: 0.09, out: 0.10 },
   'z-ai/glm-5.2': { in: 1.2, out: 4.1 },
 };
 const CHEAP = process.env.CHEAP_MODEL || 'qwen/qwen-2.5-7b-instruct';
-const FRONTIER = process.env.FRONTIER_MODEL || 'z-ai/glm-5.2';
+const FRONTIER = process.env.FRONTIER_MODEL || DEFAULT_FRONTIER_MODEL;
 
 // ── Tasks: small, objectively checkable Python functions; mixed difficulty so the
 //    cheap model nails the easy ones and an open-frontier model earns its cost on
