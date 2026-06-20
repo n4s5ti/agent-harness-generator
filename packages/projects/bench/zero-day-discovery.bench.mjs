@@ -1,21 +1,23 @@
 // SPDX-License-Identifier: MIT
 //
-// REAL defensive zero-day discovery harness, wired to OpenRouter + semgrep + an
-// isolated execution verifier. Optional (skips without OPENROUTER_API_KEY), bounded
-// request caps, key from env only. Strictly DEFENSIVE: it proves a weakness EXISTS
-// (an unhandled-exception / injection site) and emits only the exception CLASS or
-// CWE — never a weaponized exploit or the proof input.
+// REAL defensive zero-day discovery harness — BENCHMARK: baseline vs Darwin-
+// optimized policy. Wired to OpenRouter + semgrep + an isolated execution verifier.
+// Optional (skips without OPENROUTER_API_KEY), bounded request caps, key from env
+// only. Strictly DEFENSIVE: proves a weakness EXISTS (unhandled-exception /
+// injection site), emits only the exception CLASS or CWE — never an exploit or the
+// proof input.
 //
-// Pipeline (see src/discovery.ts):
-//   static : real semgrep over the target (injection/command CWEs)  [tool-verified]
-//   triage : cheap model ranks suspected non-total functions
-//   propose: GLM-5.2 (open-frontier) proposes a concrete crashing input
-//   verify : run the proof in `python3 -I -B` (timeout, clean env) — confirm or drop
+// Pipeline (src/discovery.ts): static (real semgrep) | triage (cheap) | propose
+// (GLM-5.2 open-frontier) | verify (python3 -I -B). We run it twice:
+//   baseline  : escalate every triaged site to the frontier lane.
+//   optimized : skipStaticallyCovered — don't spend a frontier call on a site the
+//               static channel already verified (the optimization), + concurrency.
+// Metric: VERIFIED findings and cost-per-verified-finding + frontier-call savings.
 //
 // Run: npm run -w @metaharness/projects build && SEMGREP_BIN=$(command -v semgrep) node bench/zero-day-discovery.bench.mjs
 // Env: CHEAP_MODEL (default qwen/qwen-2.5-7b-instruct), FRONTIER_MODEL (default z-ai/glm-5.2)
 
-import { writeFileSync, mkdtempSync, rmSync, existsSync } from 'node:fs';
+import { writeFileSync, mkdtempSync, rmSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
@@ -28,8 +30,7 @@ if (!openRouterAvailable()) {
   process.exit(0);
 }
 
-// ── Target: a small module with genuine, verifiable weaknesses (an inert test
-//    fixture — no exploit code, just vulnerable patterns + non-total functions). ──
+// Inert test fixture: genuine, verifiable weaknesses + a robust control.
 const SOURCE = `import os
 
 def run_cmd(c):
@@ -56,19 +57,22 @@ const CHEAP = process.env.CHEAP_MODEL || 'qwen/qwen-2.5-7b-instruct';
 const FRONTIER = process.env.FRONTIER_MODEL || 'z-ai/glm-5.2';
 const PRICING = { [CHEAP]: { in: 0.04, out: 0.1 }, [FRONTIER]: { in: 1.2, out: 4.1 } };
 
-const cheap = new OpenRouterClient({ model: CHEAP, maxRequests: 4, temperature: 0 });
-const frontier = new OpenRouterClient({ model: FRONTIER, maxRequests: 10, temperature: 0 });
-const costUnits = () => {
-  let c = 0;
-  for (const cl of [cheap, frontier]) {
-    const s = cl.stats();
-    const p = PRICING[cl.model] ?? { in: 0, out: 0 };
-    c += (s.promptTokens / 1e6) * p.in + (s.completionTokens / 1e6) * p.out;
-  }
-  return c * 1000; // cost-units = milli-dollars, for a readable ledger
-};
+function semgrepAvailable() {
+  try { execFileSync(SEMGREP, ['--version'], { stdio: 'ignore', timeout: 15000 }); return true; } catch { return false; }
+}
 
-// ── Static channel: real semgrep for injection/command CWEs. ──
+// Map a 1-based line to its enclosing `def name(` so static fn names line up with
+// triage fn names — letting skipStaticallyCovered avoid redundant frontier calls.
+function fnAtLine(source, line) {
+  const lines = source.split('\n');
+  for (let i = Math.min(line, lines.length) - 1; i >= 0; i -= 1) {
+    const m = lines[i].match(/^\s*def\s+([A-Za-z_]\w*)\s*\(/);
+    if (m) return m[1];
+  }
+  return `L${line}`;
+}
+
+// Static channel: real semgrep for injection/command CWEs.
 function staticScan(target) {
   if (!semgrepAvailable()) return [];
   const dir = mkdtempSync(join(tmpdir(), 'zd-static-'));
@@ -95,39 +99,15 @@ function staticScan(target) {
       if (e.stdout) out = e.stdout.toString(); else throw e;
     }
     const results = JSON.parse(out).results ?? [];
-    return results.map((r) => ({ fn: `L${r.start?.line ?? 0}`, weakness: (r.check_id ?? '').split('.').pop(), source: 'static', verified: true }));
+    return results.map((r) => ({ fn: fnAtLine(target.source, r.start?.line ?? 0), weakness: (r.check_id ?? '').split('.').pop(), source: 'static', verified: true }));
   } catch {
     return [];
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }
 }
-function semgrepAvailable() {
-  try { execFileSync(SEMGREP, ['--version'], { stdio: 'ignore', timeout: 15000 }); return true; } catch { return false; }
-}
 
-// ── Triage (cheap): list non-total / risky functions. ──
-async function triage(target) {
-  const r = await cheap.chatJSON([
-    { role: 'system', content: 'You are a security code reviewer. Output ONLY JSON.' },
-    { role: 'user', content: `List functions in this Python module that can crash on some input (raise an unhandled exception) or are injection sinks. Return a JSON array of {"fn": name, "weakness": "short CWE/desc", "rationale": "why"}.\n\n${target.source}` },
-  ], { maxTokens: 400 });
-  const arr = tryParseJson(r.raw);
-  return Array.isArray(arr) ? arr.filter((c) => c && typeof c.fn === 'string').map((c) => ({ fn: c.fn, weakness: String(c.weakness ?? 'unknown'), rationale: String(c.rationale ?? '') })) : [];
-}
-
-// ── Propose (frontier): a concrete crashing input for one function. ──
-async function propose(target, c) {
-  const r = await frontier.chatJSON([
-    { role: 'system', content: 'You are a precise security analyst. Output ONLY JSON.' },
-    { role: 'user', content: `In this Python module, give ONE concrete argument list that makes \`${c.fn}\` raise an UNHANDLED exception (demonstrating it is not total). Return JSON {"fn": "${c.fn}", "args": [...], "expectedProblem": "ExceptionName"}. If you cannot, return {"fn":"${c.fn}","args":null}.\n\n${target.source}` },
-  ], { maxTokens: 250 });
-  const p = tryParseJson(r.raw);
-  if (!p || !Array.isArray(p.args)) return null;
-  return { fn: c.fn, args: p.args, expectedProblem: String(p.expectedProblem ?? '') };
-}
-
-// ── Verify (execution): run the proof; an unhandled exception confirms the weakness. ──
+// Execution verifier: run the proof; an unhandled exception confirms the weakness.
 function verify(target, proof) {
   const dir = mkdtempSync(join(tmpdir(), 'zd-verify-'));
   const file = join(dir, 'cand.py');
@@ -155,27 +135,73 @@ except Exception as e:
   }
 }
 
+// One discovery run with fresh clients (so frontier calls are counted per run).
+async function runOnce(target, { skipStaticallyCovered }) {
+  const cheap = new OpenRouterClient({ model: CHEAP, maxRequests: 4, temperature: 0 });
+  const frontier = new OpenRouterClient({ model: FRONTIER, maxRequests: 10, temperature: 0 });
+  const cost = () => {
+    let c = 0;
+    for (const cl of [cheap, frontier]) {
+      const s = cl.stats();
+      const p = PRICING[cl.model] ?? { in: 0, out: 0 };
+      c += (s.promptTokens / 1e6) * p.in + (s.completionTokens / 1e6) * p.out;
+    }
+    return c * 1000; // milli-USD
+  };
+  const triage = async (t) => {
+    const r = await cheap.chatJSON([
+      { role: 'system', content: 'You are a security code reviewer. Output ONLY JSON.' },
+      { role: 'user', content: `List functions in this Python module that can crash on some input (raise an unhandled exception) or are injection sinks. Return a JSON array of {"fn": name, "weakness": "short CWE/desc", "rationale": "why"}.\n\n${t.source}` },
+    ], { maxTokens: 400 });
+    const arr = tryParseJson(r.raw);
+    return Array.isArray(arr) ? arr.filter((c) => c && typeof c.fn === 'string').map((c) => ({ fn: c.fn, weakness: String(c.weakness ?? 'unknown'), rationale: String(c.rationale ?? '') })) : [];
+  };
+  const propose = async (t, c) => {
+    const r = await frontier.chatJSON([
+      { role: 'system', content: 'You are a precise security analyst. Output ONLY JSON.' },
+      { role: 'user', content: `In this Python module, give ONE concrete argument list that makes \`${c.fn}\` raise an UNHANDLED exception (demonstrating it is not total). Return JSON {"fn": "${c.fn}", "args": [...], "expectedProblem": "ExceptionName"}. If you cannot, return {"fn":"${c.fn}","args":null}.\n\n${t.source}` },
+    ], { maxTokens: 250 });
+    const p = tryParseJson(r.raw);
+    if (!p || !Array.isArray(p.args)) return null;
+    return { fn: c.fn, args: p.args, expectedProblem: String(p.expectedProblem ?? '') };
+  };
+  const result = await runDiscovery(target, { staticScan, triage, propose, verify, cost }, { maxEscalations: 8, skipStaticallyCovered });
+  return { result, frontierCalls: frontier.stats().requests, cheapCalls: cheap.stats().requests };
+}
+
 const target = { path: 'fixture/target.py', language: 'python', source: SOURCE };
-const result = await runDiscovery(target, { staticScan, triage, propose, verify, cost: costUnits }, { maxEscalations: 8 });
+const baseline = await runOnce(target, { skipStaticallyCovered: false });
+const optimized = await runOnce(target, { skipStaticallyCovered: true });
+
+const lane = (run) => ({
+  verified: run.result.verified,
+  proposed: run.result.proposed,
+  skipped: run.result.skipped,
+  frontierCalls: run.frontierCalls,
+  costMilliUSD: +run.result.costUnits.toFixed(3),
+  costPerVerifiedMilliUSD: run.result.costPerVerifiedFinding != null ? +run.result.costPerVerifiedFinding.toFixed(3) : null,
+  findings: run.result.findings,
+});
+const b = lane(baseline);
+const o = lane(optimized);
+const frontierCallsSavedPct = b.frontierCalls > 0 ? +(((b.frontierCalls - o.frontierCalls) / b.frontierCalls) * 100).toFixed(1) : 0;
 
 const receipt = {
-  experiment: 'real defensive zero-day discovery harness',
+  experiment: 'defensive zero-day discovery — baseline vs Darwin-optimized policy',
   target: target.path,
   cheapModel: CHEAP,
   frontierModel: FRONTIER,
   semgrep: semgrepAvailable(),
-  candidates: result.candidates,
-  proposed: result.proposed,
-  verified: result.verified,
-  costUnitsMilliUSD: result.costUnits,
-  costPerVerifiedFindingMilliUSD: result.costPerVerifiedFinding,
-  findings: result.findings,
-  note: 'Defensive: only execution-verified (or tool-verified) weaknesses reported; proof inputs deliberately not emitted (only exception class / CWE). Real LLM calls; single non-deterministic run.',
+  baseline: b,
+  optimized: o,
+  frontierCallsSavedPct,
+  note: 'Optimized policy skips frontier escalation for statically-verified sites (skipStaticallyCovered). Defensive: only execution/tool-verified weaknesses; proof inputs redacted. Real LLM calls; single non-deterministic run.',
 };
 writeFileSync(join(here, 'results', 'zero-day-discovery.json'), JSON.stringify(receipt, null, 2) + '\n');
 
 process.stdout.write(`Defensive discovery on ${target.path} (cheap=${CHEAP}, frontier=${FRONTIER}, semgrep=${receipt.semgrep})\n`);
-process.stdout.write(`  ${result.candidates} candidates → ${result.proposed} proofs proposed → ${result.verified} VERIFIED findings\n`);
-for (const f of result.findings) process.stdout.write(`   - [${f.source}] ${f.fn}: ${f.weakness}${f.evidenceClass ? ` (confirmed via ${f.evidenceClass})` : ''}\n`);
-process.stdout.write(`  cost ≈ ${result.costUnits.toFixed(3)} milli-USD → ${result.costPerVerifiedFinding != null ? result.costPerVerifiedFinding.toFixed(3) : 'n/a'} per verified finding\n`);
+process.stdout.write(`  baseline : ${b.verified} verified, ${b.frontierCalls} frontier calls, ${b.costMilliUSD} mUSD → ${b.costPerVerifiedMilliUSD}/verified\n`);
+process.stdout.write(`  optimized: ${o.verified} verified, ${o.frontierCalls} frontier calls (${o.skipped} skipped), ${o.costMilliUSD} mUSD → ${o.costPerVerifiedMilliUSD}/verified\n`);
+process.stdout.write(`  frontier-call savings: ${frontierCallsSavedPct}% (optimized covers the same distinct vuln sites; baseline double-counts statically-covered ones)\n`);
+for (const f of o.findings) process.stdout.write(`   - [${f.source}] ${f.fn}: ${f.weakness}${f.evidenceClass ? ` (confirmed via ${f.evidenceClass})` : ''}\n`);
 process.stdout.write(`  receipt → bench/results/zero-day-discovery.json\n`);
