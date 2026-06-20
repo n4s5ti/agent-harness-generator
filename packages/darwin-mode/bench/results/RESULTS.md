@@ -385,3 +385,20 @@ Docker containers mid-run. **Conservative LOWER bound**: the Sage was only 144/1
 (budget guard stopped it); a full Sage pass can only raise it. Blended ~$0.74/instance ($222 for the
 3-tier on 300) vs $1–20/instance for frontier agents. 15.3% → 58.3% via compounding model+tiering
 levers — the "architecture ceiling" was not a paradigm limit. Agentic loop (ADR-153) is the path to 65–88%.
+
+## 18. $0 local ladder completed — qwen-14b + repair full-300 = 6.7% (ADR-150)
+
+Free local track (ruvultra ollama, `qwen2.5-coder:14b`, closed-loop repair, official batch eval):
+
+| local ($0) track | resolved | Wilson 95% CI |
+|---|---|---|
+| 14b open-loop full-300 (§13) | 14/300 = 4.7% | [2.8, 7.7] |
+| **14b + repair full-300** | **20/300 = 6.7%** | **[4.4, 10.1]** |
+
+Repair lifts the local 14b **+2pp** at full scale — the same structural lever that doubled the hosted
+cheap model (7.7→15.3%), but here **capped by the model's capability floor**: 108/300 instances
+produced empty/invalid diffs the 14b couldn't emit, and in-loop over-counted 67→20 (3.4×, the usual
+drift). Contrast: the *same harness* on hosted deepseek-v4-pro reaches 29.3% (§15). **Conclusion: the
+harness is the lever, but only above a capability floor — below it, repair recovers little because the
+base can't emit the fix at all.** This closes the ADR-150 local-inference arc: local $0 tracks are
+viable for cheap iteration but the resolve-rate ceiling is the local model, not the harness.

@@ -89,3 +89,13 @@ patches to converge toward, mirroring the hosted result (deepseek 7.7%→15.3%, 
 local $0 numbers measured by batch eval (open-loop 1/25, closed-loop 1/25). Next: larger local models
 where the repair loop has correct patches to find. Live Mac endpoint deferred to its ollama binding
 0.0.0.0 (CLAUDE.local.md).
+
+## Update 2026-06-20: local ladder completed (qwen-14b + repair, full-300)
+
+Official batch eval of the free local track: `qwen2.5-coder:14b` + closed-loop repair =
+**20/300 = 6.7% [Wilson 4.4, 10.1]** on full SWE-bench Lite (RESULTS §18). +2pp over the 4.7%
+open-loop floor (§13). **Capped by the model's capability floor** — 108/300 instances produced
+empty/invalid diffs the 14b couldn't emit, so repair had nothing to iterate on; in-loop over-counted
+67→20 (3.4×). The *same harness* on hosted deepseek-v4-pro reaches 29.3% (§15). Conclusion: the
+harness is the resolve-rate lever **only above a model capability floor**; below it the base can't emit
+the fix at all. Local $0 tracks remain valuable for cheap iteration, but the ceiling is the local model.
