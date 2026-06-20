@@ -31,17 +31,23 @@ recommended harness patterns. The headline: **the harness, not the model, is the
 - **Recommendation:** default to the cheapest model that clears the task; reserve frontier models for
   measured capability gaps. Track **$/resolve**, not just resolve-rate.
 
-## 5. Barbarian & Scholar — tier the models, escalate only the residual (33.3% at ~6× less cost)
-- Cheap base (deepseek + repair) banks the easy 46/300; a frontier "Scholar" (sonnet-4 + repair)
-  escalated **only to the 254 it failed** cracks 55 more → **100/300 = 33.3%**, blended
-  ~$0.34/instance vs ~$2 to run frontier on all 300.
-- **Recommendation:** two-tier orchestration — cheap sweep, then frontier on the residual — is far
-  more cost-efficient than one strong model everywhere (you'd waste 5/6 of frontier spend re-solving
-  what cheap already gets).
+## 5. Barbarian & Scholar — tier the models, escalate only the residual (up to 58.3%)
+- Cheap base banks the easy wins; a frontier "Scholar" escalated **only to the residual it failed**
+  cracks more; a 3rd "Sage" tier escalates again. Each tier pays only for the shrinking tail. The
+  batch-verified ladder on full SWE-bench Lite (300):
+  - v4-pro base + repair: 88/300 = 29.3%
+  - + sonnet-4 Scholar on the tail (2-tier): 121/300 = **40.3%** [34.9, 46.0], ~$0.39/inst
+  - + opus-4.8 Sage on the residual (3-tier): 175/300 = **58.3%** [52.7, 63.8], ~$0.74/inst
+- **Recommendation:** N-tier cheap→frontier escalation is far more cost-efficient than one strong
+  model everywhere (you'd waste most of frontier spend re-solving what cheap already gets). Returns
+  diminish per tier at rising $/resolve — stop where the residual's marginal cost exceeds its value.
 
 ## 6. The repair lift is model-bound below a capability floor (~14B)
-- Repair did nothing for a 7B (4%→4%) but lifted a 14B (8%→12%) and doubled a hosted model. The loop
-  needs the model to *occasionally* produce a correct-ish patch to converge toward.
+- Batch-verified on full-300: repair lifts a local 14B only **+2pp (4.7% → 6.7%** [4.4, 10.1]) — and
+  108/300 of its attempts were empty/invalid diffs the model couldn't emit, so the loop had nothing to
+  iterate on. The *same harness* on a hosted model reaches 29.3%. The loop needs the model to
+  *occasionally* produce a correct-ish patch to converge toward; below that floor, repair recovers
+  little.
 - **Recommendation:** don't expect harness scaffolding to rescue a model below the task's reasoning
   floor; pick the smallest model *above* it, then let the harness multiply it.
 
@@ -58,6 +64,10 @@ recommended harness patterns. The headline: **the harness, not the model, is the
 
 ---
 
-Verdict: this paradigm (localize + search/replace + repair + tiered escalation) tops out ~33% on
-SWE-bench Lite with a cheap base. The 65–88% agentic-SOTA tier needs a **multi-step autonomous agent**
-(bash, dir-navigation, long-horizon discovery) — an architecture change, not more knob-tuning.
+Verdict: this paradigm (localize + search/replace + repair + tiered escalation) reaches a
+batch-verified **58.3%** on SWE-bench Lite via cheap-base + 3-tier frontier escalation — 7.6× the
+7.7% open-loop baseline. Both within-paradigm frontiers are now exhausted: hosted (3rd-tier escalation
+at steeply rising $/resolve) and local (the §6 capability floor). The 65–88% agentic-SOTA tier needs a
+**multi-step autonomous agent** (read/grep/run-tests/edit/discovery loop) — an architecture change,
+not more knob-tuning. That loop is now implemented + unit-tested (ADR-153: `bench/swebench/
+agentic-loop.mjs` + `solve-agentic.mjs`); its at-scale number is the next arc.

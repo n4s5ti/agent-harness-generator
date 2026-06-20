@@ -2,6 +2,10 @@
 
 All notable changes to this package. Dates UTC.
 
+## 0.2.7 — 2026-06-20
+
+- LEARNINGS.md brought current with the full batch-verified arc: §5 N-tier ladder (29.3→40.3→**58.3%**), §6 capability floor now the rigorous local-14b full-300 number (4.7→6.7%), verdict updated (paradigm reaches 58.3%, both frontiers exhausted). Agentic loop (ADR-153) now implemented + unit-tested (`bench/swebench/agentic-loop.mjs` + `solve-agentic.mjs`) — the next-arc architecture, shipped as code.
+
 ## 0.2.6 — 2026-06-19
 
 - **3-tier hybrid = 175/300 = 58.3%** [52.7,63.8] on full SWE-bench Lite (ADR-154), VERIFIED (55/55 sage-added reproduced). v4-pro(88)->sonnet Scholar(+33)->opus Sage(+54). 7.6x the 7.7% baseline; conservative lower bound (Sage partial). Blended ~$0.74/instance.
