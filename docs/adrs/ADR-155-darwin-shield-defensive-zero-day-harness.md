@@ -383,9 +383,16 @@ modified; 10. runtime budget respected.
   `GeneratedDetectorCandidate`, `validateGeneratedShieldCode`, `ShieldGenReceipt`,
   `MockDetectorOracle`, `evaluateCandidate`, `synthesizeAndEvaluate`
   (`src/security/selfwrite.ts`, 19 tests).
-- **Phase 2** — wire a real Semgrep oracle behind the identical gate (run Semgrep,
-  normalize JSON, compare to corpus labels, store tool/rule versions, promote only
-  through the existing statistics gate).
+- **Phase 2 (landed — first real oracle)** — `SemgrepDetectorOracle`
+  (`src/security/semgrep-oracle.ts`) runs real `semgrep --json` over a labeled
+  on-disk target and scores findings against ground-truth labels. **Optional by
+  design**: absent semgrep ⇒ `available:false` and callers skip, so the
+  deterministic suite is green everywhere; present semgrep ⇒ real evidence.
+  Verified live (semgrep 1.167.0) on `bench/security/fixtures/semgrep`: a generated
+  CWE-94 `eval()` rule scored **TP 1, FP 0, precision 1.0, recall 1.0** — caught
+  the real `eval(user_input)` and correctly ignored the `evaluate` decoy + clean
+  file (receipt: `bench/results/semgrep-oracle-receipt.json`). This is the
+  mock→real crossing for the detector path; the fuzzer (`FuzzOracle`) is the next.
 - **Phase 3** — add CodeQL only after Semgrep + fuzzing are stable.
 
 ### Non-goals

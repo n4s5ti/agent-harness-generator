@@ -40,5 +40,6 @@ export * from './ablation.js';
 export * from './selfwrite.js';
 export * from './invariant.js';
 export * from './agentic.js';
+export * from './semgrep-oracle.js';
 export * from './evolve.js';
 export * from './bench.js';
