@@ -2,5 +2,5 @@
   "runs": 100,
   "costSavedPct": 39.26,
   "reliability": 1,
-  "cacheHitRate": 50
+  "maxDuplicateModelCalls": 0
 }

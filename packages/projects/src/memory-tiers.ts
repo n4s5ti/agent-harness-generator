@@ -59,8 +59,10 @@ function overlapScore(query: string, key: string): number {
   }
   const union = new Set([...q, ...k]).size;
   const jaccard = shared / union;
-  // Blend overlap with a tiny hash term so equal-overlap keys order deterministically.
-  return round6(clamp(jaccard + (weight / Math.max(1, q.size)) * 1e-3, 0, 1));
+  // Blend in a vanishingly small hash term (1e-9) so EQUAL-overlap keys order
+  // deterministically WITHOUT reordering keys of genuinely different overlap (the
+  // smallest representable jaccard gap is ~1e-3, far above this tie-break weight).
+  return round6(clamp(jaccard + (weight / Math.max(1, q.size)) * 1e-9, 0, 1));
 }
 
 /** Isolated, tier-keyed memory store with deterministic token-overlap search. */

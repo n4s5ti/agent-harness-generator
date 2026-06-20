@@ -1,6 +1,6 @@
 {
   "tasks": 100,
-  "retriesTyped": 39,
-  "retriesFree": 117,
-  "retryReductionPct": 66.67
+  "retriesTyped": 33,
+  "retriesFree": 84,
+  "retryReductionPct": 60.71
 }

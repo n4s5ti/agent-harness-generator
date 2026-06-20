@@ -18,6 +18,7 @@ const REASONS: TerminationReason[] = [
   'budget_exhausted',
   'max_retries',
   'max_escalations',
+  'max_reviewer_passes',
   'context_overflow',
   'security_uncertain',
 ];
@@ -139,5 +140,34 @@ describe('scheduler termination invariant', () => {
       const out = new EscalationScheduler(defaultSchedulerPolicy()).run(nodes);
       expect(REASONS).toContain(out.reason);
     }
+  });
+});
+
+describe('scheduler reviewer-pass cap (typed reason)', () => {
+  it('exceeding maxReviewerPasses terminates with the distinct max_reviewer_passes reason', () => {
+    const sched = new EscalationScheduler({ ...defaultSchedulerPolicy(), maxReviewerPasses: 2 });
+    const nodes = ['review-1', 'review-2', 'review-3'].map((id) =>
+      fixedNode(id, { ok: true, costUnits: 1, timeUnits: 0 }),
+    );
+    const out = sched.run(nodes);
+    expect(out.reason).toBe('max_reviewer_passes'); // not conflated with max_escalations
+  });
+});
+
+describe('scheduler precedence at a collision point', () => {
+  it('security uncertainty beats a simultaneous budget breach', () => {
+    const sched = new EscalationScheduler({ ...defaultSchedulerPolicy(), costBudget: 5 });
+    // One node blows the budget AND reports security uncertainty in the same attempt.
+    const out = sched.run([fixedNode('x', { ok: false, costUnits: 1000, timeUnits: 0, securityUncertain: true })]);
+    expect(out.reason).toBe('security_uncertain');
+  });
+});
+
+describe('scheduler retry-budget floor', () => {
+  it('maxRetriesPerNode=0 still gives a node at least one attempt (not a 0-attempt max_retries)', () => {
+    const sched = new EscalationScheduler({ ...defaultSchedulerPolicy(), maxRetriesPerNode: 0 });
+    const out = sched.run([fixedNode('f', { ok: false, costUnits: 1, timeUnits: 0 })]);
+    expect(out.reason).toBe('max_retries');
+    expect(out.perNode[0].attempts).toBe(1); // invoked once, not zero
   });
 });

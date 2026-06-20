@@ -106,7 +106,7 @@ export class CostLedger {
   reconcile(
     accountedCost: number,
     expectedModelCalls?: number,
-  ): { ok: boolean; traced: number; accounted: number; unaccounted: number; unaccountedModelCalls: number } {
+  ): { ok: boolean; traced: number; accounted: number; unaccounted: number; unaccountedModelCalls: number; modelCallsCertified: boolean } {
     const traced = this.total();
     const accounted = round6(accountedCost);
     const unaccounted = round6(accounted - traced);
@@ -117,8 +117,12 @@ export class CostLedger {
       expectedModelCalls !== undefined ? Math.max(0, expectedModelCalls - modelSpans.length) : 0;
     const unaccountedModelCalls = zeroCostModel + expectedShortfall;
 
+    // Honest limit: model-call completeness can only be CERTIFIED when the caller
+    // supplies expectedModelCalls. Without it, `ok` proves cost reconciliation but
+    // cannot prove a model call wasn't both unspanned AND unbilled.
+    const modelCallsCertified = expectedModelCalls !== undefined;
     const ok = unaccounted === 0 && unaccountedModelCalls === 0;
-    return { ok, traced, accounted, unaccounted, unaccountedModelCalls };
+    return { ok, traced, accounted, unaccounted, unaccountedModelCalls, modelCallsCertified };
   }
 }
 

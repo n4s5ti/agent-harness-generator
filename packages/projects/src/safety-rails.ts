@@ -54,11 +54,16 @@ export interface SafetyRail {
 // grade its own homework. Centralized so both the rail and tests agree.
 // ─────────────────────────────────────────────────────────────────────────────
 
-const PROTECTED_PATTERNS = ['scoring', 'policy', '.github/', 'safetyProfile'];
+// Word-boundary names of protected components (the scorer, the policy, the
+// safety profile). Matched on whole tokens so `scoring-helpers.ts` IS protected
+// (scorer-adjacent) but `policyholder.ts` is NOT a false positive.
+const PROTECTED_WORDS = ['scoring', 'policy', 'safetyprofile'];
 
-/** True if a file path falls under the protected set. */
+/** True if a file path falls under the protected set (normalized, word-anchored). */
 export function isProtectedPath(path: string): boolean {
-  return PROTECTED_PATTERNS.some((p) => path.includes(p));
+  const norm = String(path ?? '').replace(/\\/g, '/').toLowerCase();
+  if (norm.includes('.github/')) return true; // CI config is protected wholesale
+  return PROTECTED_WORDS.some((w) => new RegExp(`(^|[^a-z0-9])${w}([^a-z0-9]|$)`).test(norm));
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -95,8 +100,9 @@ export function builtinRails(): readonly SafetyRail[] {
     makeRail('no-protected-file-edit', 'rejects edits to protected files (scoring/policy/.github/safetyProfile)', (c) => {
       // Trust explicit protectedFilesTouched, but also re-derive from touchedFiles
       // so a mutation cannot hide a protected edit by leaving the flag list empty.
-      const derived = c.touchedFiles.filter(isProtectedPath);
-      const hits = [...new Set([...c.protectedFilesTouched, ...derived])];
+      // Coerce to arrays so a malformed (untyped) candidate fails CLOSED, not open.
+      const derived = (c.touchedFiles ?? []).filter(isProtectedPath);
+      const hits = [...new Set([...(c.protectedFilesTouched ?? []), ...derived])];
       return hits.length > 0
         ? { railId: 'no-protected-file-edit', message: `mutation touches protected files: ${hits.join(', ')}` }
         : null;
@@ -152,7 +158,11 @@ export class RailRegistry {
 // Pre-benchmark gate. The single call the harness makes before spending compute.
 // ─────────────────────────────────────────────────────────────────────────────
 
-/** True if the candidate MUST be rejected before any benchmark run. */
+/** True if the candidate MUST be rejected before any benchmark run.
+ *  The immutable builtin battery is ALWAYS enforced, even if a caller passes a
+ *  custom (or deliberately stripped) registry — rails are not in the mutation
+ *  surface, so they cannot be disabled by swapping the registry. */
 export function rejectsBeforeBenchmark(c: CandidateChange, reg: RailRegistry = new RailRegistry()): boolean {
-  return !reg.evaluate(c).ok;
+  const builtinViolated = !new RailRegistry().evaluate(c).ok; // non-negotiable battery
+  return builtinViolated || !reg.evaluate(c).ok;
 }

@@ -25,6 +25,7 @@ export type TerminationReason =
   | 'budget_exhausted'
   | 'max_retries'
   | 'max_escalations'
+  | 'max_reviewer_passes'
   | 'context_overflow'
   | 'security_uncertain';
 
@@ -103,6 +104,9 @@ export class EscalationScheduler {
 
   run(nodes: SchedNode[]): SchedulerOutcome {
     const p = this.policy;
+    // Every node gets at least one attempt — a 0 budget must not report
+    // 'max_retries' for a node that was never even invoked.
+    const maxAttempts = Math.max(1, p.maxRetriesPerNode);
     let steps = 0;
     let costUnits = 0;
     let timeUnits = 0;
@@ -125,8 +129,8 @@ export class EscalationScheduler {
       let attempts = 0;
       let ok = false;
 
-      // Bounded retry loop for this node (<= maxRetriesPerNode attempts).
-      while (attempts < p.maxRetriesPerNode) {
+      // Bounded retry loop for this node (<= maxAttempts, always >= 1).
+      while (attempts < maxAttempts) {
         attempts += 1;
         steps += 1;
         const r = node.run(attempts);
@@ -173,7 +177,7 @@ export class EscalationScheduler {
       // Reviewer-pass cap: every successful reviewer node consumes a pass.
       if (ok && node.id.startsWith('review')) {
         reviewerPasses += 1;
-        if (reviewerPasses > p.maxReviewerPasses) return done('max_escalations');
+        if (reviewerPasses > p.maxReviewerPasses) return done('max_reviewer_passes');
       }
 
       // Exhausted the retry budget without success → typed max_retries.

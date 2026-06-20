@@ -88,15 +88,31 @@ export class RealFuzzOracle {
   fuzz(driverPath: string, targetPath: string, opts: { seed?: number; iterations?: number } = {}): FuzzResult {
     const avail = this.availability();
     if (!avail.available) return { available: false, falsified: false, exceptionClass: null, iterations: 0, reason: avail.reason };
+    return this.fuzzWithBinary(driverPath, targetPath, opts);
+  }
+
+  /**
+   * Run the driver against a single target assuming python is already known
+   * available (no re-probe). On a hard failure (python crash, non-zero exit,
+   * unparseable output) this degrades to a non-falsification result with a
+   * `reason` rather than throwing — a present-but-crashing python must not
+   * propagate out of `evaluate()`.
+   */
+  private fuzzWithBinary(driverPath: string, targetPath: string, opts: { seed?: number; iterations?: number } = {}): FuzzResult {
     const seed = opts.seed ?? 0;
     const iterations = opts.iterations ?? 5000;
-    const out = execFileSync(this.python, [driverPath, targetPath, String(seed), String(iterations)], {
-      encoding: 'utf8',
-      timeout: this.timeoutMs,
-      stdio: ['ignore', 'pipe', 'pipe'],
-    });
-    const parsed = JSON.parse(out.trim()) as { falsified: boolean; exceptionClass: string | null; iterations: number };
-    return { available: true, falsified: parsed.falsified, exceptionClass: parsed.exceptionClass, iterations: parsed.iterations };
+    try {
+      const out = execFileSync(this.python, [driverPath, targetPath, String(seed), String(iterations)], {
+        encoding: 'utf8',
+        timeout: this.timeoutMs,
+        stdio: ['ignore', 'pipe', 'pipe'],
+        env: { ...process.env, PYTHONDONTWRITEBYTECODE: '1' },
+      });
+      const parsed = JSON.parse(out.trim()) as { falsified: boolean; exceptionClass: string | null; iterations: number };
+      return { available: true, falsified: parsed.falsified, exceptionClass: parsed.exceptionClass, iterations: parsed.iterations };
+    } catch (e) {
+      return { available: true, falsified: false, exceptionClass: null, iterations: 0, reason: e instanceof Error ? e.message : String(e) };
+    }
   }
 
   /**
@@ -117,7 +133,8 @@ export class RealFuzzOracle {
     let fn = 0;
     for (const label of corpus.labels) {
       const targetPath = isAbsolute(label.file) ? label.file : join(corpus.dir, label.file);
-      const r = this.fuzz(driverPath, targetPath, opts);
+      // python availability was probed once above; skip the per-target re-probe.
+      const r = this.fuzzWithBinary(driverPath, targetPath, opts);
       outcomes.push({ file: label.file, vulnerable: label.vulnerable, falsified: r.falsified, exceptionClass: r.exceptionClass });
       if (label.vulnerable) {
         if (r.falsified) tp += 1;

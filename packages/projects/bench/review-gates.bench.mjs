@@ -2,13 +2,11 @@
 //
 // Bench for review-gates.ts (ADR-166 Human Review Gates). Routes a stream of ~200
 // changes and reports human review rate, reduction vs a review-EVERYTHING baseline,
-// and escaped defects. The stream is built so real defects concentrate on the
-// uncertain edge (the triggers), which is exactly where the gate sends humans.
-//
-// The measured optimization: review-all asks a human on 100% of changes and escapes
-// 0 defects. The gate asks on the uncertain subset (~half) and — because defects
-// correlate with triggers — still escapes ~0 defects. We report the human-review
-// reduction at parity escaped defects.
+// and escaped defects. Most real defects DO present an observable trigger (and are
+// caught), but the stream deliberately includes a minority of signal-less defects
+// in the auto-routed population — so `escapedDefects` is a genuine measurement of
+// the trade-off, not a number rigged to 0. Risk-based gating cuts review volume but
+// is honestly NOT a free lunch: a defect with no warning signal escapes review.
 
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
@@ -32,6 +30,10 @@ function buildStream() {
   for (let i = 0; i < ITEMS; i += 1) {
     const onEdge = rng() < 0.5;
     if (!onEdge) {
+      // Off-edge: clean observable signals → routed auto. Honestly, a minority
+      // (~12%) are nonetheless defective WITHOUT any warning signal — these escape
+      // review. This is the real residual risk of signal-based gating.
+      const silentDefect = rng() < 0.12;
       stream.push({
         id: `ok-${i}`,
         highRiskFileTouched: false,
@@ -39,7 +41,7 @@ function buildStream() {
         costUnits: +(rng() * 15).toFixed(2), // under the budget of 20
         confidence: +(0.75 + rng() * 0.25).toFixed(3), // >= threshold 0.7
         bootstrap: CLEAR,
-        actuallyDefective: false,
+        actuallyDefective: silentDefect,
       });
     } else {
       // Pick one trigger so escalation is justified by a single observable signal.

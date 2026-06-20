@@ -46,6 +46,18 @@ describe('DatasetRegistry.provenanceComplete', () => {
 describe('fourSplitGate', () => {
   const incumbent: ScoreFn = (ex) => 0.5 + ((Number(ex.input) % 5) - 2) * 0.02;
 
+  it('(missing-split) a clearly-better candidate is NOT promoted when a split is absent', () => {
+    // Registry has only three of four splits — the adversarial split is missing.
+    const reg = new DatasetRegistry();
+    for (const split of ['train', 'heldout', 'regression'] as Split[]) {
+      for (let i = 0; i < 12; i += 1) reg.add({ id: `${split}-${i}`, split, provenance: 'accepted-pr', input: i, label: i % 2 });
+    }
+    const candidate: ScoreFn = (ex) => incumbent(ex) + 0.1; // wins everywhere present
+    const v = fourSplitGate(reg, incumbent, candidate, { seed: 3 });
+    expect(v.promote).toBe(false); // cannot promote without all four splits present
+    expect(v.passedSplits).not.toContain('adversarial');
+  });
+
   it('(2) promotes a true winner that beats baseline on all four splits', () => {
     const reg = buildRegistry(24);
     // Candidate is uniformly +0.1 better on every example, every split.

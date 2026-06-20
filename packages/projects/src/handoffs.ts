@@ -226,25 +226,27 @@ export class HandoffChain {
 // the full retry budget. Same seed/tasks → identical, reproducible counts.
 // ─────────────────────────────────────────────────────────────────────────────
 
-/** Simulate retries across `tasks` handoffs in typed vs free-form mode. */
+/** Simulate retries across `tasks` handoffs in typed vs free-form mode.
+ *  The reduction is NOT a baked constant: each ambiguous handoff's free-form cost
+ *  is drawn per-task (1..4 downstream retries before discovery), and typed always
+ *  pays exactly one corrective re-emit. The RNG stream is identical across both
+ *  modes for the same seed (the per-task cost is drawn regardless of `typed`), so
+ *  the comparison is paired and `typed.retries <= free.retries` always holds, with
+ *  the actual ratio emerging from the seed. */
 export function simulateRetries(opts: { typed: boolean; tasks: number; seed: number }): { retries: number } {
   const rng = makeRng(opts.seed);
-  const FREE_FORM_RETRY_BUDGET = 3; // free-form rediscovers malformed handoffs the hard way
   let retries = 0;
 
   for (let i = 0; i < opts.tasks; i += 1) {
-    // Deterministic "ambiguity" signal for this task.
     const ambiguous = rng() < 0.35;
+    // Draw the free-form cost UNCONDITIONALLY so the stream is identical in both
+    // modes (paired comparison); a malformed handoff is rediscovered downstream
+    // a variable number of times (1..4) before someone notices.
+    const freeFormCost = 1 + Math.floor(rng() * 4);
     if (!ambiguous) continue; // a clean handoff costs no retries in either mode
-
-    if (opts.typed) {
-      // Schema catches it at the boundary: a single corrective re-emit, no storm.
-      retries += 1;
-    } else {
-      // No contract: the malformed handoff propagates and is retried downstream
-      // up to the full budget before someone notices.
-      retries += FREE_FORM_RETRY_BUDGET;
-    }
+    // Schema catches it at the boundary (one corrective re-emit); free-form burns
+    // the full rediscovery cost.
+    retries += opts.typed ? 1 : freeFormCost;
   }
   return { retries };
 }

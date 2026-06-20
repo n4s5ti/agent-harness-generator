@@ -53,35 +53,38 @@ npm run -w @metaharness/projects bench   # build + run every benchmark, writes b
 
 ## Benchmarks
 
-Each module ships a benchmark under `bench/` that writes a JSON receipt to `bench/results/`. `bench/run-all.mjs` runs them all and prints a consolidated table, and `bench/integrated.bench.mjs` runs the ADR-156 integrated acceptance scenario (a policy evolved across the modules vs a frontier-only baseline). See [Benchmarks](#measured-results) for the latest numbers.
+Each module ships a benchmark under `bench/` that writes a JSON receipt to `bench/results/`. `bench/run-all.mjs` runs them all and prints a consolidated table, and `bench/integrated.bench.mjs` runs the ADR-156 integrated acceptance scenario. See [Benchmark results](#benchmark-results) for the latest numbers.
 
-## Measured results
+## Benchmark results
 
-Populated by `npm run -w @metaharness/projects bench`. Numbers are deterministic for the committed seeds; the source ADRs' impact figures are treated as hypotheses these benchmarks test, not guarantees.
+> **These are deterministic *synthetic simulations*, not empirical real-world measurements.** Each benchmark drives the module's real logic over a seeded task population so the numbers emerge from the seed (reproducible from the committed code) rather than being baked into constants — but the scenarios are constructed, and the magnitudes depend on the scenario. The source ADRs' impact figures are **hypotheses these benchmarks exercise, not guarantees**. Run with `npm run -w @metaharness/projects bench`.
 
-| Module (ADR) | Benchmark headline | Receipt |
+| Module (ADR) | Benchmark headline (synthetic) | Receipt |
 |---|---|---|
-| Checkpoints (157) | **39.3%** cost saved on resume, **100%** reliability, 50% cache-hit | `checkpoints.json` |
-| Trace & Ledger (158) | 24 leaks found, **50.5%** projected savings; ledger reconciles to the cent | `trace.json` |
+| Checkpoints (157) | **39.3%** cost saved on resume, **100%** reliability, **0** duplicate model calls on resume | `checkpoints.json` |
+| Trace & Ledger (158) | 24 leaks found, **50.5%** projected savings; ledger reconciles exactly (cost-certified) | `trace.json` |
 | HarnessSpec (159) | round-trip lossless, replay deterministic across 256 seeds | `harness-spec.json` |
-| Scheduler (160) | **25%** cost cut on failing tasks, **all runs terminate** (typed reason) | `scheduler.json` |
+| Scheduler (160) | both arms real runs; bounding cuts doomed-task cost (**~88%** in this seeded mix), **all runs terminate** with a typed reason | `scheduler.json` |
 | Memory Tiers (161) | **13.6%** input tokens saved, solve rate unchanged | `memory-tiers.json` |
 | Dataset Registry (162) | true winner promoted, **false winner rejected** (loses on adversarial split) | `datasets.json` |
-| Typed Handoffs (163) | **66.7%** fewer retries vs free-form | `handoffs.json` |
-| Safety Rails (164) | **100%** of cheating mutations rejected, **0** false rejections | `safety-rails.json` |
+| Typed Handoffs (163) | **~61%** fewer retries vs free-form (per-task free cost drawn 1–4, varies by seed) | `handoffs.json` |
+| Safety Rails (164) | **100%** of cheating mutations rejected, **0** false rejections (incl. lookalike near-misses) | `safety-rails.json` |
 | Opportunity Scanner (165) | ROI-ranked portfolio, top-10 fully costed | `opportunity.json` |
-| Review Gates (166) | **54.5%** fewer human reviews, **0** escaped defects | `review-gates.json` |
-| **Integrated (156)** | **retries −66.7%, wasted tokens −40.7%, cost −68%, solve rate held, 0 bypasses → ALL GATES PASS** | `integrated.json` |
+| Review Gates (166) | **52.5%** fewer human reviews — at a real cost of **13/200 escaped** signal-less defects (gating is not a free lunch) | `review-gates.json` |
+| **Integrated (156)** | retries −58.9%, wasted tokens −42.0%, cost −64%, solve rate held, 0 bypasses, 0 false rejections → **ALL GATES PASS** | `integrated.json` |
 
-The integrated acceptance scenario (100 tasks × 3 repos) composes the modules into an evolved policy vs a frontier-only baseline and checks the ADR-156 targets:
+The integrated acceptance scenario (100 tasks × 3 repos) composes the modules into an evolved policy vs a frontier-only baseline and checks the ADR-156 target gates. Each metric is driven by real module logic over the seeded population:
 
-| Gate | Target | Measured |
-|---|---|---|
-| Fewer retries | ≥ 20% | **66.7%** |
-| Fewer wasted tokens | ≥ 30% | **40.7%** (memory + trace-leak pruning) |
-| Cheaper than frontier-only | ≥ 50% | **68%** |
-| Solve rate | same-or-better | **held** (265/265) |
-| Critical guardrail bypasses | 0 | **0** |
+| Gate | Target | Result (seed 42) | How it's measured |
+|---|---|---|---|
+| Fewer retries | ≥ 20% | **58.9%** | real `simulateRetries`; free-form per-task cost drawn 1–4 |
+| Fewer wasted tokens | ≥ 30% | **42.0%** | tiered-memory savings **+** `detectLeaks()`-computed repeated-retrieval pruning |
+| Cheaper than frontier-only | ≥ 50% | **64%** | per-task cheap-vs-escalate decided by seeded difficulty (escalation count is data-driven) |
+| Solve rate | same-or-better | **held** (265/265) | memory does not gate solving (no regression) |
+| Critical guardrail bypasses | 0 | **0** | real rail battery over 7 cheats |
+| False rejections | 0 | **0** | 2 lookalike near-misses (e.g. `policyholder.ts`) correctly allowed |
+
+> Note on the scheduler number: the ~88% reflects a seeded population that is ~40% *doomed* tasks (which a naive unbounded loop retries ~50× while the bounded scheduler stops at 3). It is a real measurement of *this* mix, not a universal claim — change the doomed fraction and it moves.
 
 ## License
 

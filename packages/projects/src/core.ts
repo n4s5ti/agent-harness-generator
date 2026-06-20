@@ -92,18 +92,22 @@ export function hashJson(value: unknown): string {
   return fnv1a(stableStringify(value)).toString(16).padStart(8, '0');
 }
 
-/** Deterministic JSON stringify with sorted object keys (stable across runs). */
+/** Deterministic JSON stringify with sorted object keys (stable across runs).
+ *  Mirrors JSON.stringify semantics so it can safely key a content-addressed
+ *  cache: object properties whose value is `undefined` are omitted, and
+ *  `undefined` array elements coerce to `null` (so `{a:undefined}` ≠ `{a:null}`). */
 export function stableStringify(value: unknown): string {
+  if (value === undefined) return 'null';
   if (value === null || typeof value !== 'object') return JSON.stringify(value) ?? 'null';
-  if (Array.isArray(value)) return `[${value.map(stableStringify).join(',')}]`;
+  if (Array.isArray(value)) return `[${value.map((v) => stableStringify(v === undefined ? null : v)).join(',')}]`;
   const obj = value as Record<string, unknown>;
-  const keys = Object.keys(obj).sort();
+  const keys = Object.keys(obj).filter((k) => obj[k] !== undefined).sort();
   return `{${keys.map((k) => `${JSON.stringify(k)}:${stableStringify(obj[k])}`).join(',')}}`;
 }
 
 /** Round to 6 decimal places (the program's canonical numeric precision). */
 export function round6(value: number): number {
-  return +(Math.round(value * 1e6) / 1e6).toFixed(6);
+  return Math.round(value * 1e6) / 1e6;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -170,7 +174,7 @@ export function bootstrapDelta(
   opts: { seed?: number; resamples?: number } = {},
 ): BootstrapResult {
   const n = Math.min(incumbent.length, candidate.length);
-  const resamples = opts.resamples ?? 5000;
+  const resamples = Math.max(1, opts.resamples ?? 5000);
   if (n === 0) return { meanDelta: 0, lower95: 0, upper95: 0, pValue: 1, samples: 0 };
   const deltas = Array.from({ length: n }, (_, i) => candidate[i] - incumbent[i]);
   const rng = makeRng(opts.seed ?? 0);

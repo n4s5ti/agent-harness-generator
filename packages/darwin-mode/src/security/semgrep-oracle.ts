@@ -113,14 +113,26 @@ export class SemgrepDetectorOracle {
         stdout = execFileSync(
           this.binary,
           ['--quiet', '--json', '--disable-version-check', '--config', ruleFile, targetDir],
-          { encoding: 'utf8', timeout: this.timeoutMs, maxBuffer: 64 * 1024 * 1024, stdio: ['ignore', 'pipe', 'ignore'] },
+          { encoding: 'utf8', timeout: this.timeoutMs, maxBuffer: 64 * 1024 * 1024, stdio: ['ignore', 'pipe', 'pipe'] },
         );
       } catch (e) {
-        // semgrep exits 1 when results are found; stdout still holds the JSON.
-        const err = e as { stdout?: string | Buffer; status?: number };
-        if (err.stdout) stdout = err.stdout.toString();
-        else throw e;
+        // Distinguish semgrep's exit codes: status===1 means "findings present"
+        // and stdout still holds the JSON (the happy path). status>=2 (or empty/
+        // missing stdout) is a REAL failure — bad rule, internal error — so throw
+        // a descriptive error rather than letting JSON.parse('') throw a confusing one.
+        const err = e as { stdout?: string | Buffer; stderr?: string | Buffer; status?: number };
+        const status = typeof err.status === 'number' ? err.status : undefined;
+        const captured = err.stdout ? err.stdout.toString() : '';
+        if (status === 1 && captured) {
+          stdout = captured;
+        } else {
+          const stderr = err.stderr ? err.stderr.toString().trim() : '';
+          throw new Error(
+            `semgrep failed (exit ${status ?? 'unknown'})${stderr ? `: ${stderr}` : captured ? `: ${captured.slice(0, 500)}` : ''}`,
+          );
+        }
       }
+      if (!stdout.trim()) throw new Error('semgrep produced no output');
       const parsed = JSON.parse(stdout) as { results?: Array<{ path: string; start?: { line?: number }; check_id?: string }> };
       const findings = (parsed.results ?? []).map((r) => ({
         path: isAbsolute(r.path) ? relative(targetDir, r.path) : r.path,
