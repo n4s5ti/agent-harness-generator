@@ -393,6 +393,14 @@ modified; 10. runtime budget respected.
   the real `eval(user_input)` and correctly ignored the `evaluate` decoy + clean
   file (receipt: `bench/results/semgrep-oracle-receipt.json`). This is the
   mock→real crossing for the detector path; the fuzzer (`FuzzOracle`) is the next.
+  - **In-loop judge (landed)** — `real-loop.ts` makes real Semgrep the JUDGE inside
+    the promotion gate, not just a standalone check: a generated rule is scored
+    per-file by real `semgrep --json` over a multi-file labeled corpus and promoted
+    over the incumbent only when the paired bootstrap certifies it (lower-95% > 0),
+    with no FP regression and a byte-identical replay. Verified live (semgrep
+    1.167.0): a broad candidate beat an eval-only incumbent, per-file mean
+    0.5 → 1.0, **lower95 0.125 (p 0.004), FP 0** — flagged `yaml.load`, ignored
+    `yaml.safe_load` (receipt: `bench/results/semgrep-inloop-receipt.json`).
 - **Phase 3** — add CodeQL only after Semgrep + fuzzing are stable.
 
 ### Non-goals
