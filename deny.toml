@@ -25,6 +25,11 @@ confidence-threshold = 0.93
 [bans]
 multiple-versions = "warn"
 wildcards = "deny"
+# Workspace-internal path deps (e.g. ruflo-kernel-napi/-wasm → `ruflo-kernel =
+# { path = "../kernel" }`) carry no version and are otherwise flagged as
+# wildcards. They are first-party crates in this same workspace, not unpinned
+# registry deps, so allow them while still denying real registry wildcards.
+allow-wildcard-paths = true
 highlight = "all"
 
 [sources]

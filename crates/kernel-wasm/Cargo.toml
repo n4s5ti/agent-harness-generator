@@ -1,6 +1,7 @@
 [package]
 name = "ruflo-kernel-wasm"
 version.workspace = true
+publish = false  # napi/wasm binding crate — built into @metaharness/kernel (npm), never published to crates.io (GH cargo-deny: lets allow-wildcard-paths cover the internal ruflo-kernel path dep)
 edition.workspace = true
 rust-version.workspace = true
 license.workspace = true
