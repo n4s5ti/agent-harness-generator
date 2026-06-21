@@ -2,15 +2,15 @@
   "experiment": "defensive zero-day discovery — baseline vs Darwin-optimized policy",
   "target": "fixture/target.py",
   "cheapModel": "qwen/qwen-2.5-7b-instruct",
-  "frontierModel": "z-ai/glm-5.2",
+  "frontierModel": "qwen/qwen3-235b-a22b-2507",
   "semgrep": true,
   "baseline": {
-    "verified": 7,
+    "verified": 6,
     "proposed": 5,
     "skipped": 0,
     "frontierCalls": 5,
-    "costMilliUSD": 4.898,
-    "costPerVerifiedMilliUSD": 0.7,
+    "costMilliUSD": 0.148,
+    "costPerVerifiedMilliUSD": 0.025,
     "findings": [
       {
         "fn": "run_cmd",
@@ -25,19 +25,12 @@
         "verified": true
       },
       {
-        "fn": "run_cmd",
-        "weakness": "CWE-78 OS command injection",
-        "source": "runtime",
-        "verified": true,
-        "evidenceClass": "TypeError",
-        "proofArgsRedacted": true
-      },
-      {
         "fn": "parse",
         "weakness": "CWE-94 code injection",
         "source": "runtime",
         "verified": true,
-        "evidenceClass": "SyntaxError",
+        "evidenceClass": "ZeroDivisionError",
+        "severity": "medium",
         "proofArgsRedacted": true
       },
       {
@@ -46,6 +39,7 @@
         "source": "runtime",
         "verified": true,
         "evidenceClass": "ZeroDivisionError",
+        "severity": "medium",
         "proofArgsRedacted": true
       },
       {
@@ -54,6 +48,7 @@
         "source": "runtime",
         "verified": true,
         "evidenceClass": "IndexError",
+        "severity": "medium",
         "proofArgsRedacted": true
       },
       {
@@ -62,6 +57,7 @@
         "source": "runtime",
         "verified": true,
         "evidenceClass": "KeyError",
+        "severity": "medium",
         "proofArgsRedacted": true
       }
     ]
@@ -71,8 +67,8 @@
     "proposed": 3,
     "skipped": 2,
     "frontierCalls": 3,
-    "costMilliUSD": 1.871,
-    "costPerVerifiedMilliUSD": 0.374,
+    "costMilliUSD": 0.098,
+    "costPerVerifiedMilliUSD": 0.02,
     "findings": [
       {
         "fn": "run_cmd",
@@ -92,6 +88,7 @@
         "source": "runtime",
         "verified": true,
         "evidenceClass": "ZeroDivisionError",
+        "severity": "medium",
         "proofArgsRedacted": true
       },
       {
@@ -100,6 +97,7 @@
         "source": "runtime",
         "verified": true,
         "evidenceClass": "IndexError",
+        "severity": "medium",
         "proofArgsRedacted": true
       },
       {
@@ -108,6 +106,7 @@
         "source": "runtime",
         "verified": true,
         "evidenceClass": "KeyError",
+        "severity": "medium",
         "proofArgsRedacted": true
       }
     ]
