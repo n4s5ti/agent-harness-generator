@@ -26,3 +26,5 @@ export * from './learning-loop.js'; // self-learning discovery loop
 export * from './pipeline.js';
 export * from './taint.js';
 export * from './verifiers.js';
+export * from './sandbox.js';
+export * from './cve-corpus.js';
