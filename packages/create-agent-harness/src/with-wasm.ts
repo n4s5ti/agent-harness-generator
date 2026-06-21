@@ -29,6 +29,31 @@ function have(cmd: string): boolean {
   }
 }
 
+/**
+ * GH #21: a `wasm-pack --target nodejs` output is CommonJS, but it lands inside
+ * an ESM (`"type":"module"`) harness — so Node would parse the CJS shim as ESM
+ * and `__dirname` (used to locate the `.wasm`) breaks. Force `{"type":"commonjs"}`
+ * into the wasm dir's package.json so the shim loads as CJS, and remove the
+ * `.gitignore` (`*`) wasm-pack drops, which would otherwise prune `wasm/` from
+ * the npm tarball. Extracted + exported so it is unit-testable without a real
+ * wasm-pack build. Returns the CJS entry filename (wasm-pack's `main`, else
+ * `index.js`).
+ */
+export function markWasmDirCommonjs(outDir: string): string {
+  rmSync(join(outDir, '.gitignore'), { force: true });
+  const wasmPkgPath = join(outDir, 'package.json');
+  let wasmPkg: Record<string, unknown> = {};
+  try {
+    wasmPkg = JSON.parse(readFileSync(wasmPkgPath, 'utf8'));
+  } catch {
+    /* wasm-pack always writes one; tolerate absence */
+  }
+  wasmPkg.type = 'commonjs';
+  const entry = typeof wasmPkg.main === 'string' && wasmPkg.main ? (wasmPkg.main as string) : 'index.js';
+  writeFileSync(wasmPkgPath, JSON.stringify(wasmPkg, null, 2) + '\n');
+  return entry;
+}
+
 export function wireWasm(cratePath: string, targetDir: string): WasmWireResult {
   const lines: string[] = [];
   const crate = resolve(process.cwd(), cratePath);
@@ -57,21 +82,7 @@ export function wireWasm(cratePath: string, targetDir: string): WasmWireResult {
     return { ok: false, lines: [`--with-wasm: wasm-pack build failed: ${(e as Error).message}`] };
   }
 
-  // GH #21: the nodejs target is CommonJS. wasm-pack drops a `.gitignore`
-  // containing "*" (which would also prune wasm/ from any npm tarball) and a
-  // package.json without a type field. Remove the .gitignore and force
-  // type:commonjs so the CJS shim loads correctly under an ESM harness.
-  rmSync(join(outDir, '.gitignore'), { force: true });
-  const wasmPkgPath = join(outDir, 'package.json');
-  let wasmPkg: Record<string, unknown> = {};
-  try {
-    wasmPkg = JSON.parse(readFileSync(wasmPkgPath, 'utf8'));
-  } catch {
-    /* wasm-pack always writes one; tolerate absence */
-  }
-  wasmPkg.type = 'commonjs';
-  const entry = typeof wasmPkg.main === 'string' && wasmPkg.main ? (wasmPkg.main as string) : 'index.js';
-  writeFileSync(wasmPkgPath, JSON.stringify(wasmPkg, null, 2) + '\n');
+  const entry = markWasmDirCommonjs(outDir);
 
   // Add wasm/** to the harness package.json `files` (so it publishes) and a
   // `wasm` script that runs the loader.
