@@ -82,6 +82,11 @@ export class TieredMemory {
     return this.tiers.get(tier)!.get(key) as T | undefined;
   }
 
+  /** Remove a key from `tier`. Returns true if a value was present and removed. */
+  delete(tier: MemoryTier, key: string): boolean {
+    return this.tiers.get(tier)!.delete(key);
+  }
+
   /**
    * Rank the keys of `tier` by deterministic token-overlap with `query` and return
    * the top `topK` hits (score > 0). Ordering: score desc, then key asc — fully

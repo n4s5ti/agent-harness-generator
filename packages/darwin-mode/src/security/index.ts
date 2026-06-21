@@ -41,6 +41,7 @@ export * from './selfwrite.js';
 export * from './invariant.js';
 export * from './agentic.js';
 export * from './semgrep-oracle.js';
+export * from './codeql-oracle.js';
 export * from './real-loop.js';
 export * from './real-evolve.js';
 export * from './fuzz-oracle.js';

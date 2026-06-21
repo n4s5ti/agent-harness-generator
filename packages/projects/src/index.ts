@@ -23,3 +23,6 @@ export * from './router.js'; // escalation router policy
 export * from './discovery.js'; // defensive zero-day discovery harness
 export * from './discovery-evolve.js'; // Darwin policy evolution for discovery
 export * from './learning-loop.js'; // self-learning discovery loop
+export * from './pipeline.js';
+export * from './taint.js';
+export * from './verifiers.js';
