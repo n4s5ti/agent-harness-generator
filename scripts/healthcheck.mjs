@@ -63,6 +63,9 @@ const CHECKS = {
       '@ruvnet/agent-harness-generator',
       '@metaharness/router',
       '@metaharness/darwin',
+      // @metaharness/projects (Darwin Shield / defensive zero-day harness, ADR-155+)
+      // is a standalone published library on its own semver, like @metaharness/darwin.
+      '@metaharness/projects',
       '@metaharness/kernel',
       '@metaharness/host-claude-code',
       '@metaharness/host-codex',
