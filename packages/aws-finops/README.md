@@ -64,6 +64,13 @@ oracle-passing patch (`residualConverged`).
 - **Optional binaries** (`src/binaries.ts`) — `infracost` / `checkov` / `terraform` are
   detected and **skipped when absent** (the semgrep-oracle pattern); env overrides
   `INFRACOST_BIN` / `CHECKOV_BIN` / `TERRAFORM_BIN`.
+- **Real-tool discrimination bench** (`bench/real-oracle.mjs` + `bench/corpus/`) — drives
+  the *actual* Terraform 1.9.8 + checkov 3.3.1 binaries over a labeled corpus and
+  validates the adapters/oracle against their real JSON. Latest receipt
+  (`bench/results/real-oracle.json`): **3/3 genuine savings accepted, 2/2 traps rejected
+  at the correct gate** (build typo → `REJECT@build`; dropped encryption → `REJECT@compliance`
+  via real `CKV_AWS_3`). The savings gate is `INFRACOST_API_KEY`-gated (no offline pricing);
+  build + compliance + evidence gates run real today.
 
 ## Honesty (what we claim and what we don't)
 
