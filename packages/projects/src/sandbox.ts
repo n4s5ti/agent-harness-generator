@@ -24,13 +24,18 @@
 import { execFileSync } from 'node:child_process';
 
 /**
- * True if the `unshare` binary is present and runnable. Probes via
- * `unshare --version`. Never throws — returns false on any failure (missing
- * binary, permission error, etc.).
+ * True if `unshare` can ACTUALLY create the user+network namespace we rely on —
+ * not merely that the binary exists. Probes `unshare -rn true`: a no-op command
+ * under the exact `-rn` flags buildSandboxArgv() uses. This matters in
+ * containerized CI (e.g. GitHub Actions runners), where the `unshare` binary is
+ * present (so `--version` succeeds) but unprivileged user namespaces are
+ * restricted, so `-rn` fails with EPERM at run time. Probing the real operation
+ * means the sandbox tests skip cleanly where isolation can't work, instead of
+ * running and failing. Never throws — returns false on any failure.
  */
 export function sandboxAvailable(): boolean {
   try {
-    execFileSync('unshare', ['--version'], { stdio: 'ignore', timeout: 5000 });
+    execFileSync('unshare', ['-rn', 'true'], { stdio: 'ignore', timeout: 5000 });
     return true;
   } catch {
     return false;
