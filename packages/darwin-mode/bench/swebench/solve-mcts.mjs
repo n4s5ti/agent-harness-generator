@@ -6,7 +6,7 @@
 //      (and, tie-break, doesn't break the changed-area existing tests).
 //   4. Emit the winner. If none pass the repro → emit best-effort (L3 Opus-sniper escalation hook).
 // NEVER touches the gold FAIL_TO_PASS in-loop; gold scores once at the end. Leakage-guarded.
-import { mkdtempSync, writeFileSync, readFileSync, existsSync, statSync, appendFileSync, rmSync } from 'node:fs';
+import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, existsSync, statSync, appendFileSync, rmSync } from 'node:fs';
 import { execSync } from 'node:child_process';
 import { tmpdir } from 'node:os';
 import { join, dirname, isAbsolute } from 'node:path';
@@ -30,6 +30,15 @@ const OUT = rel(argv('--out', 'predictions-mcts.jsonl'));
 const REPORT = rel(argv('--report', 'solve-mcts-report.json'));
 const CONCURRENCY = Math.max(1, +argv('--concurrency', 2));
 const MAX_COST = +argv('--max-cost', Infinity);
+// ADR-175 #47 — human-in-the-loop test review (the "Conformant + review" middle mode).
+// Phase 1 (`--pause-for-test-review`): write each agent repro to REPRO_DIR for a human to read/edit,
+// and DO NOT patch/trust unreviewed instances. Phase 2 (add `--approved-repros <dir>`): only instances
+// whose repro a human approved (a file <dir>/<instance_id>.py) proceed — an approved repro is effectively
+// a user-supplied test, collapsing that instance to the trustworthy oracle-ON contract.
+const PAUSE_REVIEW = args.includes('--pause-for-test-review');
+const APPROVED_DIR = argv('--approved-repros', null);
+const REPRO_DIR = rel(argv('--repro-dir', 'mcts-repros'));
+if (PAUSE_REVIEW) try { mkdirSync(REPRO_DIR, { recursive: true }); } catch { /**/ }
 const BASE_URL = (argv('--base-url', 'https://openrouter.ai/api/v1')).replace(/\/$/, '');
 const key = (process.env.OPENROUTER_API_KEY || (() => { try { return readFileSync('/tmp/.orkey', 'utf8'); } catch { return ''; } })()).trim();
 let manifest = JSON.parse(readFileSync(rel(argv('--manifest', 'pilot-sample-25.json')), 'utf8')).instances;
@@ -94,7 +103,21 @@ async function runInstance(inst) {
     // 1) conformant oracle
     const critic = await buildReproTest(inst.instance_id, inst.problem_statement, (p, s) => llm(p, s), { maxAttempts: 3 });
     totalCost += critic.cost; row.reproValid = critic.valid;
-    const repro = critic.valid ? { [REPRO_PATH]: critic.repro } : null;
+    let repro = critic.valid ? { [REPRO_PATH]: critic.repro } : null;
+    // ADR-175 #47 human-in-the-loop test review
+    if (PAUSE_REVIEW && repro) {
+      const approvedPath = APPROVED_DIR ? join(rel(APPROVED_DIR), inst.instance_id + '.py') : null;
+      if (approvedPath && existsSync(approvedPath)) {
+        repro = { [REPRO_PATH]: readFileSync(approvedPath, 'utf8') }; row.reproApproved = true; // human-approved → trustworthy contract
+      } else {
+        try { writeFileSync(join(REPRO_DIR, inst.instance_id + '.py'), critic.repro); } catch { /**/ }
+        row.awaitingReview = true; // do NOT patch/trust an unreviewed self-test
+        appendFileSync(OUT, JSON.stringify({ instance_id: inst.instance_id, model_name_or_path: 'darwin-mcts', model_patch: '' }) + '\n');
+        row.sec = Math.round((Date.now() - t0) / 1000); report.push(row);
+        console.error(`[${report.length}/${manifest.length}] ${inst.instance_id} AWAITING-REVIEW (repro written) ${row.sec}s`);
+        return;
+      }
+    }
     // 2) k diversified candidate patches
     const cands = [];
     for (let b = 0; b < K; b++) {
@@ -124,6 +147,6 @@ async function runInstance(inst) {
 let cursor = 0; let cappedAt = null;
 async function worker() { while (cursor < manifest.length) { if (totalCost >= MAX_COST) { if (cappedAt === null) { cappedAt = report.length; console.error(`[max-cost] $${totalCost.toFixed(2)} ≥ ${MAX_COST} — stop`); } return; } await runInstance(manifest[cursor++]); } }
 await Promise.all(Array.from({ length: Math.min(CONCURRENCY, manifest.length) }, () => worker()));
-const reproValid = report.filter((r) => r.reproValid).length, solved = report.filter((r) => r.branchesPassed > 0 || r.sniper).length;
-writeFileSync(REPORT, JSON.stringify({ model: MODEL, patchModel: PATCH_MODEL, sniper: SNIPER, k: K, n: report.length, reproValid, branchOrSniperSolved: solved, leaderboardConformant: !usedOracle, cappedAtInstance: cappedAt, totalCost_usd: Math.round(totalCost * 1e4) / 1e4, instances: report }, null, 2));
+const reproValid = report.filter((r) => r.reproValid).length, solved = report.filter((r) => r.branchesPassed > 0 || r.sniper).length, awaiting = report.filter((r) => r.awaitingReview).length;
+writeFileSync(REPORT, JSON.stringify({ model: MODEL, patchModel: PATCH_MODEL, sniper: SNIPER, k: K, n: report.length, reproValid, branchOrSniperSolved: solved, awaitingReview: awaiting, pauseForTestReview: PAUSE_REVIEW, leaderboardConformant: !usedOracle, cappedAtInstance: cappedAt, totalCost_usd: Math.round(totalCost * 1e4) / 1e4, instances: report }, null, 2));
 console.error(`\nDONE ${report.length} | repro-valid ${reproValid} | repro-passed ${solved} | conformant=${!usedOracle} | $${Math.round(totalCost * 1e4) / 1e4} | preds → ${OUT} (BATCH-eval for the authoritative number)`);
