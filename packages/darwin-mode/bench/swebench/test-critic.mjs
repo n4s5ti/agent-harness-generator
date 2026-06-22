@@ -18,11 +18,21 @@ Rules:
 - Keep it minimal and fast; one focused test function. Do not edit project files.`;
 
 function classify(out) {
-  // pytest summary line semantics
-  if (/\b\d+ failed\b/.test(out) && !/\berror/i.test(out.split('\n').slice(-4).join('\n'))) return 'failed'; // reproduces the bug ✓
-  if (/\b\d+ passed\b/.test(out) && !/\b\d+ failed\b/.test(out)) return 'passed'; // did NOT catch the bug
+  // Key off pytest's FINAL summary line only — not the traceback (a genuine
+  // assertion/exception failure like "ValueError" is a valid reproduction, and
+  // must not be confused with a collection "error"). pytest reports "N failed"
+  // when the test RAN and raised (good repro), vs "N error(s)" for import/
+  // collection failures (test couldn't run).
+  const lines = out.split('\n').map((l) => l.replace(/\x1b\[[0-9;]*m/g, '').trim()).filter(Boolean);
+  const summary = [...lines].reverse().find((l) => /\b\d+ (passed|failed|error|errors|skipped|xfailed)\b/.test(l)) || lines.slice(-1)[0] || '';
+  const nFailed = +(summary.match(/(\d+) failed/) || [0, 0])[1];
+  const nError = +(summary.match(/(\d+) errors?/) || [0, 0])[1];
+  const nPassed = +(summary.match(/(\d+) passed/) || [0, 0])[1];
+  if (nFailed > 0) return 'failed';           // test executed and raised → reproduces the bug ✓
+  if (nError > 0) return 'error';             // collection/import error → test couldn't run
+  if (nPassed > 0) return 'passed';           // ran clean → did NOT catch the bug
   if (/no tests ran|collected 0 items/i.test(out)) return 'empty';
-  return 'error'; // import/syntax/collection error
+  return 'error';
 }
 
 /**
