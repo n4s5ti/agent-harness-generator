@@ -71,3 +71,25 @@ at steeply rising $/resolve) and local (the §6 capability floor). The 65–88% 
 **multi-step autonomous agent** (read/grep/run-tests/edit/discovery loop) — an architecture change,
 not more knob-tuning. That loop is now implemented + unit-tested (ADR-153: `bench/swebench/
 agentic-loop.mjs` + `solve-agentic.mjs`); its at-scale number is the next arc.
+
+## 8. UPDATE 2026-06-22 — the 58.3% ceiling was MODEL-bound, not paradigm-exhausted
+
+The "both within-paradigm frontiers are exhausted" verdict above was **wrong on the frontier axis**.
+This weekend's arc (RESULTS §22–29) measured it:
+
+- **Agentic loop at scale (E1–E6):** full-300 agentic v4-pro = 34.7%; + max-30 & anti-thrash = 46.3%;
+  + sonnet Scholar = 50.7%; + opus-4 Sage = **55.3%** [49.7, 60.9]. The agentic 3-tier did **not** beat
+  the single-shot 3-tier 58.3% — *with same-generation models*. Each tier added little because the
+  agentic loop's failures **correlate** with the escalation tiers' (a shared hard tail). Agentic wins on
+  **cost** (~$0.03–0.09/inst), not ceiling. This looked like a paradigm dead-end.
+- **It wasn't — the Sage MODEL was the bottleneck.** Swapping Sage opus-4 → **opus-4.8** recovered
+  **28/79 = 35.4%** of the residual tail opus-4 scored **0** on (identical inputs), at ~$0.65/inst
+  (*cheaper* than opus-4). Folded in → **64.7%** [59.1, 69.9], a lower bound (only 79/134 tail covered;
+  full pass projects ~71%). **The ceiling moved with frontier model quality.**
+- **Correct framing:** cheap-base + tiered escalation is **not** exhausted — its ceiling tracks the
+  strongest available Sage model. The agentic loop is the *cost* frontier; a stronger frontier Sage is
+  the *quality* frontier. They're complementary, not a fork.
+- **E2 difficulty router: measured null** (5-fold CV on real labels, AUC 0.505). Resolvability is not
+  predictable from scalar issue features → don't gate escalation on a learned difficulty score.
+- **Process:** budget caps must live INSIDE the solver (`--max-cost`, shipped), never only in a killable
+  external watchdog (a poll dying mid-run caused a ~$2.64 overage).
