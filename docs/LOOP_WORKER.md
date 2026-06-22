@@ -1,47 +1,33 @@
 # Darwin Mode — autonomous loop worker directive
 
-The standing directive for the cron-fired autonomous loop (`/loop` / ruflo loop-worker). This file is
-the **versioned source of truth** for what each tick should do; paste it (or its current "active
-phase") as the loop prompt. Updated 2026-06-21 for the **ADR-169 phase**.
+Versioned source of truth for the cron/`/loop` worker. **Cadence: every 5 min until complete.**
+Updated 2026-06-22 for the **ADR-173 leaderboard-conformant phase**.
 
-## Phase status
+## Active goal (ADR-173): a LEGITIMATE top-10 on SWE-bench Lite → then Verified
+Our 68.3% used the gold `FAIL_TO_PASS` as an in-loop oracle → **not submittable**. Drive a conformant,
+cost-per-resolve-optimal entry to a real placement. **Completion = a conformant batch clears the phase
+threshold AND is submitted (or no lever fits remaining budget).**
 
-- **Phase A — SWE-bench arc: COMPLETE + shipped.** Verified ladder 7.7% → 15.3% → 29.3% → 40.3% →
-  **58.3%** (3-tier, ADR-154, reproduced); agentic loop 31.3% (ADR-153); $0 local 6.7% (ADR-150).
-  All on main, npm `@metaharness/darwin@0.3.x` + `@metaharness/projects@0.1.x`, PR cycle merged, CI green.
-- **Phase B — ADR-169 self-learning / WASM memory: cores IMPLEMENTED ($0), paid eval GATED on budget.**
-  Patch memory (E3), difficulty router (E2), agentic anti-thrash (E4) are shipped + unit-tested.
+| phase | target | how | done? |
+|---|---|---|---|
+| L0 | conformant solver | `solve-agentic --no-test-oracle` + leakage guard | ✅ shipped |
+| L0.5 | strong conformant signal | run repo's OWN tests in the instance Docker image (no gold patch) | pending |
+| L1 | **Lite top-10 (≥45%)** | conformant MiniMax-M2.5, full-300, 1 attempt, `--max-cost` | pending |
+| L2 | **Lite #1 (>60.33%)** | + PTY loop (ADR-170) + conformant best-of-N | pending |
+| V1 | **Verified top-10 (~70%)** | same stack on Verified-500 | pending |
 
-## Each tick
+Model = cost-per-resolve frontier (leaderboard data): **MiniMax M2.5** (75.8% Verified @ ~$0.07/inst),
+DeepSeek V3.2 ($0.23/$0.34 — cheapest reasoning), Kimi K2.5. NOT Opus (10× cost). All verified on OpenRouter.
 
-1. **HEALTH** — prune exited docker + `/tmp/sbrepo-*` >30min; `docker kill` any `sweb.eval` container
-   >12min (psf__requests-2317 hangs, see KNOWN_FLAKY.md); restart ollama if `unshare`/api wedged; warn
-   if disk<50G or RAM<10G.
-2. **BENCHMARK** — if a solve/eval is running, check it; on completion → official batch eval →
-   resolve-rate + Wilson CI → commit. **Only batch-eval numbers are authoritative** (in-loop drifts
-   1.5–5×). Never fabricate.
-3. **REPO UPKEEP** — keep branch + main in sync (push both); keep the open PR green + mergeable (fix CI
-   reds — common classes: `path-guard` /tmp in shipped code, `cargo-deny` wildcard path deps, version-
-   coherence allowlist for independently-versioned packages, CI-only flaky timing/sandbox e2e →
-   `skipIf(process.env.CI)`); triage new GitHub issues; keep RESULTS/LEARNINGS/#39/gist current.
-4. **PUBLISH** — when a result materially changes the package story, bump + publish to npm (CHANGELOG +
-   description + README), verify live. **Any independently-versioned package bump must be added to the
-   `scripts/healthcheck.mjs` INDEPENDENT allowlist in the SAME commit** (lesson: bit darwin + projects).
-5. **ADRs** — advance the highest-value ADR; prefer FREE ($0 local / offline) work.
+## Each 5-min tick
+1. **HEALTH** — prune docker + `/tmp/sbrepo-*` >30min; `docker kill` sweb.eval >12min (requests-2317 hangs); warn disk<50G/RAM<10G.
+2. **RUN** — if a conformant solve/eval is in flight, check it; on completion → official batch eval → resolve-rate + Wilson CI + **assert `leaderboardConformant:true`** → commit RESULTS. Only batch numbers are authoritative.
+3. **ADVANCE** — pilot → full-300 → next phase, each gated on the prior batch clearing its threshold. Every paid run carries `--max-cost` (the in-solver cap; never rely on an external watchdog — see the $2.64 overage lesson).
+4. **UPKEEP** — branch+main sync; #39 + gist + README current; publish darwin when a *conformant* number materially changes the story.
+5. **SUBMIT** — once a conformant batch clears a phase threshold: package predictions + trajectories + metadata, PR to `swe-bench/experiments`.
 
-## Active levers (ADR-169) — run paid ones when OpenRouter budget is available
+## Stop / complete condition
+Stop when (a) a conformant top-10 (Lite, then Verified) is achieved + submitted, OR (b) no resolve-rate
+lever fits the remaining budget. Then idle on health + upkeep. ONLY real measured numbers + CIs, never fabricate.
 
-| id | what | $ | status |
-|----|------|---|--------|
-| E1 | full-300 agentic on deepseek-v4-pro (untruncated) | ~$50 | **gated on budget** — biggest lever; also yields the trajectory dataset |
-| E3 | patch-memory RAG eval (`solve-repair.mjs --patch-memory patch-memory-corpus.json`) | ~$120 | core SHIPPED ($0, BM25 + gated hybrid); eval gated on budget |
-| E5 | agentic + Scholar hybrid on E1's tail | ~$150 | gated on budget; projects 42–50% |
-| E2 | difficulty-router-gated escalation (`difficulty-router.mjs`) | ~$80 | core SHIPPED ($0, scalar+L2); train+eval gated on budget |
-| E4 | extended agentic step budget (max-30) with anti-thrash | included | anti-thrash SHIPPED ($0) |
-
-**Stop condition:** when the OpenRouter budget is exhausted AND no $0 lever remains, idle on health +
-PR/issue watch (this is the current state — paid budget exhausted at ~$497.55/$500; E2/E3/E4 cores done
-at $0). Resume paid levers (E1 first — it unblocks the rest) on a budget top-up.
-
-See `docs/research/2026-06-21-self-learning-wasm-memory-escalator.md` (full plan) and
-`docs/adrs/ADR-169-self-learning-wasm-memory-escalator.md` (implementation).
+See `docs/adrs/ADR-173-leaderboard-conformant-top10.md` (plan) · ADR-170 (PTY) · ADR-172 (SOTA roadmap).
