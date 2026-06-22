@@ -19,12 +19,18 @@ threshold AND is submitted (or no lever fits remaining budget).**
 Model = cost-per-resolve frontier (leaderboard data): **MiniMax M2.5** (75.8% Verified @ ~$0.07/inst),
 DeepSeek V3.2 ($0.23/$0.34 — cheapest reasoning), Kimi K2.5. NOT Opus (10× cost). All verified on OpenRouter.
 
+## Tracking issues (reply EVERY tick with details)
+- **#45 — SWE-bench Lite** conformant run · **#46 — SWE-bench Verified** conformant run.
+- Each tick that touches a run, post a **detailed comment** to its issue: done/total, submit-rate,
+  $/instance + cumulative $, proc liveness, any batch number + Wilson CI, next action. Keep #39 + gist
+  current too. Real measured numbers only.
+
 ## Each 5-min tick
 1. **HEALTH** — prune docker + `/tmp/sbrepo-*` >30min; `docker kill` sweb.eval >12min (requests-2317 hangs); warn disk<50G/RAM<10G.
-2. **RUN** — if a conformant solve/eval is in flight, check it; on completion → official batch eval → resolve-rate + Wilson CI + **assert `leaderboardConformant:true`** → commit RESULTS. Only batch numbers are authoritative.
-3. **ADVANCE** — pilot → full-300 → next phase, each gated on the prior batch clearing its threshold. Every paid run carries `--max-cost` (the in-solver cap; never rely on an external watchdog — see the $2.64 overage lesson).
+2. **RUN** — if a conformant solve/eval is in flight, check it + **reply to #45/#46 with the numbers**; on completion → official batch eval → resolve-rate + Wilson CI + **assert `leaderboardConformant:true`** → commit RESULTS + post to the issue. Only batch numbers are authoritative.
+3. **ADVANCE** — pilot → full-300 → next phase, each gated on the prior batch clearing its threshold. Every paid run carries `--max-cost` (in-solver cap; never an external watchdog — $2.64 overage lesson).
 4. **UPKEEP** — branch+main sync; #39 + gist + README current; publish darwin when a *conformant* number materially changes the story.
-5. **SUBMIT** — once a conformant batch clears a phase threshold: package predictions + trajectories + metadata, PR to `swe-bench/experiments`.
+5. **SUBMIT** — once a conformant batch clears a threshold: package predictions + trajectories + metadata, PR to `swe-bench/experiments`; link in #45/#46.
 
 ## Stop / complete condition
 Stop when (a) a conformant top-10 (Lite, then Verified) is achieved + submitted, OR (b) no resolve-rate
