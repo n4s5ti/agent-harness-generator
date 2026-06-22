@@ -15,6 +15,7 @@ import { tmpdir } from 'node:os';
 import { join, dirname, isAbsolute } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { agenticSolve } from './agentic-loop.mjs';
+import { runConformantTests } from './conformant-tests.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const args = process.argv.slice(2);
@@ -103,17 +104,26 @@ const isTestPath = (r) => /(^|\/)(tests?|testing)\//i.test(r) || /(^|\/)(test_|c
 // the end as an automated leakage guard.
 const NO_ORACLE = args.includes('--no-test-oracle');
 let usedOracleDuringSolve = false;
-function runRepoTests(work) {
-  // Conformant signal: run the repo's existing pytest in the work tree (NO gold
-  // test patch applied). Weaker than the Docker testbed (deps may be missing) —
-  // the honest reality of solving without the oracle; a Docker-backed conformant
-  // testbed is the ADR-173 L2 upgrade. Never returns gold-test results.
-  try {
-    const out = execSync(`cd ${work} && timeout 300 python -m pytest -q -x 2>&1 | tail -40`,
-      { shell: '/bin/bash', stdio: ['ignore', 'pipe', 'pipe'], maxBuffer: 1 << 26 }).toString();
-    const resolved = /\bpassed\b/.test(out) && !/\b(failed|error)\b/i.test(out);
-    return { resolved, logTail: out.slice(-2500) };
-  } catch (e) { return { resolved: false, logTail: String(e.stdout || e.message || e).slice(-2500) }; }
+// ADR-173 L0.5/L0.6 — conformant in-loop signal: run the EXISTING tests in the
+// changed file's package, inside the instance Docker image (deps present), with
+// the agent's SOURCE patch applied but NEVER the gold test patch. Robust rule:
+// for a changed `a/b/c.py`, run the nearest `tests/` dir under the package root.
+function existingTestTargets(diff) {
+  const files = [...diff.matchAll(/^\+\+\+ b\/(.+\.py)$/gm)].map((m) => m[1]).filter((f) => !/(^|\/)(test_|tests?\/|conftest)/i.test(f));
+  const dirs = new Set();
+  for (const f of files) {
+    const parts = f.split('/');
+    // walk up: prefer "<pkgroot>/tests" (e.g. lib/matplotlib/tests), else "tests" at a parent
+    for (let i = parts.length - 1; i >= 1; i--) { dirs.add(parts.slice(0, i).join('/') + '/tests'); }
+  }
+  return [...dirs].slice(0, 4);
+}
+function runRepoTests(instanceId, diff) {
+  const targets = existingTestTargets(diff);
+  if (targets.length === 0) return { resolved: false, logTail: 'no source files changed yet — write a fix, then tests run' };
+  const cmd = `python -m pytest -q -x -p no:cacheprovider ${targets.map((t) => `'${t}'`).join(' ')}`;
+  const r = runConformantTests(instanceId, diff, cmd, { timeoutMs: 420000 });
+  return { resolved: r.ran && r.passed, logTail: (r.ran ? '' : '[tests could not run] ') + r.logTail };
 }
 
 writeFileSync(OUT, ''); const report = []; let totalCost = 0;
@@ -132,7 +142,7 @@ async function runInstance(inst) {
       grepRepo: (pattern, glob) => { try { const gl = glob ? `-- '${glob}'` : "-- '*.py'"; return g(work, `git grep -n -e ${JSON.stringify(pattern)} ${gl} | head -60 || true`).toString(); } catch { return ''; } },
       applyEdit, isTestPath,
       runTests: () => {
-        if (NO_ORACLE) return runRepoTests(work); // conformant: repo's own tests, never the gold harness
+        if (NO_ORACLE) return runRepoTests(inst.instance_id, g(work, 'git diff').toString()); // conformant: existing tests in Docker, never the gold harness
         usedOracleDuringSolve = true;
         const cur = g(work, 'git diff').toString();
         return evalOne(inst.instance_id, cur, `ag_${inst.instance_id}_${++evalCount}`.replace(/[^a-zA-Z0-9_]/g, '_'));
