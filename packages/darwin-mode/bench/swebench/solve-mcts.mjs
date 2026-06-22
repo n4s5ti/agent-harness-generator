@@ -20,8 +20,9 @@ import { runConformantTests } from './conformant-tests.mjs';
 const HERE = dirname(fileURLToPath(import.meta.url));
 const args = process.argv.slice(2);
 const argv = (f, d) => { const i = args.indexOf(f); return i >= 0 ? args[i + 1] : d; };
-const MODEL = argv('--model', 'deepseek/deepseek-v4-flash');
-const SNIPER = argv('--sniper', 'anthropic/claude-opus-4.8'); // L3 escalation model
+const MODEL = argv('--model', 'deepseek/deepseek-v4-flash');         // Test-Critic / repro driver (cheap)
+const PATCH_MODEL = argv('--patch-model', MODEL);                    // MCTS candidate-patch model (the heavy-lifter, e.g. minimax/minimax-m2.7)
+const SNIPER = argv('--sniper', 'anthropic/claude-opus-4.8');        // L3 escalation model
 const K = +argv('--k', 5);
 const SLICE = +argv('--slice', 40000);
 const rel = (p) => (isAbsolute(p) ? p : join(HERE, p));
@@ -97,7 +98,7 @@ async function runInstance(inst) {
     // 2) k diversified candidate patches
     const cands = [];
     for (let b = 0; b < K; b++) {
-      const r = await llm(`Fix the bug. Emit search/replace blocks only.\n--- issue ---\n${inst.problem_statement.slice(0, 6000)}\n--- files ---\n${seen}`, PATCH_SYS, MODEL, b === 0 ? 0 : 0.2 + 0.15 * b);
+      const r = await llm(`Fix the bug. Emit search/replace blocks only.\n--- issue ---\n${inst.problem_statement.slice(0, 6000)}\n--- files ---\n${seen}`, PATCH_SYS, PATCH_MODEL, b === 0 ? 0 : 0.2 + 0.15 * b);
       totalCost += r.cost; const patch = patchFromBlocks(work, r.raw, selected); if (patch) cands.push(patch);
     }
     if (!best && cands.length) best = cands[0]; // fallback: first non-empty
@@ -124,5 +125,5 @@ let cursor = 0; let cappedAt = null;
 async function worker() { while (cursor < manifest.length) { if (totalCost >= MAX_COST) { if (cappedAt === null) { cappedAt = report.length; console.error(`[max-cost] $${totalCost.toFixed(2)} ≥ ${MAX_COST} — stop`); } return; } await runInstance(manifest[cursor++]); } }
 await Promise.all(Array.from({ length: Math.min(CONCURRENCY, manifest.length) }, () => worker()));
 const reproValid = report.filter((r) => r.reproValid).length, solved = report.filter((r) => r.branchesPassed > 0 || r.sniper).length;
-writeFileSync(REPORT, JSON.stringify({ model: MODEL, sniper: SNIPER, k: K, n: report.length, reproValid, branchOrSniperSolved: solved, leaderboardConformant: !usedOracle, cappedAtInstance: cappedAt, totalCost_usd: Math.round(totalCost * 1e4) / 1e4, instances: report }, null, 2));
+writeFileSync(REPORT, JSON.stringify({ model: MODEL, patchModel: PATCH_MODEL, sniper: SNIPER, k: K, n: report.length, reproValid, branchOrSniperSolved: solved, leaderboardConformant: !usedOracle, cappedAtInstance: cappedAt, totalCost_usd: Math.round(totalCost * 1e4) / 1e4, instances: report }, null, 2));
 console.error(`\nDONE ${report.length} | repro-valid ${reproValid} | repro-passed ${solved} | conformant=${!usedOracle} | $${Math.round(totalCost * 1e4) / 1e4} | preds → ${OUT} (BATCH-eval for the authoritative number)`);
