@@ -496,3 +496,21 @@ horizon exactly as designed. Cost ~$0.087/inst on the tail. Still below the 58.3
 ceiling (upper CI 52.0 < 58.3), as expected — pure agentic, no frontier escalation yet. The remaining
 **161-instance tail** now goes to the E5 capstone (Scholar escalation, optionally E3 patch-memory) —
 that is the lever designed to clear 58.3%. Arc spend +$26.77/$500.
+
+## 24. E5 — Scholar (sonnet) on the 161 tail: +13 → blended 152/300 = 50.7% (2-tier on agentic base)
+
+Added the Scholar tier (anthropic/claude-sonnet-4, solve-repair, 3 attempts) on the E1+E4 161-tail.
+
+| stack | resolved | Wilson 95% CI | $ (arc) |
+|---|---|---|---|
+| E1+E4 agentic base | 139/300 = 46.3% | [40.8, 52.0] | $26.77 |
+| **+ E5 Scholar (sonnet)** | **152/300 = 50.7%** | [45.0, 56.3] | +$98.14 |
+| prior 3-tier peak (ADR-154) | 175/300 = 58.3% | [52.7, 63.8] | — |
+
+**Honest read:** Scholar recovered only **13/161** of this tail (in-loop said 19 — it *over*-counted;
+batch is authoritative). This 2-tier-on-agentic stack reaches **50.7%, still below 58.3%**. Why: the
+original 58.3% was a **3-tier** blend (cheap + Scholar + **Sage/opus**); this stack omits the opus Sage
+tier, and the residual tail here is far harder (it already survived agentic max-15 AND max-30), so
+Scholar's marginal yield is low. **Next: add the Sage (opus-4) tier on the remaining 148 tail** — the
+genuine 3-tier-on-agentic-base run, the lever designed to clear 58.3% (need +23/148 ≈ 15.5%). Arc spend
++$124.89/$500.
