@@ -93,3 +93,20 @@ This weekend's arc (RESULTS §22–29) measured it:
   predictable from scalar issue features → don't gate escalation on a learned difficulty score.
 - **Process:** budget caps must live INSIDE the solver (`--max-cost`, shipped), never only in a killable
   external watchdog (a poll dying mid-run caused a ~$2.64 overage).
+
+## 9. Two legitimate test-signal modes — the oracle is a feature, not just a leaderboard liability
+
+The in-loop `FAIL_TO_PASS` "oracle" (gate repair/escalation on the acceptance test) is **invalid for the
+leaderboard** (held-out grader) but is the **correct default for real-world use**:
+
+- **oracle-ON (product default):** the engineer *has* the acceptance/regression test (they wrote it, or
+  it's the failing CI test). "Evolve the patch until *this* test passes" is the maintainer's actual goal,
+  not cheating. This is Darwin Mode's core test-driven-evolution mechanism. Measured ceiling with an
+  acceptance test in hand: **68.3%** on SWE-bench Lite (RESULTS §30) — a valid *product* claim.
+- **oracle-OFF (`--no-test-oracle`, conformant):** no access to the grading test; the agent writes its
+  own repro (Test-Critic, ADR-174). Required for a leaderboard submission; the honest "no test given"
+  number.
+
+**Keep both as first-class options.** They answer different questions: "fix it when I give you the test"
+(product, oracle-ON) vs "fix it with no test" (benchmark, oracle-OFF). Don't conflate the numbers — the
+68.3% is real and useful; it just isn't a leaderboard entry. The solver flag already toggles cleanly.
