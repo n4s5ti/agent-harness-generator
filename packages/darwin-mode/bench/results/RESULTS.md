@@ -547,3 +547,29 @@ not a higher ceiling — consistent with ADR-153.
 more-of-the-same** — the stateful-PTY agent loop (ADR-170) is the proposed next paradigm; an MCTS layer
 (ADR-170 §6) the one after. Arc spend $446.42/$500. Stop condition reached: no remaining resolve-rate
 lever fits the ~$54 left (an opus-4.8 full-tail retry needs ~$250). Idling on health + upkeep.
+
+## 26. E2 difficulty router — measured on REAL E1 labels: NO predictive signal (honest negative)
+
+The research plan projected a difficulty router (predict P(cheap tier resolves) from scalar features,
+gate escalation on it) could cut frontier spend ~15–25%. With E1's real 104/300 resolved labels now in
+hand, evaluated it properly (`router-eval.mjs`, 5-fold CV, L2 logreg, leave-one-out repo prior, $0):
+
+| metric | value |
+|---|---|
+| base rate (cheap-agentic resolved) | 104/300 = 34.7% |
+| majority-class baseline | 65.3% |
+| **router CV accuracy** | **65.0%** (lift **−0.3pp**) |
+| **router CV AUC** | **0.505** (0.5 = random) |
+| confusion | tp=0, fp=1, fn=104, tn=195 — collapses to majority class |
+
+**Finding:** the scalar features (issue length, code-block / traceback / file-path / identifier counts,
+repo prior) carry **no out-of-sample signal** for whether the cheap agentic tier resolves a given
+SWE-bench Lite instance. AUC 0.505 is indistinguishable from chance; the classifier learns only the base
+rate. **Resolvability is not predictable from surface issue features on this corpus.**
+
+**Decision:** do NOT build router-gated escalation (ADR-169 E2) — it cannot save frontier spend it can't
+predict. This is also why §25's escalation tiers added little: the "hard tail" is not separable by these
+features (and likely not by richer ones either — the signal is in the code/repo state, not the issue
+text). The cost win stays where it's real: the cheap agentic base itself (ADR-153), not routing. The
+peer-review mitigation (scalar-only + heavy L2, no 384-D embedding) was correct — it kept us from
+overfitting our way to a false-positive router; the honest CV simply shows there's no signal to fit.
