@@ -68,7 +68,7 @@ export function DarwinPanel() {
         </Section>
         <Section title="Model tiers" desc="The escalation ladder is a blend of cheap → frontier. Pick each tier in Create-harness → Models.">
           <div className="space-y-1.5">
-            {[['Barbarian', 'deepseek/deepseek-v4-pro'], ['Scholar', 'anthropic/claude-sonnet-4'], ['Sage', 'anthropic/claude-opus-4']].map(([tier, id]) => {
+            {[['Barbarian', 'deepseek/deepseek-v4-pro'], ['Scholar', 'anthropic/claude-sonnet-4.6'], ['Sage', 'anthropic/claude-opus-4.8']].map(([tier, id]) => {
               const m = MODEL_CATALOG.find((x) => x.id === id);
               return (
                 <div key={tier} className="flex items-center gap-2 text-xs">

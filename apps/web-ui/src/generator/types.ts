@@ -27,18 +27,23 @@ export type ModelId =
   | 'openai/gpt-5'
   | 'anthropic/claude-haiku-4.5'
   | 'anthropic/claude-sonnet-4'
+  | 'anthropic/claude-sonnet-4.6'
   | 'anthropic/claude-opus-4'
+  | 'anthropic/claude-opus-4.8'
   | 'local/ollama';
 
-/** Curated catalog for the model dropdowns: id → human label + one-line role. */
+/** Curated catalog for the model dropdowns: id → human label + one-line role.
+ *  All ids verified available on OpenRouter (2026-06-22). */
 export const MODEL_CATALOG: ReadonlyArray<{ id: ModelId; label: string; note: string }> = [
   { id: 'deepseek/deepseek-v4-pro', label: 'DeepSeek V4 Pro', note: 'cheap, 1M ctx — default base' },
   { id: 'deepseek/deepseek-chat', label: 'DeepSeek Chat', note: 'cheapest hosted' },
   { id: 'openai/gpt-5-mini', label: 'GPT-5 Mini', note: 'cheap frontier' },
   { id: 'openai/gpt-5', label: 'GPT-5', note: 'frontier' },
   { id: 'anthropic/claude-haiku-4.5', label: 'Claude Haiku 4.5', note: 'fast + cheap' },
-  { id: 'anthropic/claude-sonnet-4', label: 'Claude Sonnet 4', note: 'default Scholar tier' },
-  { id: 'anthropic/claude-opus-4', label: 'Claude Opus 4', note: 'default Sage tier' },
+  { id: 'anthropic/claude-sonnet-4.6', label: 'Claude Sonnet 4.6', note: 'default Scholar tier' },
+  { id: 'anthropic/claude-sonnet-4', label: 'Claude Sonnet 4', note: 'prior Scholar' },
+  { id: 'anthropic/claude-opus-4.8', label: 'Claude Opus 4.8', note: 'default Sage tier — latest frontier' },
+  { id: 'anthropic/claude-opus-4', label: 'Claude Opus 4', note: 'prior Sage' },
   { id: 'local/ollama', label: 'Local (Ollama)', note: '$0 — air-gapped, localhost' },
 ];
 
@@ -51,8 +56,8 @@ export interface ModelTiers {
 
 export const DEFAULT_MODELS: ModelTiers = {
   barbarian: 'deepseek/deepseek-v4-pro',
-  scholar: 'anthropic/claude-sonnet-4',
-  sage: 'anthropic/claude-opus-4',
+  scholar: 'anthropic/claude-sonnet-4.6',
+  sage: 'anthropic/claude-opus-4.8',
 };
 
 // ADR-071 mutation surfaces — the only files a Darwin variant may evolve.
