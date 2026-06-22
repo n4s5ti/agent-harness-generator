@@ -1,6 +1,6 @@
 # ADR-174: Road to #1 overall — DeepSeek-V4-Flash base + Test-Critic + Conformant MCTS + Opus-Sniper
 
-**Status**: Proposed — L0.6 built + validated; L1–L3 staged
+**Status**: Implementing — L0.6+L2 built & measured (DeepSeek-only floor 20.0%); asymmetric MiniMax-patch swap next
 **Date**: 2026-06-22
 **Project**: `ruvnet/agent-harness-generator`
 **Builds on**: ADR-173 (conformant leaderboard path). The conformant L1 (MiniMax M2.5, linear loop)
@@ -44,8 +44,29 @@ Conformant (leakage-guarded, no gold oracle in-loop); only batch-eval numbers (W
 ## Build order
 - **L0.6 Test-Critic** — ✅ built (`test-critic.mjs`) + Docker injection validated ($0).
 - **L1′** — swap base to DeepSeek-V4-Flash; measure repro-validity rate + single-attempt conformant score.
-- **L2 MCTS** — Docker-forking k-branch runner gated by the repro (the real recall lever).
+- **L2 MCTS** — ✅ built + measured (`solve-mcts.mjs`); DeepSeek-only floor 5/25=20.0%. Bottleneck = empty patches (44% attempt rate), not selection (45% conditional resolve).
+- **L2′ asymmetric swap** — `--patch-model minimax/minimax-m2.7` (DeepSeek stays Test-Critic); measuring the recall lift next.
 - **L3 Opus-Sniper** — repro-gated single-instance escalation, `--max-cost` capped.
+
+## L2 measured floor + the funnel (2026-06-22) — DeepSeek-only, k=5, conformant
+
+First authoritative conformant batch (gold `FAIL_TO_PASS`, no oracle in-loop), 25-instance pilot:
+**5/25 = 20.0% [Wilson95: 8.9%, 39.1%], $0.587.** The funnel is the real finding:
+
+| stage | rate | reading |
+|------|------|---------|
+| Repro-validity | 17/25 = **68%** | the Test-Critic oracle works → keep DeepSeek-V4-Flash on `--model` (the critic) |
+| Patch-attempt rate | 11/25 = **44%** | **the bottleneck** — single-shot DeepSeek returns an empty/unapplicable patch 56% of the time |
+| Conditional resolve | 5/11 = **45%** | **the multiplier** — when a real patch exists, the repro-gated MCTS picks a gold-correct one ~45% of the time |
+
+**Interpretation:** the MCTS selection is sharp; it is *starved for candidate volume*, not picking badly. The
+20% floor is dominated by empty patches, not wrong reasoning.
+
+**The asymmetric swap (next lever, in code as `--patch-model`):** keep DeepSeek-V4-Flash as the $0.09/M
+Test-Critic (cheap filtering), swap **MiniMax M2.7 ($0.25/M) for patch *generation* only** — spend the
+extra dollars precisely to convert the 14 empty patches into real candidates. *If* MiniMax fills those
+and the 45% conditional-resolve holds, the projected overall lands in the 70%+ zone. **Projection — gated
+on the next conformant batch + Wilson CI.** The 45% conditional rate is the load-bearing assumption.
 
 ## Honest ceiling (carried from ADR-170 §6 / ADR-172)
 Even at 85% this is an autonomous **Senior Staff Maintainer**, not an Architect. SWE-bench rewards
