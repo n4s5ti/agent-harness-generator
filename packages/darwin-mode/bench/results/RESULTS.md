@@ -459,6 +459,14 @@ multi-step loop's value comes from the model being strong enough to *use* the to
 file, copy SEARCH text exactly, interpret a traceback. Below that floor, more turns don't help. The
 harness is the lever; the model has to be able to pull it.
 
+
+<!-- ORACLE-ON BANNER -->
+> **⚠️ §22–§30 are Test-Driven Repair (oracle-ON):** the solver runs the gold `FAIL_TO_PASS` test
+> in-loop to gate repair/escalation (multi-tier, multi-attempt). Valid as a *product / with-acceptance-
+> test* claim (ADR-175) — **NOT leaderboard-conformant** (the SWE-bench leaderboard forbids the grading
+> test in-loop). The leaderboard-conformant run (`--no-test-oracle`, ADR-173/174) is separate.
+
+
 ## 22. E1 — full-300 agentic baseline (ADR-169/153): 104/300 = 34.7% (untruncated)
 
 The agentic ReAct loop (`solve-agentic.mjs`, max-steps 15, deepseek-v4-pro, concurrency 6) on the
