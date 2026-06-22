@@ -99,6 +99,8 @@ function packageJson(cfg: HarnessConfig): string {
       memory: cfg.memory,
       routing: cfg.routing,
       marketplace: cfg.marketplace,
+      models: cfg.models,
+      darwin: cfg.darwin,
       primitives: cfg.primitives,
     },
   };
@@ -384,6 +386,8 @@ function harnessManifest(cfg: HarnessConfig): string {
       memory: cfg.memory,
       routing: cfg.routing,
       marketplace: cfg.marketplace,
+      models: cfg.models,
+      darwin: cfg.darwin,
       primitives: cfg.primitives,
       mcpPolicy: cfg.primitives.mcp === 'off' ? null : cfg.mcpPolicy,
       createdAt: '__GENERATED_AT__',

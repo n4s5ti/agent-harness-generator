@@ -18,6 +18,69 @@ export type RoutingStrategy = '3-tier' | 'single-tier';
 
 export type MarketplaceMode = 'powered-by' | 'independent';
 
+// ADR-171: model-tier configuration. The validated escalation ladder is a blend
+// of three model tiers (ADR-154); the Studio lets the author pick each one.
+export type ModelId =
+  | 'deepseek/deepseek-v4-pro'
+  | 'deepseek/deepseek-chat'
+  | 'openai/gpt-5-mini'
+  | 'openai/gpt-5'
+  | 'anthropic/claude-haiku-4.5'
+  | 'anthropic/claude-sonnet-4'
+  | 'anthropic/claude-opus-4'
+  | 'local/ollama';
+
+/** Curated catalog for the model dropdowns: id → human label + one-line role. */
+export const MODEL_CATALOG: ReadonlyArray<{ id: ModelId; label: string; note: string }> = [
+  { id: 'deepseek/deepseek-v4-pro', label: 'DeepSeek V4 Pro', note: 'cheap, 1M ctx — default base' },
+  { id: 'deepseek/deepseek-chat', label: 'DeepSeek Chat', note: 'cheapest hosted' },
+  { id: 'openai/gpt-5-mini', label: 'GPT-5 Mini', note: 'cheap frontier' },
+  { id: 'openai/gpt-5', label: 'GPT-5', note: 'frontier' },
+  { id: 'anthropic/claude-haiku-4.5', label: 'Claude Haiku 4.5', note: 'fast + cheap' },
+  { id: 'anthropic/claude-sonnet-4', label: 'Claude Sonnet 4', note: 'default Scholar tier' },
+  { id: 'anthropic/claude-opus-4', label: 'Claude Opus 4', note: 'default Sage tier' },
+  { id: 'local/ollama', label: 'Local (Ollama)', note: '$0 — air-gapped, localhost' },
+];
+
+/** The three escalation tiers (ADR-148/152/154). */
+export interface ModelTiers {
+  barbarian: ModelId; // cheap base
+  scholar: ModelId; // mid escalation (3-tier only)
+  sage: ModelId; // frontier escalation (3-tier only)
+}
+
+export const DEFAULT_MODELS: ModelTiers = {
+  barbarian: 'deepseek/deepseek-v4-pro',
+  scholar: 'anthropic/claude-sonnet-4',
+  sage: 'anthropic/claude-opus-4',
+};
+
+// ADR-071 mutation surfaces — the only files a Darwin variant may evolve.
+export type MutationSurface =
+  | 'planner' | 'contextBuilder' | 'reviewer' | 'retryPolicy'
+  | 'toolPolicy' | 'memoryPolicy' | 'scorePolicy';
+
+export const MUTATION_SURFACES: readonly MutationSurface[] = [
+  'planner', 'contextBuilder', 'reviewer', 'retryPolicy', 'toolPolicy', 'memoryPolicy', 'scorePolicy',
+];
+
+export type DarwinSandbox = 'mock' | 'real' | 'agent';
+
+/** ADR-070/170: Darwin self-evolution config. Frozen model, evolving harness. */
+export interface DarwinConfig {
+  enabled: boolean;
+  surfaces: MutationSurface[];
+  generations: number;
+  sandbox: DarwinSandbox;
+}
+
+export const DEFAULT_DARWIN: DarwinConfig = {
+  enabled: false,
+  surfaces: ['planner', 'retryPolicy', 'toolPolicy'],
+  generations: 10,
+  sandbox: 'mock',
+};
+
 /** MCP server mode. `off` emits no MCP surface; `local` = stdio; `remote` = Streamable HTTP + auth. */
 export type McpMode = 'off' | 'local' | 'remote';
 
@@ -122,6 +185,8 @@ export interface HarnessConfig {
   memory: MemoryBackend;
   routing: RoutingStrategy;
   marketplace: MarketplaceMode;
+  models: ModelTiers;
+  darwin: DarwinConfig;
   agents: string[];
   skills: string[];
   commands: string[];

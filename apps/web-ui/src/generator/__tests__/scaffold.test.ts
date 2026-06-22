@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { buildScaffold } from '../scaffold';
 import { totalBytes } from '../zip';
-import { DEFAULT_PRIMITIVES, SAFE_MCP_POLICY } from '../types';
+import { DEFAULT_PRIMITIVES, SAFE_MCP_POLICY, DEFAULT_MODELS, DEFAULT_DARWIN } from '../types';
 import type { HarnessConfig } from '../types';
 
 const base: HarnessConfig = {
@@ -12,6 +12,8 @@ const base: HarnessConfig = {
   memory: 'agentdb',
   routing: '3-tier',
   marketplace: 'powered-by',
+  models: DEFAULT_MODELS,
+  darwin: DEFAULT_DARWIN,
   agents: ['responder', 'escalator'],
   skills: ['memory-inspect'],
   commands: ['doctor'],

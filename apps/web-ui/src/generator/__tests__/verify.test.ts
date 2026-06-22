@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { buildScaffold } from '../scaffold';
 import { verifyFileMap } from '../verify';
-import { DEFAULT_PRIMITIVES, SAFE_MCP_POLICY } from '../types';
+import { DEFAULT_PRIMITIVES, SAFE_MCP_POLICY, DEFAULT_MODELS, DEFAULT_DARWIN } from '../types';
 import type { GenFile, HarnessConfig } from '../types';
 
 function cfg(over: Partial<HarnessConfig> = {}): HarnessConfig {
@@ -13,6 +13,8 @@ function cfg(over: Partial<HarnessConfig> = {}): HarnessConfig {
     memory: 'agentdb',
     routing: '3-tier',
     marketplace: 'powered-by',
+    models: DEFAULT_MODELS,
+    darwin: DEFAULT_DARWIN,
     agents: ['architect'],
     skills: ['plan-change'],
     commands: ['doctor'],

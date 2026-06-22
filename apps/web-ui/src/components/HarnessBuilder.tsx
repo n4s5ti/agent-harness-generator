@@ -15,8 +15,8 @@ import {
   zipFilesUnder,
 } from '../generator';
 import type { GenFile, HarnessConfig, HostId, TemplateId } from '../generator';
-import { DEFAULT_PRIMITIVES, SAFE_MCP_POLICY } from '../generator';
-import type { McpMode, McpPolicy } from '../generator';
+import { DEFAULT_PRIMITIVES, SAFE_MCP_POLICY, DEFAULT_MODELS, DEFAULT_DARWIN, MODEL_CATALOG, MUTATION_SURFACES } from '../generator';
+import type { McpMode, McpPolicy, ModelId, MutationSurface } from '../generator';
 import { Chip, Field, Section, SegTabs } from './ui';
 import { FileTree } from './FileTree';
 
@@ -35,6 +35,8 @@ const INITIAL: HarnessConfig = {
   memory: 'agentdb',
   routing: '3-tier',
   marketplace: 'powered-by',
+  models: DEFAULT_MODELS,
+  darwin: DEFAULT_DARWIN,
   primitives: DEFAULT_PRIMITIVES,
   mcpPolicy: SAFE_MCP_POLICY,
   ...defaultsFor(DEFAULT_TEMPLATE),
@@ -198,6 +200,86 @@ export function HarnessBuilder({ seed }: { seed?: HarnessConfig }) {
                 <option value="independent">Independent</option>
               </select>
             </Field>
+          </div>
+        </Section>
+
+        <Section
+          title="Models"
+          desc={cfg.routing === '3-tier'
+            ? 'Pick the model for each escalation tier — cheap base → Scholar → Sage (ADR-154).'
+            : 'Single-tier: one model handles every task. Switch ROUTING to 3-tier to escalate.'}
+        >
+          <div className="grid gap-4 sm:grid-cols-3">
+            {(
+              cfg.routing === '3-tier'
+                ? ([['barbarian', 'Barbarian · base'], ['scholar', 'Scholar · mid'], ['sage', 'Sage · frontier']] as const)
+                : ([['barbarian', 'Model']] as const)
+            ).map(([tier, label]) => (
+              <Field key={tier} label={label}>
+                <select
+                  className="input"
+                  value={cfg.models[tier]}
+                  onChange={(e) => patch({ models: { ...cfg.models, [tier]: e.target.value as ModelId } })}
+                >
+                  {MODEL_CATALOG.map((m) => (
+                    <option key={m.id} value={m.id}>{m.label} — {m.note}</option>
+                  ))}
+                </select>
+              </Field>
+            ))}
+          </div>
+        </Section>
+
+        <Section
+          title="Darwin · self-evolution"
+          desc="Frozen model, evolving harness (ADR-070/170). The loop mutates policy surfaces, gates each variant, and keeps what scores higher. Off by default."
+        >
+          <div className="space-y-4">
+            <Chip
+              active={cfg.darwin.enabled}
+              onClick={() => patch({ darwin: { ...cfg.darwin, enabled: !cfg.darwin.enabled } })}
+            >
+              {cfg.darwin.enabled ? 'Evolution ON' : 'Evolution OFF'}
+            </Chip>
+            {cfg.darwin.enabled && (
+              <>
+                <Field label="Mutation surfaces" hint="The only files a variant may change (ADR-071).">
+                  <div className="flex flex-wrap gap-2">
+                    {MUTATION_SURFACES.map((s) => (
+                      <Chip
+                        key={s}
+                        active={cfg.darwin.surfaces.includes(s)}
+                        onClick={() => patch({ darwin: { ...cfg.darwin, surfaces: toggle(cfg.darwin.surfaces, s as MutationSurface) } })}
+                      >
+                        {s}
+                      </Chip>
+                    ))}
+                  </div>
+                </Field>
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <Field label="Generations">
+                    <select
+                      className="input"
+                      value={cfg.darwin.generations}
+                      onChange={(e) => patch({ darwin: { ...cfg.darwin, generations: Number(e.target.value) } })}
+                    >
+                      {[5, 10, 25, 50].map((g) => <option key={g} value={g}>{g} generations</option>)}
+                    </select>
+                  </Field>
+                  <Field label="Sandbox tier" hint="mock = $0 deterministic; real = execFile; agent = ReAct loop.">
+                    <select
+                      className="input"
+                      value={cfg.darwin.sandbox}
+                      onChange={(e) => patch({ darwin: { ...cfg.darwin, sandbox: e.target.value as HarnessConfig['darwin']['sandbox'] } })}
+                    >
+                      <option value="mock">mock ($0)</option>
+                      <option value="real">real (execFile)</option>
+                      <option value="agent">agent (ReAct)</option>
+                    </select>
+                  </Field>
+                </div>
+              </>
+            )}
           </div>
         </Section>
 

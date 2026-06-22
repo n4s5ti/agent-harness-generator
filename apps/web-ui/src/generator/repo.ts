@@ -15,7 +15,7 @@
 // configs only, and we emit suggested commands at an inferred trust level —
 // never auto-trusted, never run.
 
-import { DEFAULT_PRIMITIVES, SAFE_MCP_POLICY } from './types';
+import { DEFAULT_PRIMITIVES, SAFE_MCP_POLICY, DEFAULT_MODELS, DEFAULT_DARWIN } from './types';
 import type { HarnessConfig, HostId, McpMode, McpPolicy } from './types';
 import { findTemplate } from './catalog';
 import { toKebabCase } from './render';
@@ -361,6 +361,8 @@ export function planToConfig(plan: HarnessPlan): HarnessConfig {
     memory: 'agentdb',
     routing: '3-tier',
     marketplace: 'powered-by',
+    models: DEFAULT_MODELS,
+    darwin: DEFAULT_DARWIN,
     agents: plan.agents,
     skills: plan.skills,
     commands: plan.commands,
