@@ -95,6 +95,27 @@ function evalOne(instanceId, patch, runId) {
 }
 const isTestPath = (r) => /(^|\/)(tests?|testing)\//i.test(r) || /(^|\/)(test_|conftest)/i.test(r) || /_test\.py$/.test(r);
 
+// ADR-173 — LEADERBOARD-CONFORMANT mode. `--no-test-oracle` forbids any in-loop
+// call to the gold FAIL_TO_PASS harness; the agent's only feedback is the repo's
+// OWN pre-existing tests (run in the work tree). The gold harness is used ONLY
+// for the final, separate scoring (never seen during solving) — the rule the
+// SWE-bench leaderboard requires. `usedOracleDuringSolve` is asserted false at
+// the end as an automated leakage guard.
+const NO_ORACLE = args.includes('--no-test-oracle');
+let usedOracleDuringSolve = false;
+function runRepoTests(work) {
+  // Conformant signal: run the repo's existing pytest in the work tree (NO gold
+  // test patch applied). Weaker than the Docker testbed (deps may be missing) —
+  // the honest reality of solving without the oracle; a Docker-backed conformant
+  // testbed is the ADR-173 L2 upgrade. Never returns gold-test results.
+  try {
+    const out = execSync(`cd ${work} && timeout 300 python -m pytest -q -x 2>&1 | tail -40`,
+      { shell: '/bin/bash', stdio: ['ignore', 'pipe', 'pipe'], maxBuffer: 1 << 26 }).toString();
+    const resolved = /\bpassed\b/.test(out) && !/\b(failed|error)\b/i.test(out);
+    return { resolved, logTail: out.slice(-2500) };
+  } catch (e) { return { resolved: false, logTail: String(e.stdout || e.message || e).slice(-2500) }; }
+}
+
 writeFileSync(OUT, ''); const report = []; let totalCost = 0;
 async function runInstance(inst) {
   const t0 = Date.now(); const row = { instance_id: inst.instance_id, repo: inst.repo, steps: 0, resolved: false };
@@ -110,7 +131,12 @@ async function runInstance(inst) {
       gitDiff: () => g(work, 'git diff').toString(),
       grepRepo: (pattern, glob) => { try { const gl = glob ? `-- '${glob}'` : "-- '*.py'"; return g(work, `git grep -n -e ${JSON.stringify(pattern)} ${gl} | head -60 || true`).toString(); } catch { return ''; } },
       applyEdit, isTestPath,
-      runTests: () => { const cur = g(work, 'git diff').toString(); return evalOne(inst.instance_id, cur, `ag_${inst.instance_id}_${++evalCount}`.replace(/[^a-zA-Z0-9_]/g, '_')); },
+      runTests: () => {
+        if (NO_ORACLE) return runRepoTests(work); // conformant: repo's own tests, never the gold harness
+        usedOracleDuringSolve = true;
+        const cur = g(work, 'git diff').toString();
+        return evalOne(inst.instance_id, cur, `ag_${inst.instance_id}_${++evalCount}`.replace(/[^a-zA-Z0-9_]/g, '_'));
+      },
       MAX_OUT: 4000,
     };
     const res = await agenticSolve({ problem: inst.problem_statement, io, llm, maxSteps: MAX_STEPS });
@@ -136,5 +162,8 @@ async function worker() {
 await Promise.all(Array.from({ length: Math.min(CONCURRENCY, manifest.length) }, () => worker()));
 
 const inloop = report.filter((r) => r.resolvedInLoop).length;
-writeFileSync(REPORT, JSON.stringify({ model: MODEL, maxSteps: MAX_STEPS, n: report.length, resolvedInLoop: inloop, cappedAtInstance: cappedAt, maxCost: MAX_COST===Infinity?null:MAX_COST, totalCost_usd: Math.round(totalCost * 10000) / 10000, instances: report }, null, 2));
-console.error(`\nDONE ${report.length} | in-loop resolved ${inloop}/${report.length} (BATCH-eval the predictions for the authoritative number) | $${Math.round(totalCost * 10000) / 10000} | preds → ${OUT}`);
+// ADR-173 leakage guard: in conformant mode the gold harness must NEVER have run during solving.
+const conformant = NO_ORACLE && !usedOracleDuringSolve;
+if (NO_ORACLE && usedOracleDuringSolve) console.error('⚠️ LEAKAGE: gold harness was called during solve despite --no-test-oracle — run is NON-conformant.');
+writeFileSync(REPORT, JSON.stringify({ model: MODEL, maxSteps: MAX_STEPS, n: report.length, resolvedInLoop: inloop, noTestOracle: NO_ORACLE, leaderboardConformant: conformant, cappedAtInstance: cappedAt, maxCost: MAX_COST===Infinity?null:MAX_COST, totalCost_usd: Math.round(totalCost * 10000) / 10000, instances: report }, null, 2));
+console.error(`\nDONE ${report.length} | in-loop ${inloop}/${report.length} | conformant=${conformant} (oracle-during-solve=${usedOracleDuringSolve}) | $${Math.round(totalCost * 10000) / 10000} | preds → ${OUT}`);
