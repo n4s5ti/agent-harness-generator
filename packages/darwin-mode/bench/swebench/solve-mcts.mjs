@@ -25,6 +25,8 @@ const PATCH_MODEL = argv('--patch-model', MODEL);                    // MCTS can
 const SNIPER = argv('--sniper', 'anthropic/claude-opus-4.8');        // L3 escalation model
 const K = +argv('--k', 5);
 const SLICE = +argv('--slice', 40000);
+const BRANCH_TURNS = +argv('--branch-turns', 5);          // hard cap per branch (backstop; early-exit on clean apply)
+const APPLICATOR = argv('--applicator', 'line');          // 'line' = robust line-range edits (SWE-agent primitive); 'search' = legacy search/replace
 const rel = (p) => (isAbsolute(p) ? p : join(HERE, p));
 const OUT = rel(argv('--out', 'predictions-mcts.jsonl'));
 const REPORT = rel(argv('--report', 'solve-mcts-report.json'));
@@ -91,6 +93,81 @@ function patchFromBlocks(work, raw, selected) {
   return applied ? g(work, 'git diff').toString() : '';
 }
 
+// ADR-174 L2″ — the SWE-agent line-number editing primitive. The model points at a line
+// RANGE instead of synthesizing a perfect multi-line string match (the failure mode that
+// left ~50% of search/replace patches empty). Format:
+//   EDIT <path> <start>-<end>\n<new lines>\nENDEDIT   (1-indexed inclusive; start>end ⇒ insert before start)
+const LINE_SYS = `You edit Python by LINE RANGE. Output ONLY edit blocks, no prose:
+EDIT path/to/file.py <start>-<end>
+<replacement lines — exact indentation, no line numbers>
+ENDEDIT
+Replaces lines start..end (1-indexed, inclusive) shown in the numbered snapshot. Use the EXACT path and
+numbers from the snapshot. Emit one or more blocks. To insert without deleting, use <start>-<start-1>.`;
+
+function numberedSnapshot(work, selected, sliceLines = 700) {
+  return selected.map((f) => {
+    const lines = readFileSync(join(work, f), 'utf8').split('\n').slice(0, sliceLines);
+    return `# ===== ${f} (${lines.length} lines shown) =====\n` + lines.map((l, i) => `${i + 1}: ${l}`).join('\n');
+  }).join('\n\n');
+}
+// Apply line-range edits bottom-to-top per file (so earlier edits don't shift later line numbers).
+function applyLineEdits(work, raw, selected) {
+  g(work, 'git checkout -q -- .');
+  const re = /EDIT\s+(\S+)\s+(\d+)-(\d+)\s*\n([\s\S]*?)\nENDEDIT/g;
+  const byFile = {}; const failures = [];
+  for (let m; (m = re.exec(raw));) {
+    const f = m[1].trim(); const s = +m[2]; const e = +m[3]; const body = m[4];
+    if (!selected.includes(f) || !existsSync(join(work, f))) { failures.push(`unknown file ${f}`); continue; }
+    (byFile[f] ||= []).push({ s, e, body });
+  }
+  let applied = 0;
+  for (const [f, edits] of Object.entries(byFile)) {
+    const lines = readFileSync(join(work, f), 'utf8').split('\n');
+    edits.sort((a, b) => b.s - a.s); // bottom-to-top
+    for (const { s, e, body } of edits) {
+      if (s < 1 || e > lines.length || e < s - 1) { failures.push(`${f} ${s}-${e} out of range (1-${lines.length})`); continue; }
+      lines.splice(s - 1, e - s + 1, ...body.split('\n')); applied++;
+    }
+    writeFileSync(join(work, f), lines.join('\n'));
+  }
+  return { patch: applied ? g(work, 'git diff').toString() : '', failures, changedFiles: Object.keys(byFile) };
+}
+// Local syntax backstop (py_compile only parses — no deps needed).
+function pyCompile(work, files) {
+  for (const f of files) {
+    try { execSync(`python3 -m py_compile ${JSON.stringify(join(work, f))}`, { stdio: ['ignore', 'pipe', 'pipe'] }); }
+    catch (e) { return { ok: false, err: String(e.stderr || e.message).split('\n').slice(-4).join('\n').slice(-500) }; }
+  }
+  return { ok: true, err: '' };
+}
+
+// One MCTS branch: a bounded stateful read-then-edit loop. Early-exit the instant the repro passes.
+// Returns { patch, passed, cost }. Reasoning turns capped at BRANCH_TURNS; syntax retries are a separate
+// 2-retry sub-budget (don't consume reasoning turns).
+async function runBranch(instanceId, problem, snapshot, selected, model, temp, repro, work) {
+  let feedback = ''; let cost = 0; let lastPatch = '';
+  for (let turn = 0; turn < BRANCH_TURNS; turn++) {
+    const r = await llm(`Fix the bug.\n--- issue ---\n${problem.slice(0, 6000)}\n--- numbered source ---\n${snapshot}${feedback}`, LINE_SYS, model, temp);
+    cost += r.cost;
+    let { patch, failures, changedFiles } = applyLineEdits(work, r.raw, selected);
+    if (!patch) { feedback = `\n--- no edit applied (${failures.slice(0, 3).join('; ') || 'no EDIT block parsed'}). Re-emit EDIT blocks with exact paths + line numbers from the snapshot. ---`; continue; }
+    // syntax sub-loop (separate 2-retry budget)
+    let syn = pyCompile(work, changedFiles);
+    for (let s = 0; s < 2 && !syn.ok; s++) {
+      const fix = await llm(`Your edit caused a syntax error:\n${syn.err}\nRe-emit corrected EDIT blocks.\n--- numbered source ---\n${numberedSnapshot(work, changedFiles)}`, LINE_SYS, model, temp);
+      cost += fix.cost; const re2 = applyLineEdits(work, fix.raw, selected);
+      if (re2.patch) { patch = re2.patch; changedFiles = re2.changedFiles; } syn = pyCompile(work, changedFiles);
+    }
+    if (!syn.ok) { feedback = `\n--- still a syntax error after retries:\n${syn.err}\nTry a different edit. ---`; continue; }
+    lastPatch = patch;
+    if (!repro) return { patch, passed: false, cost }; // no oracle to gate on → keep best-effort
+    const v = runConformantTests(instanceId, patch, `python -m pytest -q -p no:cacheprovider ${REPRO_PATH}`, { extraFiles: repro, timeoutMs: 300000 });
+    if (v.ran && v.passed) return { patch, passed: true, cost }; // EARLY EXIT
+    feedback = `\n--- patch applied + compiles but the reproduction test still FAILS:\n${(v.logTail || '').slice(-700)}\nFix the logic.\n--- numbered source ---\n${numberedSnapshot(work, changedFiles)}`;
+  }
+  return { patch: lastPatch, passed: false, cost };
+}
+
 writeFileSync(OUT, ''); const report = []; let totalCost = 0; let usedOracle = false;
 async function runInstance(inst) {
   const t0 = Date.now(); const row = { instance_id: inst.instance_id, repo: inst.repo, k: K, reproValid: false, branchesPassed: 0, sniper: false };
@@ -99,7 +176,7 @@ async function runInstance(inst) {
     work = fetchRepo(inst.repo, inst.base_commit);
     const allPy = g(work, "git ls-files '*.py'").toString().split('\n').filter(Boolean).filter((f) => !/(^|\/)(tests?|testing|site-packages|build|dist)\//i.test(f) && !/(^|\/)(test_|conftest)/i.test(f)).filter((f) => { try { return statSync(join(work, f)).size <= 100000; } catch { return false; } });
     const selected = selectFiles(inst.problem_statement, work, allPy, buildContext, 15);
-    const seen = selected.map((f) => `# ===== ${f} =====\n${readFileSync(join(work, f), 'utf8').slice(0, SLICE)}`).join('\n\n');
+    const seen = APPLICATOR === 'line' ? numberedSnapshot(work, selected) : selected.map((f) => `# ===== ${f} =====\n${readFileSync(join(work, f), 'utf8').slice(0, SLICE)}`).join('\n\n');
     // 1) conformant oracle
     const critic = await buildReproTest(inst.instance_id, inst.problem_statement, (p, s) => llm(p, s), { maxAttempts: 3 });
     totalCost += critic.cost; row.reproValid = critic.valid;
@@ -118,25 +195,31 @@ async function runInstance(inst) {
         return;
       }
     }
-    // 2) k diversified candidate patches
-    const cands = [];
-    for (let b = 0; b < K; b++) {
-      const r = await llm(`Fix the bug. Emit search/replace blocks only.\n--- issue ---\n${inst.problem_statement.slice(0, 6000)}\n--- files ---\n${seen}`, PATCH_SYS, PATCH_MODEL, b === 0 ? 0 : 0.2 + 0.15 * b);
-      totalCost += r.cost; const patch = patchFromBlocks(work, r.raw, selected); if (patch) cands.push(patch);
-    }
-    if (!best && cands.length) best = cands[0]; // fallback: first non-empty
-    // 3) repro-gated selection (conformant — never the gold test)
-    if (repro) {
-      for (const patch of cands) {
+    // 2+3) k diversified agentic branches — each a bounded read-then-edit loop, repro-gated, early-exit on pass.
+    if (APPLICATOR === 'line') {
+      for (let b = 0; b < K; b++) {
+        const br = await runBranch(inst.instance_id, inst.problem_statement, seen, selected, PATCH_MODEL, b === 0 ? 0 : 0.2 + 0.15 * b, repro, work);
+        totalCost += br.cost;
+        if (br.patch && !best) best = br.patch; // fallback: first applicable
+        if (br.passed) { best = br.patch; row.branchesPassed++; break; } // EARLY EXIT — repro passed
+      }
+    } else {
+      const cands = [];
+      for (let b = 0; b < K; b++) {
+        const r = await llm(`Fix the bug. Emit search/replace blocks only.\n--- issue ---\n${inst.problem_statement.slice(0, 6000)}\n--- files ---\n${seen}`, PATCH_SYS, PATCH_MODEL, b === 0 ? 0 : 0.2 + 0.15 * b);
+        totalCost += r.cost; const patch = patchFromBlocks(work, r.raw, selected); if (patch) cands.push(patch);
+      }
+      if (!best && cands.length) best = cands[0];
+      if (repro) for (const patch of cands) {
         const v = runConformantTests(inst.instance_id, patch, `python -m pytest -q -p no:cacheprovider ${REPRO_PATH}`, { extraFiles: repro, timeoutMs: 300000 });
         if (v.ran && v.passed) { best = patch; row.branchesPassed++; break; }
       }
     }
     // 4) L3 Opus-sniper if no branch passed the repro
     if (repro && row.branchesPassed === 0 && SNIPER && SNIPER !== 'none') {
-      const r = await llm(`Fix the bug (hard case). Emit search/replace blocks only.\n--- issue ---\n${inst.problem_statement.slice(0, 6000)}\n--- files ---\n${seen}`, PATCH_SYS, SNIPER, 0);
-      totalCost += r.cost; const patch = patchFromBlocks(work, r.raw, selected);
-      if (patch) { const v = runConformantTests(inst.instance_id, patch, `python -m pytest -q -p no:cacheprovider ${REPRO_PATH}`, { extraFiles: repro, timeoutMs: 300000 }); row.sniper = true; if ((v.ran && v.passed) || !best) best = patch; }
+      const sn = await runBranch(inst.instance_id, inst.problem_statement, numberedSnapshot(work, selected), selected, SNIPER, 0, repro, work);
+      totalCost += sn.cost; row.sniper = true;
+      if (sn.passed) { row.branchesPassed++; best = sn.patch; } else if (sn.patch && !best) best = sn.patch;
     }
   } catch (e) { row.error = String(e).split('\n')[0].slice(0, 200); }
   finally { if (work) try { rmSync(work, { recursive: true, force: true }); } catch { /**/ } }
