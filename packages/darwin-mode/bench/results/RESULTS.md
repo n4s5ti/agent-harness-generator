@@ -644,3 +644,25 @@ clean CI separation from 58.3%.
 budget-guard poll died (exit 144) as spend crossed its threshold, so it didn't auto-kill; caught + killed
 manually ~3 instances later. **Lesson: budget caps must live INSIDE the solver (a `--max-cost` check
 between instances), not in a killable watchdog.** Hard stop — no further spend.
+
+## 30. DEFINITIVE — Opus-4.8 Sage over the FULL tail: 205/300 = 68.3% [62.9, 73.3]
+
+Completed Opus-4.8 across all 134 residual-tail instances (last residue recovered 11/54 — in-loop said
+2, a 5.5× under-count, exactly why only batch counts). Full-tail Opus-4.8 recovery: **39/134 = 29.1%**.
+
+| stack | resolved | Wilson 95% CI |
+|---|---|---|
+| single-shot 3-tier (prior headline, ADR-154) | 175/300 = 58.3% | [52.7, 63.8] |
+| agentic 3-tier (opus-4 Sage) | 166/300 = 55.3% | [49.7, 60.9] |
+| **agentic + Opus-4.8 Sage, FULL tail — HEADLINE** | **205/300 = 68.3%** | **[62.9, 73.3]** |
+
+**This is the definitive number — full coverage, not a lower bound.** +10.0pp over the prior 58.3%
+headline; the new lower bound (62.9%) exceeds the old *point* estimate (58.3%) decisively (the CIs
+marginally touch the old *upper* bound 63.8 — a near-clean, not perfectly-clean, separation). 8.9× the
+7.7% open-loop baseline.
+
+**The arc's thesis, settled:** the ceiling was **model-bound at the Sage tier**. Holding everything else
+fixed and swapping opus-4 → opus-4.8 (newer, *cheaper* ~$0.65/inst) moved 58.3%-class → 68.3%. Cheap-base
++ tiered escalation **scales with frontier Sage quality** — not exhausted. Next levers (ADR-172):
+opus-4.8 Sage-from-scratch, test-gated best-of-N, the stateful-PTY loop (ADR-170) → 70–80%+. Total arc
+spend ~$554 (the refilled $500 + ~$54 over; the in-solver `--max-cost` now prevents recurrence).

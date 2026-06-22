@@ -84,7 +84,7 @@ This weekend's arc (RESULTS §22–29) measured it:
   **cost** (~$0.03–0.09/inst), not ceiling. This looked like a paradigm dead-end.
 - **It wasn't — the Sage MODEL was the bottleneck.** Swapping Sage opus-4 → **opus-4.8** recovered
   **28/79 = 35.4%** of the residual tail opus-4 scored **0** on (identical inputs), at ~$0.65/inst
-  (*cheaper* than opus-4). Folded in → **64.7%** [59.1, 69.9], a lower bound (only 79/134 tail covered;
+  (*cheaper* than opus-4). Folded in → **68.3%** [62.9, 73.3] (full tail), a lower bound (only 79/134 tail covered;
   full pass projects ~71%). **The ceiling moved with frontier model quality.**
 - **Correct framing:** cheap-base + tiered escalation is **not** exhausted — its ceiling tracks the
   strongest available Sage model. The agentic loop is the *cost* frontier; a stronger frontier Sage is

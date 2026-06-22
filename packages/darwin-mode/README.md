@@ -290,7 +290,7 @@ context + symbol-aware localization + search/replace patch, `deepseek-chat`, ~$0
 | agentic full-300 (v4-pro, max-15) | 104/300 = **34.7%** | [29.5, 40.2] | 153/169 |
 | + max-30 + anti-thrash | 139/300 = **46.3%** | [40.8, 52.0] | 169 |
 | + Scholar + Sage (opus-4) — agentic 3-tier | 166/300 = **55.3%** | [49.7, 60.9] | 169 |
-| **+ Sage swapped to opus-4.8 — NEW BEST** | 194/300 = **64.7%** | **[59.1, 69.9]** | 172 |
+| **+ Sage swapped to opus-4.8 (full tail) — HEADLINE** | 205/300 = **68.3%** | **[62.9, 73.3]** | 172 |
 
 **The harness, not the model, is the dominant lever — and it compounds.** Closed-loop repair
 ~doubles a cheap model for free (7.7% → 15.3%, disjoint CIs); a newer cheap base lifts it again
@@ -303,11 +303,11 @@ cheaper per instance; the 65–88% SOTA tier is the next arc (stronger step mode
 Honest caveats throughout: only batch-eval numbers reported (in-loop drifts 1.5–5×), the local-$0
 ceiling is capability-floor-bound (14b+repair = 6.7%). Full evidence: `bench/results/RESULTS.md`.
 
-**Update (2026-06-22) — new best 64.7%; the 58.3% ceiling was model-bound.** The full-300 agentic loop
+**Update (2026-06-22) — new best 68.3%; the 58.3% ceiling was model-bound.** The full-300 agentic loop
 measures **34.7%** (max-15) → **46.3%** (max-30 + anti-thrash) → **55.3%** (agentic 3-tier, opus-4 Sage).
 The agentic 3-tier *tied* but didn't beat single-shot 58.3% — until we swapped the Sage model to
 **opus-4.8** (newer, *cheaper* ~$0.65/inst), which recovered **35%** of the residual tail opus-4 could
-not → **new best 64.7%** [59.1, 69.9] (ADR-172; lower bound, full pass projects ~71%). Takeaway:
+not → **new best 68.3%** [59.1, 69.9] (ADR-172; lower bound, full pass projects ~71%). Takeaway:
 cheap-base + tiered escalation **scales with frontier Sage quality** — not exhausted. Difficulty-routing
 was measured null (ADR-169 E2, AUC 0.505). Next: stronger Sage + the stateful-PTY agent loop (ADR-170).
 
