@@ -31,6 +31,9 @@ const CHAT_URL = `${BASE_URL}/chat/completions`;
 const KEY_ENV = argv('--api-key-env', 'OPENROUTER_API_KEY');
 const key = (process.env[KEY_ENV] || (() => { try { return readFileSync('/tmp/.orkey', 'utf8'); } catch { return ''; } })()).trim();
 const CONCURRENCY = Math.max(1, +argv('--concurrency', 1));
+// In-solver budget cap (see solve-repair.mjs). `--max-cost <usd>` stops pulling
+// new instances once cumulative LLM cost reaches it; in-flight finish + write.
+const MAX_COST = +argv('--max-cost', Infinity);
 
 let manifest = JSON.parse(readFileSync(rel(argv('--manifest', 'pilot-sample-25.json')), 'utf8')).instances;
 if (onlyInstance) manifest = manifest.filter((i) => i.instance_id === onlyInstance);
@@ -122,10 +125,16 @@ async function runInstance(inst) {
   console.error(`[${report.length}/${manifest.length}] ${inst.instance_id} steps=${row.steps} submit=${row.submitted} inloop=${row.resolvedInLoop} ${row.sec}s ${row.error ? 'ERR:' + row.error : ''}`);
 }
 
-let cursor = 0;
-async function worker() { while (cursor < manifest.length) { const inst = manifest[cursor++]; await runInstance(inst); } }
+let cursor = 0; let cappedAt = null;
+async function worker() {
+  while (cursor < manifest.length) {
+    if (totalCost >= MAX_COST) { if (cappedAt === null) { cappedAt = report.length; console.error(`[max-cost] cumulative $${totalCost.toFixed(2)} ≥ cap $${MAX_COST} — stopping after in-flight (${report.length}/${manifest.length} done)`); } return; }
+    const inst = manifest[cursor++];
+    await runInstance(inst);
+  }
+}
 await Promise.all(Array.from({ length: Math.min(CONCURRENCY, manifest.length) }, () => worker()));
 
 const inloop = report.filter((r) => r.resolvedInLoop).length;
-writeFileSync(REPORT, JSON.stringify({ model: MODEL, maxSteps: MAX_STEPS, n: report.length, resolvedInLoop: inloop, totalCost_usd: Math.round(totalCost * 10000) / 10000, instances: report }, null, 2));
+writeFileSync(REPORT, JSON.stringify({ model: MODEL, maxSteps: MAX_STEPS, n: report.length, resolvedInLoop: inloop, cappedAtInstance: cappedAt, maxCost: MAX_COST===Infinity?null:MAX_COST, totalCost_usd: Math.round(totalCost * 10000) / 10000, instances: report }, null, 2));
 console.error(`\nDONE ${report.length} | in-loop resolved ${inloop}/${report.length} (BATCH-eval the predictions for the authoritative number) | $${Math.round(totalCost * 10000) / 10000} | preds → ${OUT}`);

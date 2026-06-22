@@ -146,6 +146,11 @@ async function localize(problem, work, files, k, pre = 120) {
 // 32-core; the Docker test-runs (the bottleneck) parallelize cleanly. Each instance uses its own
 // temp clone (mkdtemp) + unique eval runIds, so there are no cross-instance collisions.
 const CONCURRENCY = Math.max(1, +argv('--concurrency', 1));
+// In-solver budget cap (lesson from the 2026-06-22 overage: an out-of-process
+// watchdog can be killed and miss the threshold). `--max-cost <usd>` stops
+// pulling NEW instances once cumulative LLM cost reaches the cap. In-flight
+// instances finish; their predictions are still written. Default: no cap.
+const MAX_COST = +argv('--max-cost', Infinity);
 
 writeFileSync(OUT, ''); const report = []; let totalCost = 0;
 async function runInstance(inst) {
@@ -195,10 +200,16 @@ async function runInstance(inst) {
 }
 
 // Promise pool: keep CONCURRENCY instances in flight at once.
-let cursor = 0;
-async function worker() { while (cursor < manifest.length) { const inst = manifest[cursor++]; await runInstance(inst); } }
+let cursor = 0; let cappedAt = null;
+async function worker() {
+  while (cursor < manifest.length) {
+    if (totalCost >= MAX_COST) { if (cappedAt === null) { cappedAt = report.length; console.error(`[max-cost] cumulative $${totalCost.toFixed(2)} ≥ cap $${MAX_COST} — stopping after in-flight (${report.length}/${manifest.length} done)`); } return; }
+    const inst = manifest[cursor++];
+    await runInstance(inst);
+  }
+}
 await Promise.all(Array.from({ length: Math.min(CONCURRENCY, manifest.length) }, () => worker()));
 
 const resolved = report.filter((r) => r.resolved).length;
-writeFileSync(REPORT, JSON.stringify({ model: MODEL, attempts: ATTEMPTS, k: K, n: report.length, resolved, totalCost_usd: Math.round(totalCost * 10000) / 10000, instances: report }, null, 2));
+writeFileSync(REPORT, JSON.stringify({ model: MODEL, attempts: ATTEMPTS, k: K, n: report.length, resolved, cappedAtInstance: cappedAt, maxCost: MAX_COST===Infinity?null:MAX_COST, totalCost_usd: Math.round(totalCost * 10000) / 10000, instances: report }, null, 2));
 console.error(`\nDONE ${report.length} | resolved ${resolved}/${report.length} | $${Math.round(totalCost * 10000) / 10000} | preds → ${OUT}`);
