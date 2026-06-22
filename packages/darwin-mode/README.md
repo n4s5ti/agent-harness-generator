@@ -286,8 +286,11 @@ context + symbol-aware localization + search/replace patch, `deepseek-chat`, ~$0
 | **+ closed-loop repair (test-feedback, ≤3)** | 46/300 = **15.3%** | **[11.7, 19.8]** | 149 |
 | **+ swap base → deepseek-v4-pro (cheap)** | 88/300 = **29.3%** | **[24.5, 34.7]** | 151 |
 | **+ v4-pro + Scholar hybrid** | 121/300 = **40.3%** | **[34.9, 46.0]** | 152 |
-| **+ Sage (opus-4.8) — 3-tier (headline)** | 175/300 = **58.3%** | **[52.7, 63.8]** | 154 |
-| agentic ReAct loop (v4-pro, new architecture) | 94/300 = **31.3%** | **[26.3, 36.8]** | 153 |
+| **+ Sage (opus-4) — single-shot 3-tier** | 175/300 = **58.3%** | **[52.7, 63.8]** | 154 |
+| agentic full-300 (v4-pro, max-15) | 104/300 = **34.7%** | [29.5, 40.2] | 153/169 |
+| + max-30 + anti-thrash | 139/300 = **46.3%** | [40.8, 52.0] | 169 |
+| + Scholar + Sage (opus-4) — agentic 3-tier | 166/300 = **55.3%** | [49.7, 60.9] | 169 |
+| **+ Sage swapped to opus-4.8 — NEW BEST** | 194/300 = **64.7%** | **[59.1, 69.9]** | 172 |
 
 **The harness, not the model, is the dominant lever — and it compounds.** Closed-loop repair
 ~doubles a cheap model for free (7.7% → 15.3%, disjoint CIs); a newer cheap base lifts it again
@@ -299,6 +302,14 @@ implemented + unit-tested) reaches **31.3%** on v4-pro — competitive with sing
 cheaper per instance; the 65–88% SOTA tier is the next arc (stronger step models / richer tooling).
 Honest caveats throughout: only batch-eval numbers reported (in-loop drifts 1.5–5×), the local-$0
 ceiling is capability-floor-bound (14b+repair = 6.7%). Full evidence: `bench/results/RESULTS.md`.
+
+**Update (2026-06-22) — new best 64.7%; the 58.3% ceiling was model-bound.** The full-300 agentic loop
+measures **34.7%** (max-15) → **46.3%** (max-30 + anti-thrash) → **55.3%** (agentic 3-tier, opus-4 Sage).
+The agentic 3-tier *tied* but didn't beat single-shot 58.3% — until we swapped the Sage model to
+**opus-4.8** (newer, *cheaper* ~$0.65/inst), which recovered **35%** of the residual tail opus-4 could
+not → **new best 64.7%** [59.1, 69.9] (ADR-172; lower bound, full pass projects ~71%). Takeaway:
+cheap-base + tiered escalation **scales with frontier Sage quality** — not exhausted. Difficulty-routing
+was measured null (ADR-169 E2, AUC 0.505). Next: stronger Sage + the stateful-PTY agent loop (ADR-170).
 
 ## Darwin Shield — the defensive security application (ADR-155, v0.3.0)
 
