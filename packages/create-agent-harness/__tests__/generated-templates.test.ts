@@ -140,6 +140,39 @@ describe('generated templates scaffold cleanly', () => {
       const settings = JSON.parse(await readFile(join(target, '.claude/settings.json'), 'utf-8'));
       expect(settings.mcpServers[name]).toBeDefined();
       expect(settings.permissions.allow).toContain(`mcp__${name}__*`);
+
+      // Regression for issue #44: a scaffold whose test suite IMPORTS a shebanged
+      // entrypoint (e.g. `import { run } from '../bin/cli.js'`) must ship a
+      // vitest.config that strips the `#!` line — Vite/esbuild does NOT strip
+      // shebangs before parsing, so otherwise EVERY fresh `npm test` dies with
+      // "SyntaxError: Invalid or unexpected token". This catches the whole class:
+      // a generated harness that cannot run its own tests out of the box.
+      const testFiles = r.paths.filter((p) => p.startsWith('__tests__/') && p.endsWith('.ts'));
+      const importedShebangedFiles: string[] = [];
+      for (const tf of testFiles) {
+        const src = await readFile(join(target, tf), 'utf-8');
+        // match relative imports like ../bin/cli.js, ./foo.js
+        for (const m of src.matchAll(/from\s+['"](\.[^'"]+\.js)['"]/g)) {
+          const imp = m[1];
+          // resolve relative to the test file's dir, normalized to a scaffold path
+          const abs = join(target, dirname(tf), imp);
+          let body = '';
+          try { body = await readFile(abs, 'utf-8'); } catch { continue; }
+          if (body.startsWith('#!')) importedShebangedFiles.push(imp);
+        }
+      }
+      if (importedShebangedFiles.length > 0) {
+        expect(
+          r.paths,
+          `${t.id}: tests import shebanged module(s) ${importedShebangedFiles.join(', ')} — scaffold needs a vitest.config that strips shebangs (#44)`,
+        ).toContain('vitest.config.ts');
+        const vcfg = await readFile(join(target, 'vitest.config.ts'), 'utf-8');
+        expect(vcfg, `${t.id}: vitest.config.ts must strip the shebang (#44)`).toMatch(/strip-shebang|#!|shebang/i);
+        // Prove the configured transform actually neutralizes a shebang into
+        // parseable JS — not just that the file mentions "shebang".
+        const stripped = '#!/usr/bin/env node\nexport const x = 1;\n'.replace(/^#![^\n]*/, '');
+        expect(() => new Function(stripped.replace(/export /g, ''))).not.toThrow();
+      }
     });
   }
 });
