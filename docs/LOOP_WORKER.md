@@ -19,6 +19,21 @@ threshold AND is submitted (or no lever fits remaining budget).**
 Model = cost-per-resolve frontier (leaderboard data): **MiniMax M2.5** (75.8% Verified @ ~$0.07/inst),
 DeepSeek V3.2 ($0.23/$0.34 — cheapest reasoning), Kimi K2.5. NOT Opus (10× cost). All verified on OpenRouter.
 
+## SOTA odds — report EVERY tick, recompute when a batch lands
+First-order model: overall-resolve ≈ **patch-attempt-rate × conditional-resolve**. Measured floor
+(DeepSeek-only k=5, Lite-25): 0.44 × 0.45 ≈ **20.0%**. The 45% conditional-resolve is a *separate
+ceiling* — filling empty patches alone caps ~45%; reaching 70%+ needs conditional-resolve to rise too.
+
+| target | threshold | odds (as of 2026-06-22, DeepSeek floor) |
+|---|---|---|
+| **Pareto cost crown** (best resolve-per-$) | — | **~55–70%** — the realistic SOTA; 10–15× cheaper at any given resolve |
+| **Top-10 Lite** | ≥45% | **~35–45%** — needs attempt-rate↑ AND conditional-resolve held |
+| **#1 Lite** | >60.33% | **~15–20%** — needs conditional-resolve well past 45% |
+| **Absolute SOTA** | ~80–85% | **<5–10%** — far from the measured 45% conditional-resolve |
+
+Recompute these from the latest conformant batch (attempt-rate + conditional-resolve), never hand-wave.
+The pending MiniMax-M2.7-patch batch is the next input. Only measured numbers move the odds.
+
 ## Tracking issues (reply EVERY tick with details)
 - **#45 — SWE-bench Lite** conformant run · **#46 — SWE-bench Verified** conformant run.
 - Each tick that touches a run, post a **detailed comment** to its issue: done/total, submit-rate,
