@@ -61,7 +61,7 @@ export async function buildReproTest(instanceId, problemStatement, llm, opts = {
     catch (e) { return { valid: false, repro: '', attempts: att, cost, logTail: 'llm error: ' + (e.message || e) }; }
     const repro = raw.replace(/^```(python)?\n?|\n?```$/g, '').trim();
     const r = runConformantTests(instanceId, '', `python ${REPRO_PATH}`, {
-      extraFiles: { [REPRO_PATH]: repro }, timeoutMs: opts.timeoutMs ?? 300_000,
+      extraFiles: { [REPRO_PATH]: repro }, timeoutMs: opts.timeoutMs ?? 300_000, containerId: opts.containerId,
     });
     lastTail = r.logTail;
     const verdict = r.ran ? classify(r) : 'error';

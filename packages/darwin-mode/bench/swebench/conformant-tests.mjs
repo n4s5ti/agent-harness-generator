@@ -22,32 +22,44 @@ export function dockerImageFor(instanceId) {
  *   patch    unified diff of the agent's SOURCE edits (git apply at /testbed)
  *   testCmd  e.g. "python -m pytest -q -x lib/foo/tests/test_bar.py"  (NOT the gold tests)
  */
+// ADR-176 throughput — per-instance container reuse. `docker run --rm` restarts the
+// (large) image on EVERY repro check; an MCTS instance does up to k×turns checks
+// (django-15061 took 1003s). Start one detached container per instance, `docker exec`
+// each check (resetting /testbed between), remove at end → far fewer cold starts.
+export function startInstanceContainer(instanceId) {
+  const img = dockerImageFor(instanceId);
+  try { return execSync(`docker run -d ${img} sleep infinity`, { stdio: ['ignore', 'pipe', 'pipe'] }).toString().trim(); }
+  catch { return null; }
+}
+export function stopInstanceContainer(cid) { if (cid) try { execSync(`docker rm -f ${cid}`, { stdio: 'ignore' }); } catch { /**/ } }
+
 export function runConformantTests(instanceId, patch, testCmd, opts = {}) {
   const img = dockerImageFor(instanceId);
   const timeout = opts.timeoutMs ?? 600_000;
-  const dir = mkdtempSync(join(tmpdir(), 'cfm-'));
-  const pf = join(dir, 'patch.diff');
-  writeFileSync(pf, patch || '');
-  // ADR-173 L0.6: optional extraFiles (e.g. a self-written reproduce_bug.py) written
-  // into /testbed before the test runs — the conformant repro-test mechanism. Each is
-  // base64-staged into the container (no host bind needed beyond the patch mount).
+  const reuse = !!opts.containerId;
+  // optional extraFiles (e.g. reproduce_bug.py) base64-staged into /testbed before the test.
   const extra = opts.extraFiles && typeof opts.extraFiles === 'object' ? opts.extraFiles : {};
   const writeExtra = Object.entries(extra).map(([p, c]) =>
     `printf %s ${JSON.stringify(Buffer.from(String(c)).toString('base64'))} | base64 -d > ${JSON.stringify('/testbed/' + p)}`);
-  // git apply the source patch (skip if empty); activate conda; stage extra files; run the test cmd.
-  // `set -o pipefail` so the pipeline's exit code is testCmd's (not tail's) — lets us judge
-  // pass/fail by EXIT CODE, which works for plain `python repro.py` too (django/sympy testbeds
-  // ship no pytest). The apply step prints a sentinel we grep before trusting the exit code.
+  // patch is base64-staged (no host mount) so the SAME script works for run --rm and exec.
+  // `set -o pipefail` makes the pipeline exit = testCmd's, so we judge by EXIT CODE (works for
+  // plain `python repro.py`; django/sympy testbeds ship no pytest). On reuse, reset /testbed first.
+  const b64 = Buffer.from(patch || '').toString('base64');
   const script = [
     'set -o pipefail',
     'source /opt/miniconda3/bin/activate testbed',
     'cd /testbed',
-    patch && patch.trim() ? '{ git apply -v /tmp/patch.diff 2>&1 | tail -2 || { echo "[apply-failed]"; exit 97; }; }' : 'true',
+    reuse ? 'git checkout -q -- . 2>/dev/null; git clean -fdq 2>/dev/null; rm -f reproduce_bug.py 2>/dev/null; true' : 'true',
+    patch && patch.trim()
+      ? `{ printf %s ${JSON.stringify(b64)} | base64 -d > /tmp/patch.diff && git apply -v /tmp/patch.diff 2>&1 | tail -2 || { echo "[apply-failed]"; exit 97; }; }`
+      : 'true',
     ...writeExtra,
     `${testCmd} 2>&1 | tail -50`,
   ].join(' && ');
-  const run = () => execSync(`docker run --rm -v ${pf}:/tmp/patch.diff:ro ${img} bash -c ${JSON.stringify(script)}`,
-    { stdio: ['ignore', 'pipe', 'pipe'], timeout, maxBuffer: 1 << 27 });
+  const cmd = reuse
+    ? `docker exec ${opts.containerId} bash -c ${JSON.stringify(script)}`
+    : `docker run --rm ${img} bash -c ${JSON.stringify(script)}`;
+  const run = () => execSync(cmd, { stdio: ['ignore', 'pipe', 'pipe'], timeout, maxBuffer: 1 << 27 });
   try {
     const out = run().toString();          // exit 0 → testCmd passed
     return { ran: true, passed: true, logTail: out.slice(-2500) };

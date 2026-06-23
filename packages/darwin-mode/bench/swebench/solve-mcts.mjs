@@ -15,7 +15,7 @@ import { selectFiles } from '../swe-bench-runner.mjs';
 import { generateBaselineHarness } from '../../dist/generator.js';
 import { profileRepo } from '../../dist/repo_profiler.js';
 import { buildReproTest, REPRO_PATH } from './test-critic.mjs';
-import { runConformantTests } from './conformant-tests.mjs';
+import { runConformantTests, startInstanceContainer, stopInstanceContainer } from './conformant-tests.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const args = process.argv.slice(2);
@@ -144,7 +144,7 @@ function pyCompile(work, files) {
 // One MCTS branch: a bounded stateful read-then-edit loop. Early-exit the instant the repro passes.
 // Returns { patch, passed, cost }. Reasoning turns capped at BRANCH_TURNS; syntax retries are a separate
 // 2-retry sub-budget (don't consume reasoning turns).
-async function runBranch(instanceId, problem, snapshot, selected, model, temp, repro, work) {
+async function runBranch(instanceId, problem, snapshot, selected, model, temp, repro, work, containerId) {
   let feedback = ''; let cost = 0; let lastPatch = '';
   for (let turn = 0; turn < BRANCH_TURNS; turn++) {
     const r = await llm(`Fix the bug.\n--- issue ---\n${problem.slice(0, 6000)}\n--- numbered source ---\n${snapshot}${feedback}`, LINE_SYS, model, temp);
@@ -161,7 +161,7 @@ async function runBranch(instanceId, problem, snapshot, selected, model, temp, r
     if (!syn.ok) { feedback = `\n--- still a syntax error after retries:\n${syn.err}\nTry a different edit. ---`; continue; }
     lastPatch = patch;
     if (!repro) return { patch, passed: false, cost }; // no oracle to gate on → keep best-effort
-    const v = runConformantTests(instanceId, patch, `python ${REPRO_PATH}`, { extraFiles: repro, timeoutMs: 300000 });
+    const v = runConformantTests(instanceId, patch, `python ${REPRO_PATH}`, { extraFiles: repro, timeoutMs: 300000, containerId });
     if (v.ran && v.passed) return { patch, passed: true, cost }; // EARLY EXIT
     feedback = `\n--- patch applied + compiles but the reproduction test still FAILS:\n${(v.logTail || '').slice(-700)}\nFix the logic.\n--- numbered source ---\n${numberedSnapshot(work, changedFiles)}`;
   }
@@ -171,14 +171,15 @@ async function runBranch(instanceId, problem, snapshot, selected, model, temp, r
 writeFileSync(OUT, ''); const report = []; let totalCost = 0; let usedOracle = false;
 async function runInstance(inst) {
   const t0 = Date.now(); const row = { instance_id: inst.instance_id, repo: inst.repo, k: K, reproValid: false, branchesPassed: 0, sniper: false };
-  let best = ''; let work;
+  let best = ''; let work; let containerId;
   try {
     work = fetchRepo(inst.repo, inst.base_commit);
+    containerId = startInstanceContainer(inst.instance_id); // ADR-176: one detached container, reused for all repro checks
     const allPy = g(work, "git ls-files '*.py'").toString().split('\n').filter(Boolean).filter((f) => !/(^|\/)(tests?|testing|site-packages|build|dist)\//i.test(f) && !/(^|\/)(test_|conftest)/i.test(f)).filter((f) => { try { return statSync(join(work, f)).size <= 100000; } catch { return false; } });
     const selected = selectFiles(inst.problem_statement, work, allPy, buildContext, 15);
     const seen = APPLICATOR === 'line' ? numberedSnapshot(work, selected) : selected.map((f) => `# ===== ${f} =====\n${readFileSync(join(work, f), 'utf8').slice(0, SLICE)}`).join('\n\n');
     // 1) conformant oracle
-    const critic = await buildReproTest(inst.instance_id, inst.problem_statement, (p, s) => llm(p, s), { maxAttempts: 3 });
+    const critic = await buildReproTest(inst.instance_id, inst.problem_statement, (p, s) => llm(p, s), { maxAttempts: 3, containerId });
     totalCost += critic.cost; row.reproValid = critic.valid;
     let repro = critic.valid ? { [REPRO_PATH]: critic.repro } : null;
     // ADR-175 #47 human-in-the-loop test review
@@ -198,7 +199,7 @@ async function runInstance(inst) {
     // 2+3) k diversified agentic branches — each a bounded read-then-edit loop, repro-gated, early-exit on pass.
     if (APPLICATOR === 'line') {
       for (let b = 0; b < K; b++) {
-        const br = await runBranch(inst.instance_id, inst.problem_statement, seen, selected, PATCH_MODEL, b === 0 ? 0 : 0.2 + 0.15 * b, repro, work);
+        const br = await runBranch(inst.instance_id, inst.problem_statement, seen, selected, PATCH_MODEL, b === 0 ? 0 : 0.2 + 0.15 * b, repro, work, containerId);
         totalCost += br.cost;
         if (br.patch && !best) best = br.patch; // fallback: first applicable
         if (br.passed) { best = br.patch; row.branchesPassed++; break; } // EARLY EXIT — repro passed
@@ -217,12 +218,12 @@ async function runInstance(inst) {
     }
     // 4) L3 Opus-sniper if no branch passed the repro
     if (repro && row.branchesPassed === 0 && SNIPER && SNIPER !== 'none') {
-      const sn = await runBranch(inst.instance_id, inst.problem_statement, numberedSnapshot(work, selected), selected, SNIPER, 0, repro, work);
+      const sn = await runBranch(inst.instance_id, inst.problem_statement, numberedSnapshot(work, selected), selected, SNIPER, 0, repro, work, containerId);
       totalCost += sn.cost; row.sniper = true;
       if (sn.passed) { row.branchesPassed++; best = sn.patch; } else if (sn.patch && !best) best = sn.patch;
     }
   } catch (e) { row.error = String(e).split('\n')[0].slice(0, 200); }
-  finally { if (work) try { rmSync(work, { recursive: true, force: true }); } catch { /**/ } }
+  finally { stopInstanceContainer(containerId); if (work) try { rmSync(work, { recursive: true, force: true }); } catch { /**/ } }
   appendFileSync(OUT, JSON.stringify({ instance_id: inst.instance_id, model_name_or_path: 'darwin-mcts', model_patch: best }) + '\n');
   row.sec = Math.round((Date.now() - t0) / 1000); report.push(row);
   console.error(`[${report.length}/${manifest.length}] ${inst.instance_id} repro=${row.reproValid} passed=${row.branchesPassed}/${K} sniper=${row.sniper} ${row.sec}s ${row.error ? 'ERR:' + row.error : ''}`);
