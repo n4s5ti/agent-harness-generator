@@ -43,6 +43,13 @@ export default function App() {
             <Github size={14} /> ruvnet/agent-harness-generator
           </a>
           <div className="flex items-center gap-2">
+            <a
+              href="cost-pareto.html"
+              className="inline-flex items-center gap-1.5 rounded-lg border border-emerald-700/50 bg-emerald-900/20 px-3 py-1.5 text-xs text-emerald-300 transition hover:border-emerald-600 hover:text-emerald-200"
+              aria-label="SWE-bench Lite cost-Pareto leaderboard"
+            >
+              <Gauge size={14} /> <span className="hidden sm:inline">Cost-Pareto Leaderboard</span>
+            </a>
             <button
               onClick={reopenOnboarding}
               className="inline-flex items-center gap-1.5 rounded-lg border border-ink-700 bg-ink-800/60 px-3 py-1.5 text-xs text-slate-300 transition hover:border-ink-600 hover:text-white"
