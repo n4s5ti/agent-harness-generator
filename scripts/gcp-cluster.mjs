@@ -40,7 +40,7 @@ const key = () => readFileSync('/tmp/.orkey', 'utf8').trim();
 // self-running startup script: install deps, fetch the fixed runner from main, solve+eval, leave results.
 const STARTUP = `#!/bin/bash
 M(){ curl -s -H 'Metadata-Flavor: Google' "http://metadata/computeMetadata/v1/instance/attributes/$1"; }
-export ORKEY=$(M orkey) BENCH=$(M bench) MODE=$(M mode) MODEL=$(M model) CONCURRENCY=4
+export ORKEY=$(M orkey) BENCH=$(M bench) MODE=$(M mode) MODEL=$(M model) ESCALATE=$(M escalate) SAMPLE=$(M sample) CONCURRENCY=4
 export DEBIAN_FRONTEND=noninteractive
 apt-get update -y >/dev/null 2>&1; apt-get install -y python3-venv python3-pip git >/dev/null 2>&1
 mkdir -p /opt
@@ -57,18 +57,44 @@ function listVMs() {
 }
 function usedVCPU() { return listVMs().filter(v => v.status === 'RUNNING' || v.status === 'STAGING').length * VCPU; }
 
-function provision(board, model, tag) {
+function provision(o) {
+  const { board, model, tag, mode = 'single', sample = '', escalate = '', machine = MACHINE } = o;
   if (!BOARDS[board]) throw new Error(`unknown board ${board} (have: ${Object.keys(BOARDS).join(',')})`);
-  if (usedVCPU() + VCPU > CPU_QUOTA) { console.error(`SKIP ${tag}: would exceed CPU quota (${usedVCPU()}/${CPU_QUOTA})`); return; }
+  const vcpu = +(machine.match(/-(\d+)$/)?.[1]) || VCPU;
+  if (usedVCPU() + vcpu > CPU_QUOTA) { console.error(`SKIP ${tag}: would exceed CPU quota (${usedVCPU()}+${vcpu}/${CPU_QUOTA}) — down some VMs first`); return false; }
   const name = `${PREFIX}${board}-${tag}`;
   const tmp = `/tmp/startup-${name}.sh`; writeFileSync(tmp, STARTUP);
-  console.error(`provisioning ${name}  (${model} · ${BOARDS[board]})`);
+  const meta = `orkey=${key()},bench=${board},mode=${mode},model=${model}` + (escalate ? `,escalate=${escalate}` : '') + (sample ? `,sample=${sample}` : '');
+  console.error(`provisioning ${name}  (${model} · ${mode}${sample ? ` · n=${sample}` : ''} · ${BOARDS[board]})`);
   gq(['compute', 'instances', 'create', name, `--project=${PROJECT}`, `--zone=${ZONE}`,
-    `--machine-type=${MACHINE}`, '--image-family=ubuntu-2204-lts', '--image-project=ubuntu-os-cloud',
-    '--boot-disk-size=200GB', '--boot-disk-type=pd-standard',  // pd-standard: dodges the 500GB SSD quota
-    `--metadata=orkey=${key()},bench=${board},mode=single,model=${model}`,
-    `--metadata-from-file=startup-script=${tmp}`, '--scopes=cloud-platform']);
-  console.log(`✓ ${name} provisioning (self-runs on boot)`);
+    `--machine-type=${machine}`, '--image-family=ubuntu-2204-lts', '--image-project=ubuntu-os-cloud',
+    '--boot-disk-size=200GB', '--boot-disk-type=pd-standard',
+    `--metadata=${meta}`, `--metadata-from-file=startup-script=${tmp}`, '--scopes=cloud-platform']);
+  console.log(`✓ ${name} provisioning (self-runs on boot)`); return true;
+}
+// Early-proving matrix: cheap architecture variants raced on a small sample to find the optimum fast.
+const PROVE = [
+  { board: 'lite', model: 'deepseek/deepseek-v4-flash', mode: 'single', tag: 'p-ds' },
+  { board: 'lite', model: 'z-ai/glm-5.2', mode: 'single', tag: 'p-glm' },
+  { board: 'lite', model: 'moonshotai/kimi-k2.6', mode: 'single', tag: 'p-kimi' },
+  { board: 'lite', model: 'deepseek/deepseek-v4-flash', mode: 'bo3', tag: 'p-bo3' },
+  { board: 'lite', model: 'deepseek/deepseek-v4-flash', mode: 'cascade', escalate: 'z-ai/glm-5.2', tag: 'p-casc' },
+];
+function prove(sample) {
+  const n = sample || '25';
+  console.log(`Early-proving ${PROVE.length} variants on n=${n} (e2-standard-4, quota-aware):`);
+  for (const v of PROVE) provision({ ...v, sample: n, machine: 'e2-standard-4' });
+}
+function rank() {
+  let docs = []; try { docs = JSON.parse(gq(['firestore', 'databases', 'documents', 'list', `--project=${PROJECT}`]) || '[]'); } catch { /* use REST */ }
+  try {
+    const out = sh(`curl -s -H "Authorization: Bearer ${fsToken()}" "https://firestore.googleapis.com/v1/projects/${PROJECT}/databases/(default)/documents/darwin_runs?pageSize=100"`);
+    const d = JSON.parse(out).documents || [];
+    const rows = d.map((x) => { const f = x.fields; const g = (k) => f[k]?.stringValue ?? f[k]?.doubleValue ?? (f[k]?.integerValue && +f[k].integerValue); return { model: g('model'), mode: g('mode'), bench: g('benchmark'), pct: g('resolve_pct'), n: g('total'), src: g('source') }; });
+    rows.sort((a, b) => (b.pct || 0) - (a.pct || 0));
+    console.log('darwin_runs (by resolve %):');
+    for (const r of rows) console.log(`  ${String(r.pct).padStart(5)}%  ${r.bench}/${r.mode}  ${r.model}  (n=${r.n}, ${r.src})`);
+  } catch (e) { console.error('rank failed:', e.message.split('\n')[0]); }
 }
 
 function serial(name) { try { return gq(['compute', 'instances', 'get-serial-port-output', name, `--project=${PROJECT}`, `--zone=${ZONE}`]); } catch { return ''; } }
@@ -129,8 +155,10 @@ async function supervise() {
 }
 
 const [cmd, a, b, c] = process.argv.slice(2);
-if (cmd === 'up') provision(a, b, c || b.split('/').pop().replace(/[.:]/g, '-'));
-else if (cmd === 'matrix') { for (const [board, model, tag] of MATRIX) try { provision(board, model, tag); } catch (e) { console.error(e.message); } }
+if (cmd === 'up') provision({ board: a, model: b, tag: c || b.split('/').pop().replace(/[.:]/g, '-') });
+else if (cmd === 'matrix') { for (const [board, model, tag] of MATRIX) try { provision({ board, model, tag }); } catch (e) { console.error(e.message); } }
+else if (cmd === 'prove') prove(a);
+else if (cmd === 'rank') rank();
 else if (cmd === 'status') status();
 else if (cmd === 'logs') console.log(serial(a).split('\n').slice(-30).join('\n'));
 else if (cmd === 'collect') collect(a);
@@ -139,5 +167,5 @@ else if (cmd === 'down') {
   const names = a === 'all' ? listVMs().map(v => v.name) : [a];
   if (names.length) { gq(['compute', 'instances', 'delete', ...names, `--project=${PROJECT}`, `--zone=${ZONE}`, '--quiet']); console.log(`deleted: ${names.join(', ')}`); }
 } else {
-  console.log('usage: gcp-cluster.mjs <up board model [tag]|matrix|status|logs <vm>|collect <vm>|down <vm|all>>');
+  console.log('usage: gcp-cluster.mjs <up board model [tag]|matrix|prove [n]|rank|matrix|status|logs <vm>|collect <vm>|down <vm|all>>');
 }

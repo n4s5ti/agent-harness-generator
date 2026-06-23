@@ -1,0 +1,221 @@
+{
+  "summary": {
+    "n": 25,
+    "goldResolved": 9,
+    "cost_usd": 0.0155,
+    "reproValidRate": "19/25",
+    "judgeApprovedOfValid": "18/19",
+    "gate_judge": {
+      "fires": 6,
+      "precision_vs_gold": "67%",
+      "captured": 4
+    },
+    "gate_nojudge": {
+      "fires": 6,
+      "precision_vs_gold": "67%",
+      "captured": 4
+    }
+  },
+  "rows": [
+    {
+      "id": "sympy__sympy-18057",
+      "gold": true,
+      "hasPatch": true,
+      "reproValid": true,
+      "judgeOK": true,
+      "passOnFix": true
+    },
+    {
+      "id": "matplotlib__matplotlib-23314",
+      "gold": false,
+      "hasPatch": false,
+      "reproValid": false,
+      "judgeOK": false,
+      "passOnFix": false
+    },
+    {
+      "id": "django__django-14534",
+      "gold": false,
+      "hasPatch": true,
+      "reproValid": true,
+      "judgeOK": true,
+      "passOnFix": false
+    },
+    {
+      "id": "scikit-learn__scikit-learn-13439",
+      "gold": true,
+      "hasPatch": true,
+      "reproValid": true,
+      "judgeOK": true,
+      "passOnFix": true
+    },
+    {
+      "id": "sphinx-doc__sphinx-7738",
+      "gold": false,
+      "hasPatch": true,
+      "reproValid": true,
+      "judgeOK": true,
+      "passOnFix": false
+    },
+    {
+      "id": "pylint-dev__pylint-7080",
+      "gold": false,
+      "hasPatch": true,
+      "reproValid": true,
+      "judgeOK": true,
+      "passOnFix": false
+    },
+    {
+      "id": "pytest-dev__pytest-6116",
+      "gold": false,
+      "hasPatch": true,
+      "reproValid": true,
+      "judgeOK": false,
+      "passOnFix": false
+    },
+    {
+      "id": "pydata__xarray-4094",
+      "gold": false,
+      "hasPatch": false,
+      "reproValid": true,
+      "judgeOK": true,
+      "passOnFix": false
+    },
+    {
+      "id": "astropy__astropy-12907",
+      "gold": false,
+      "hasPatch": false,
+      "reproValid": true,
+      "judgeOK": true,
+      "passOnFix": false
+    },
+    {
+      "id": "pallets__flask-4045",
+      "gold": false,
+      "hasPatch": false,
+      "reproValid": true,
+      "judgeOK": true,
+      "passOnFix": false
+    },
+    {
+      "id": "mwaskom__seaborn-3010",
+      "gold": true,
+      "hasPatch": true,
+      "reproValid": true,
+      "judgeOK": true,
+      "passOnFix": false
+    },
+    {
+      "id": "psf__requests-3362",
+      "gold": false,
+      "hasPatch": false,
+      "reproValid": true,
+      "judgeOK": true,
+      "passOnFix": false
+    },
+    {
+      "id": "django__django-15061",
+      "gold": false,
+      "hasPatch": true,
+      "reproValid": true,
+      "judgeOK": true,
+      "passOnFix": true
+    },
+    {
+      "id": "sympy__sympy-17139",
+      "gold": true,
+      "hasPatch": true,
+      "reproValid": true,
+      "judgeOK": true,
+      "passOnFix": true
+    },
+    {
+      "id": "scikit-learn__scikit-learn-13779",
+      "gold": true,
+      "hasPatch": true,
+      "reproValid": true,
+      "judgeOK": true,
+      "passOnFix": true
+    },
+    {
+      "id": "pytest-dev__pytest-5227",
+      "gold": true,
+      "hasPatch": true,
+      "reproValid": false,
+      "judgeOK": false,
+      "passOnFix": false
+    },
+    {
+      "id": "sphinx-doc__sphinx-8721",
+      "gold": true,
+      "hasPatch": true,
+      "reproValid": false,
+      "judgeOK": false,
+      "passOnFix": false
+    },
+    {
+      "id": "pylint-dev__pylint-7993",
+      "gold": true,
+      "hasPatch": true,
+      "reproValid": true,
+      "judgeOK": true,
+      "passOnFix": false
+    },
+    {
+      "id": "matplotlib__matplotlib-25433",
+      "gold": false,
+      "hasPatch": false,
+      "reproValid": false,
+      "judgeOK": false,
+      "passOnFix": false
+    },
+    {
+      "id": "astropy__astropy-6938",
+      "gold": false,
+      "hasPatch": true,
+      "reproValid": false,
+      "judgeOK": false,
+      "passOnFix": false
+    },
+    {
+      "id": "mwaskom__seaborn-3190",
+      "gold": true,
+      "hasPatch": true,
+      "reproValid": true,
+      "judgeOK": true,
+      "passOnFix": false
+    },
+    {
+      "id": "pydata__xarray-4248",
+      "gold": false,
+      "hasPatch": true,
+      "reproValid": true,
+      "judgeOK": true,
+      "passOnFix": false
+    },
+    {
+      "id": "django__django-14411",
+      "gold": false,
+      "hasPatch": true,
+      "reproValid": true,
+      "judgeOK": true,
+      "passOnFix": true
+    },
+    {
+      "id": "sympy__sympy-20212",
+      "gold": false,
+      "hasPatch": false,
+      "reproValid": true,
+      "judgeOK": true,
+      "passOnFix": false
+    },
+    {
+      "id": "matplotlib__matplotlib-23476",
+      "gold": false,
+      "hasPatch": false,
+      "reproValid": false,
+      "judgeOK": false,
+      "passOnFix": false
+    }
+  ]
+}

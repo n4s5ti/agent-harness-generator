@@ -316,3 +316,18 @@ candidate: the agent's self-written reproduce_bug.py (test-critic.mjs) gated to 
 that re-introduces the MCTS Goodhart risk (§10), so it needs careful validation, not a blind deploy. Net: the
 env-filter + LLM-judge discriminator (88% union capture, §18) remains the better conformant selector; the
 cascade structure only helps if/when a strong resolution-proxy gate exists.
+
+## 20. Judge-validated repro-gate = moderate (67% precision, 44% recall); judge counter-measure inert
+
+ADR-183 pilot (n=25, reused patches+gold): agent self-writes reproduce_bug.py → judge validates → run-on-patch.
+- reproValid (fail-on-base) 19/25 (76%, matches §13). Gate (valid∧judge∧passOnFix) fires 6/25.
+- **Gate precision vs gold = 67%** (4/6 real), recall 4/9 = 44%. A real RESOLUTION signal (unlike §19's
+  regression gate) but moderate + low-firing.
+- **The judge counter-measure was inert**: approved 18/19 valid repros → gate 67% with OR without it. The
+  repros weren't tautological enough to catch, so the Goodhart defense had nothing to do (and didn't help).
+- **Does NOT beat the champion** (Best-of-3 + LLM-judge = 39.7% @ $0.015, 88% union capture, §18). The
+  repro-pass is at best a FEATURE for the judge, not a standalone gate. No full run pursued.
+
+Conclusion of the cascade/gate arc (§19-20): conformant early-exit needs a strong resolution proxy; neither the
+repo regression-tests (3.7%) nor the self-repro gate (67%/44%) is strong enough to beat parallel Best-of-3.
+The LLM-judge discriminator remains the best conformant selector.

@@ -13,6 +13,8 @@
 set -euo pipefail
 BENCH="${BENCH:-verified}"; MODE="${MODE:-single}"; CONC="${CONCURRENCY:-3}"
 MODEL="${MODEL:-deepseek/deepseek-v4-flash}"; SLUG="$(echo "$MODEL" | tr '/:.' '-' )"
+ESCALATE="${ESCALATE:-}"          # tier-2 model for MODE=cascade
+SAMPLE="${SAMPLE:-}"              # if set, run only the first N instances (early proving)
 BRANCH="${BRANCH:-claude/darwin-mode-evolve-polyglot}"
 ORKEY="${ORKEY:-$(curl -s -H 'Metadata-Flavor: Google' 'http://metadata/computeMetadata/v1/instance/attributes/orkey' 2>/dev/null || true)}"
 [ -n "$ORKEY" ] || { echo "FATAL: ORKEY not set"; exit 1; }
@@ -44,11 +46,17 @@ python3 -m venv /opt/sweb-venv
 /opt/sweb-venv/bin/pip install -q --upgrade pip
 /opt/sweb-venv/bin/pip install -q swebench datasets
 
-echo "=== [4/5] SOLVE ($BENCH, $MODE) — interactive ReAct, conformant ==="
+echo "=== [4/5] SOLVE ($BENCH, $MODE, sample=${SAMPLE:-full}) — interactive ReAct, conformant ==="
 OUT=/opt/darwin/out; mkdir -p "$OUT"
+# Early proving: slice the manifest to the first SAMPLE instances for a fast architecture pilot.
+if [ -n "$SAMPLE" ]; then
+  node -e "const m=JSON.parse(require('fs').readFileSync('$MANIFEST','utf8'));require('fs').writeFileSync('/tmp/sample.json',JSON.stringify({instances:m.instances.slice(0,$SAMPLE)}))"
+  MANIFEST=/tmp/sample.json; echo "sampled first $SAMPLE instances"
+fi
+CASCADE_FLAG=""; [ "$MODE" = cascade ] && [ -n "$ESCALATE" ] && CASCADE_FLAG="--cascade $ESCALATE"
 solve() { # temp out
   OPENROUTER_API_KEY="$ORKEY" node --experimental-strip-types --no-warnings solve-agentic.mjs \
-    --manifest "$MANIFEST" --no-test-oracle --model "$MODEL" \
+    --manifest "$MANIFEST" --no-test-oracle --model "$MODEL" $CASCADE_FLAG \
     --temperature "$1" --max-steps 15 --concurrency "$CONC" --max-cost 20 \
     --out "$OUT/$2" --report "$OUT/${2%.jsonl}-report.json"
 }
@@ -60,7 +68,7 @@ if [ "$MODE" = bo3 ]; then
     --out "$OUT/preds-judged.jsonl" --report "$OUT/disc-report.json"
   PREDS="$OUT/preds-judged.jsonl"
 else
-  solve 0 "preds-single.jsonl"; PREDS="$OUT/preds-single.jsonl"
+  solve 0 "preds-single.jsonl"; PREDS="$OUT/preds-single.jsonl"   # MODE=single or cascade
 fi
 
 echo "=== [5/5] GOLD EVAL (official harness) ==="
