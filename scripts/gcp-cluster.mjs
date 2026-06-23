@@ -88,19 +88,44 @@ function status() {
   }
 }
 
+function fsToken() { return gq(['auth', 'print-access-token']).trim(); }
+function pushFirestore(rec) {
+  const tv = (v) => v === null ? { nullValue: null } : typeof v === 'boolean' ? { booleanValue: v }
+    : typeof v === 'number' ? (Number.isInteger(v) ? { integerValue: String(v) } : { doubleValue: v }) : { stringValue: String(v) };
+  const fields = Object.fromEntries(Object.entries(rec).map(([k, v]) => [k, tv(v)]));
+  const url = `https://firestore.googleapis.com/v1/projects/${PROJECT}/databases/(default)/documents/darwin_runs`;
+  try { sh(`curl -s -X POST '${url}' -H 'Authorization: Bearer ${fsToken()}' -H 'Content-Type: application/json' -d '${JSON.stringify({ fields }).replace(/'/g, "'\\''")}'`); return true; } catch { return false; }
+}
+const DENOM = { lite: 300, verified: 500, multilingual: 300 };
 function collect(name) {
   const dir = `./fleet-out/${name}`; mkdirSync(dir, { recursive: true });
-  console.error(`scp ${name}:/opt/darwin/out → ${dir}`);
   try { gq(['compute', 'scp', '--recurse', `${name}:/opt/darwin/out`, dir, `--project=${PROJECT}`, `--zone=${ZONE}`]); }
-  catch (e) { console.error('scp failed (run still in progress?):', e.message.split('\n')[0]); return; }
-  // find the gold-eval report + push a record to Firestore
-  let report;
-  try { report = sh(`ls ${dir}/out/*darwin-*.json 2>/dev/null | head -1`).trim(); } catch {}
+  catch (e) { console.error(`scp ${name} failed (run in progress?):`, e.message.split('\n')[0]); return false; }
+  let report; try { report = sh(`ls ${dir}/out/*darwin-*.json 2>/dev/null | head -1`).trim(); } catch {}
   if (report && existsSync(report)) {
     const r = JSON.parse(readFileSync(report, 'utf8'));
-    const resolved = (r.resolved_ids || []).length, total = (r.submitted_ids || r.completed_ids || []).length || '?';
-    console.log(`✓ ${name}: ${resolved} resolved (report ${report}). Push to Firestore via firestore-upload.mjs.`);
-  } else console.log(`collected to ${dir} (no gold report yet)`);
+    const board = name.split('-')[1], model = name.split('-').slice(2).join('-');
+    const resolved = (r.resolved_ids || []).length, total = DENOM[board] || 300;
+    const ok = pushFirestore({ benchmark: BOARDS[board] || board, model, mode: 'single', resolved, total,
+      resolve_pct: +(resolved / total * 100).toFixed(1), conformant: true, ts: new Date().toISOString().slice(0, 10), source: `gcp:${name}` });
+    console.log(`✓ ${name}: ${resolved}/${total} = ${(resolved / total * 100).toFixed(1)}% → Firestore ${ok ? 'OK' : 'FAIL'}`);
+    return true;
+  }
+  console.log(`${name}: collected to ${dir} (no gold report yet)`); return false;
+}
+
+async function supervise() {
+  const collected = new Set();
+  for (let tick = 0; ; tick++) {
+    console.log(`\n[supervise tick ${tick} ${new Date().toISOString()}]`);
+    status();
+    for (const v of listVMs()) {
+      if (collected.has(v.name)) continue;
+      const log = v.status === 'RUNNING' ? serial(v.name) : '';
+      if (/STARTUP_DONE|=== DONE/.test(log)) { if (collect(v.name)) collected.add(v.name); }
+    }
+    await new Promise(r => setTimeout(r, 300000)); // 5 min
+  }
 }
 
 const [cmd, a, b, c] = process.argv.slice(2);
@@ -109,6 +134,7 @@ else if (cmd === 'matrix') { for (const [board, model, tag] of MATRIX) try { pro
 else if (cmd === 'status') status();
 else if (cmd === 'logs') console.log(serial(a).split('\n').slice(-30).join('\n'));
 else if (cmd === 'collect') collect(a);
+else if (cmd === 'supervise') await supervise();
 else if (cmd === 'down') {
   const names = a === 'all' ? listVMs().map(v => v.name) : [a];
   if (names.length) { gq(['compute', 'instances', 'delete', ...names, `--project=${PROJECT}`, `--zone=${ZONE}`, '--quiet']); console.log(`deleted: ${names.join(', ')}`); }

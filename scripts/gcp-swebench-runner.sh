@@ -69,4 +69,18 @@ cd /tmp
   --dataset_name "$DS" --predictions_path "$PREDS" \
   --run_id "darwin-$BENCH-$SLUG-$MODE" --max_workers "$CONC" --cache_level instance --timeout 1200 || true
 cp -f /tmp/*darwin-$BENCH-$SLUG-$MODE*.json "$OUT/" 2>/dev/null || true
-echo "=== DONE — results in $OUT ; retrieve with: gcloud compute scp --recurse VM:$OUT ./ ==="
+
+echo "=== [6/6] self-report to Firestore (via VM service-account token) ==="
+REPORT=$(ls "$OUT"/*darwin-$BENCH-$SLUG-$MODE*.json 2>/dev/null | head -1)
+if [ -n "$REPORT" ]; then
+  TOKEN=$(curl -s -H 'Metadata-Flavor: Google' 'http://metadata/computeMetadata/v1/instance/service-accounts/default/token' | node -pe 'JSON.parse(require("fs").readFileSync(0)).access_token' 2>/dev/null)
+  PROJECT_ID=$(curl -s -H 'Metadata-Flavor: Google' 'http://metadata/computeMetadata/v1/project/project-id')
+  RESOLVED=$(node -pe "(JSON.parse(require('fs').readFileSync('$REPORT')).resolved_ids||[]).length" 2>/dev/null || echo 0)
+  case "$BENCH" in verified) TOTAL=500;; multilingual) TOTAL=300;; *) TOTAL=300;; esac
+  PCT=$(node -pe "($RESOLVED/$TOTAL*100).toFixed(1)")
+  curl -s -X POST "https://firestore.googleapis.com/v1/projects/$PROJECT_ID/databases/(default)/documents/darwin_runs" \
+    -H "Authorization: Bearer $TOKEN" -H 'Content-Type: application/json' \
+    -d "{\"fields\":{\"benchmark\":{\"stringValue\":\"$BENCH\"},\"model\":{\"stringValue\":\"$MODEL\"},\"mode\":{\"stringValue\":\"$MODE\"},\"resolved\":{\"integerValue\":\"$RESOLVED\"},\"total\":{\"integerValue\":\"$TOTAL\"},\"resolve_pct\":{\"doubleValue\":$PCT},\"conformant\":{\"booleanValue\":true},\"source\":{\"stringValue\":\"gcp-fleet\"},\"ts\":{\"stringValue\":\"$(date -I)\"}}}" >/dev/null \
+    && echo "self-reported $RESOLVED/$TOTAL = $PCT% to Firestore darwin_runs" || echo "Firestore self-report failed (results still in $OUT)"
+fi
+echo "=== DONE — results in $OUT ==="
