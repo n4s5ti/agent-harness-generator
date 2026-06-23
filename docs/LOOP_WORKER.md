@@ -1,7 +1,30 @@
 # Darwin Mode — autonomous loop worker directive
 
-Versioned source of truth for the cron/`/loop` worker. **Cadence: every 5 min until complete.**
-Updated 2026-06-22 for the **ADR-173 leaderboard-conformant phase**.
+Versioned source of truth for the cron/`/loop` worker. **Cadence: every 10 min, CONCURRENT workflow, until SOTA.**
+Updated 2026-06-22 for the **ADR-176 SWE-Conductor ablation phase** (overnight autonomous).
+
+## CONCURRENT ABLATION WORKFLOW (run until SOTA — conformant Lite ≥45% top-10, ideally >60.33% #1)
+Keep MULTIPLE conformant MCTS arms in flight at once (container-reuse bounds Docker load; box handled
+3 arms at load <1). Each arm = `solve-mcts.mjs` with a model combo. On each arm completion → gold batch
+eval → resolved/25 + Wilson CI → record. When a round's arms finish, **read the 2×2, pick the winner,
+launch the next round** — autonomously, no waiting for the human.
+
+**The 2×2 ablation (in flight 2026-06-22):** critic ∈ {DeepSeek-V4-Flash, Opus-4.8} × coder ∈
+{DeepSeek-V4-Flash, qwen3-coder-30b}. A=DS+DS=12% (done). A′=Opus+DS, B=Opus+qwen, C=DS+qwen (running).
+Reads: oracle binds if Opus-critic rows beat DS-critic rows; coder binds if qwen rows beat DS rows.
+
+**Decision tree (execute the winning lever each round):**
+- If a combo clears ~25%+ on 25 → scale it to a fresh 50-instance pilot, then full-300.
+- If oracle binds (Opus-critic lifts) but coder is the cap → swap coder up the ladder: qwen3-coder →
+  minimax-m2.5 ($0.15/$0.90) → claude-haiku-4.5 → Opus-coder sniper on the residual tail only.
+- If nothing clears ~25% → the residual is reasoning-bound; run the **Opus-sniper on repro-valid-but-
+  unsolved** instances (asymmetric, the tail only) and measure the hybrid ceiling.
+- Stop when a conformant full-300 batch hits ≥45% (top-10) — then package trajs/ + metadata.yaml + submit
+  PR to swe-bench/experiments. Or when the fresh $500 is exhausted / no lever moves resolve (then write
+  the architecture-exhausted ADR + idle on health/upkeep).
+
+Levers queue (SOTA_HORIZON.md): L1 Opus-sniper · L2 plan-then-edit · L3 SBFL localization ($0) ·
+best-of-N voting · regression-test selection. Pick highest lift-per-$ each round.
 
 ## Active goal (ADR-173): a LEGITIMATE top-10 on SWE-bench Lite → then Verified
 Our 68.3% used the gold `FAIL_TO_PASS` as an in-loop oracle → **not submittable**. Drive a conformant,
