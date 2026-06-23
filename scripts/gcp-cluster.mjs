@@ -148,10 +148,18 @@ async function supervise() {
   for (let tick = 0; ; tick++) {
     console.log(`\n[supervise tick ${tick} ${new Date().toISOString()}]`);
     status();
+    // collect-then-DELETE any done worker (cost-saver). Firestore self-report is the source of truth, so
+    // delete even if scp fails / the VM already AUTOSTOP-halted. Never the controller.
     for (const v of listVMs()) {
-      if (collected.has(v.name)) continue;
+      if (v.name === `${PREFIX}controller` || collected.has(v.name)) continue;
       const log = v.status === 'RUNNING' ? serial(v.name) : '';
-      if (/STARTUP_DONE|=== DONE/.test(log)) { if (collect(v.name)) collected.add(v.name); }
+      const done = v.status === 'TERMINATED' || v.status === 'STOPPED' || /STARTUP_DONE|=== DONE/.test(log);
+      if (done) {
+        try { collect(v.name); } catch { /**/ }            // best-effort local copy
+        console.log(`cleanup: deleting done ${v.name} (results in Firestore)`);
+        try { gq(['compute', 'instances', 'delete', v.name, `--project=${PROJECT}`, `--zone=${ZONE}`, '--quiet']); } catch { /**/ }
+        collected.add(v.name);
+      }
     }
     await new Promise(r => setTimeout(r, 300000)); // 5 min
   }

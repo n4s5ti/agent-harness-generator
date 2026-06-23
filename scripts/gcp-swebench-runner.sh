@@ -103,3 +103,5 @@ if [ -n "$REPORT" ]; then
     && echo "self-reported $RESOLVED/$TOTAL = $PCT% to Firestore darwin_runs" || echo "Firestore self-report failed (results still in $OUT)"
 fi
 echo "=== DONE — results in $OUT ==="
+# Cost-saver: halt the VM after a short grace (results already self-reported to Firestore). AUTOSTOP=0 to keep alive for debugging.
+if [ "${AUTOSTOP:-1}" = "1" ]; then echo "AUTOSTOP: halting VM in 2 min (compute billing stops; controller deletes terminated VMs)"; (sleep 120; shutdown -h now) & fi
