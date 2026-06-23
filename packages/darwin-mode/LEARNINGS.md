@@ -250,3 +250,11 @@ interactive-loop + Best-of-N + judge architecture (vs the MCTS dead end, ADR-177
 **HONEST GATES (do not over-claim):** n=25, Wilson [33.5, 70.0] is too wide to assert top-10 (lower bound
 33.5% < 45%), AND the temps/judge-prompt were tuned on these 25 (overfit risk). The **full-300 Best-of-3**
 is required before any placement claim or submission. Running now. Only the full-300 batch number counts.
+
+## 17. FIRM ANCHOR: interactive single-trajectory = 34.0% full-300 conformant @ $0.005/inst
+
+Set A (DeepSeek-V4-Flash, temp 0, interactive ReAct, conformant, repo's-own-tests), official gold harness,
+**full 300 SWE-bench Lite: 102/300 = 34.0% [Wilson 28.9, 39.5] @ ~$0.005/instance.** The 36% 25-pilot
+(§13) held at scale — single-trajectory is the real, scale-invariant baseline (CI now tight). A standalone
+cost-Pareto point: 34% conformant at half a cent/instance. Next: full-300 Best-of-3 (temp 0/0.3/0.5) +
+discriminator → the >45% submittable target (union math from §15: ~60% ceiling).
