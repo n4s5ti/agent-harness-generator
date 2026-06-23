@@ -110,3 +110,28 @@ leaderboard** (held-out grader) but is the **correct default for real-world use*
 **Keep both as first-class options.** They answer different questions: "fix it when I give you the test"
 (product, oracle-ON) vs "fix it with no test" (benchmark, oracle-OFF). Don't conflate the numbers — the
 68.3% is real and useful; it just isn't a leaderboard entry. The solver flag already toggles cleanly.
+
+## 10. The DeepSeek-V4-Flash conformant ceiling (~12-20%) — plumbing fixes don't lift reasoning; self-repro gating can Goodhart
+
+Three gold-graded 25-instance Lite pilots, conformant (no gold oracle in-loop), DeepSeek-V4-Flash:
+
+| config | attempt-rate | repro-validity | gold resolve [Wilson] |
+|---|---|---|---|
+| search floor | 44% | 68% | 5/25 = 20.0% [8.9, 39.1] |
+| line-applicator | 80% | 64% | 4/25 = 16.0% |
+| line + repro-gap fix (combined) | 76% | 80% | 3/25 = 12.0% [4.2, 30.0] |
+
+**Findings:**
+1. **Reasoning is the wall.** Maxing attempt-rate (line-number editing) and repro-validity (run repros as
+   plain python — django/sympy testbeds lack pytest) gave NO resolve lift. The model writes applicable,
+   syntactically-clean patches that are simply *wrong* on cross-file/lifecycle bugs.
+2. **CIs overlap — the three are statistically indistinguishable at n=25** (~15% center). Do NOT claim
+   16% or 12% as a real drop from 20%; claim only "~12-20%, no lift from plumbing."
+3. **Goodhart signal (suggestive, n=25):** the combined-resolved set is a STRICT SUBSET of the floor's,
+   losing 2 the floor got. More self-repro gating selected patches that pass the agent's *weak* self-test
+   but fail gold — displacing lucky best-effort wins. Validates ruflo #47 empirically. A weak model
+   cannot author a faithful repro, so its self-oracle is an unreliable selection target.
+
+**Consequence:** pure-cheap conformant cannot reach top-10 (45%). The only lever is real reasoning — the
+Opus-4.8 sniper (ADR-176), which can both fix the hard tail AND author a stronger repro (breaking the
+Goodhart loop). The Pareto thesis survives only as a hybrid: cheap evidence-gathering + frontier sniper.
