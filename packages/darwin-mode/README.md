@@ -11,13 +11,20 @@ surface at a time, tests each change in a sandbox, and keeps only what *measurab
 improves, building an archive of successful descendants. No weight updates, no
 fine-tuning — just a population, a benchmark, and an archive.
 
-**Why it pays off (measured, not marketing):**
-- **Cheap beats frontier.** On a 15-model × 6-language execution benchmark, DeepSeek-V3
-  ($0.4/Mtok) tops quality-per-dollar — and the harness, not the model, is the lever (ADR-085).
-- **Real bug-fixing for pennies.** Resolves real **SWE-bench Lite** issues at **~$0.01/instance**
-  with a sub-$1/Mtok model (ADR-142–146) — vs. $1–20/instance for frontier-model agents.
-- **The harness is the multiplier.** Evolving context-window/selection/retry policy lifts a
-  fixed model's measured outcomes (e.g. `finalScore 0.765 → 0.985`, ADR-103) — same model, better results.
+**Why it pays off (measured, not marketing — every number links to proof):**
+- **Conformant bug-fixing for half a cent.** A single interactive trajectory (DeepSeek-V4-Flash,
+  no gold tests in-loop) resolves **34.0%** of real **SWE-bench Lite** issues — `102/300`,
+  Wilson 95% CI `[28.9, 39.5]`, **~$0.005/instance** — on the full 300-instance set, official
+  `swebench` Docker harness. [eval report](https://github.com/ruvnet/agent-harness-generator/blob/main/packages/darwin-mode/bench/swebench/setA-full300-eval-report.json)
+  · [LEARNINGS §17](https://github.com/ruvnet/agent-harness-generator/blob/main/packages/darwin-mode/LEARNINGS.md)
+- **Best-of-3 + LLM-judge selection ≈ 52%** (pilot, n=25, conformant; full-300 in progress) at **~$0.015/instance** —
+  [LEARNINGS §15–16](https://github.com/ruvnet/agent-harness-generator/blob/main/packages/darwin-mode/LEARNINGS.md).
+- **Cost-Pareto frontier, not raw score.** At ~$0.005–0.015/instance Darwin sits on the
+  resolve-per-dollar frontier vs. real leaderboard systems (which run $0.1–$2.5+/instance for
+  comparable resolve) — see the live **[Cost-Pareto leaderboard](https://ruvnet.github.io/agent-harness-generator/cost-pareto.html)**
+  (real scores from [swe-bench/experiments](https://github.com/swe-bench/experiments/tree/main/evaluation/lite); competitor costs estimated from disclosed models).
+- **The harness is the multiplier.** The breakthrough was a scaffold change (MCTS → stateful
+  interactive ReAct with the repo's own tests as the regression gate), same cheap model — [LEARNINGS §13](https://github.com/ruvnet/agent-harness-generator/blob/main/packages/darwin-mode/LEARNINGS.md).
 
 This follows the **Darwin Gödel Machine** lineage: iteratively mutate the source of a
 coding agent, then *empirically validate* each variant.
@@ -27,8 +34,10 @@ coding agent, then *empirically validate* each variant.
 **Hand Darwin a failing test, get a verified-fix PR — at ~$0.01–0.08/instance.** On **SWE-bench Lite**,
 TDR resolves **68.3%** of real issues *when given the acceptance test* (the realistic CI/CD setting —
 where a developer or a failing CI job already has the test). Measured on the official `swebench` Docker
-harness, Wilson 95% CI, RESULTS §30. This is the hero workflow: a high-margin, low-cost autonomous
+harness, Wilson 95% CI — [RESULTS §30](https://github.com/ruvnet/agent-harness-generator/blob/main/packages/darwin-mode/bench/results/RESULTS.md). This is the hero workflow: a high-margin, low-cost autonomous
 maintainer for the case that actually matters in production — **a bug with a reproducing test.**
+This is a *with-acceptance-test* number, **not** a leaderboard claim; the leaderboard-legal (no-test-in-loop)
+results are the conformant 34%/52% above.
 
 ### Two modes (ADR-175) — chosen by whether a test exists
 | mode | when | signal | what you get |
