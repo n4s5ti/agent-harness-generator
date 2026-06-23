@@ -1,0 +1,5 @@
+# Transient SWE-bench run outputs (reproducible; bulky). Committed *-eval-report.json (ADR-cited) are exceptions.
+predictions-*.jsonl
+solve-*.json
+mcts-repros/
+!*-eval-report.json

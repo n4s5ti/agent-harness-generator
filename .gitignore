@@ -53,3 +53,4 @@ ruvector.db
 # Python bytecode (e.g. fuzz fixture compilation)
 __pycache__/
 *.pyc
+.swarm/
