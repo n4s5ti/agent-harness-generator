@@ -181,3 +181,25 @@ low gold rate (16%) is the Goodhart signature — and it's worst for single-atte
 must be best-of-k Opus *coding* to convert, which collapses back to ~Arm-D cost. The honest frontier
 config is Opus best-of-3 coding (~33% @ $3.49/inst), and the remaining lever to reach 45% is the SCAFFOLD
 (plan-then-edit, stronger gating), not cheaper escalation. Record: hybrid resolved ⊆ A′ resolved exactly.
+
+## 13. BREAKTHROUGH — the stateful interactive loop ~doubles cheap-model conformant resolve (36% vs 16%)
+
+The architecture, not the model, was the cap. Swapping MCTS+self-repro for a **stateful interactive ReAct
+loop** (read/grep/ls/edit/run_tests/submit) where `run_tests` runs the **repo's OWN existing tests in
+Docker** (conformant regression-guard, NO self-written proxy) — single trajectory, DeepSeek-V4-Flash:
+
+**9/25 = 36.0% [Wilson 20.2, 55.5] @ $0.005/instance, conformant (leakage-guarded).**
+
+vs the same cheap model under MCTS+self-repro: 12-16%. vs Opus-best-of-3 MCTS: 33% @ $3.49/inst. The
+interactive loop **beats frontier-MCTS at ~700× lower cost** and resolves a broader, different set
+(matplotlib/seaborn/pylint/sympy/sklearn/sphinx — incl. sympy & matplotlib MCTS never got).
+
+**Why:** the interactive loop lets a cheap model explore like a developer (read → edit → run → see error →
+fix) — maximizing its spatial reasoning — instead of forcing a blind one-shot patch gated by a flawed
+self-test (the Goodhart trap of LEARNINGS §10-12). Eliminates empty-patch + format-hallucination natively.
+
+**Caveat:** n=25, wide CI; in-loop showed 0 (existing tests = regression-guard, not fix-signal — the model
+fixes from issue-understanding, submits its diff regardless). Full-300 ($0.005×300 ≈ $1.50) tightens it.
+Next: full-300 single-traj → then Best-of-N (selection-without-oracle is the open problem). This reopens
+the Pareto-crown path the MCTS ablation (ADR-177) had closed — supersede ADR-177's "scaffold is the
+ceiling" with "the MCTS scaffold was; the interactive scaffold is not."
