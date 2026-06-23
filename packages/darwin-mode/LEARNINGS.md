@@ -135,3 +135,32 @@ Three gold-graded 25-instance Lite pilots, conformant (no gold oracle in-loop), 
 **Consequence:** pure-cheap conformant cannot reach top-10 (45%). The only lever is real reasoning — the
 Opus-4.8 sniper (ADR-176), which can both fix the hard tail AND author a stronger repro (breaking the
 Goodhart loop). The Pareto thesis survives only as a hybrid: cheap evidence-gathering + frontier sniper.
+
+## 11. The 2×2+D ablation — the CODER binds, not the oracle; cheap-Pareto falsified
+
+Gold-graded conformant Lite pilots, critic × coder matrix (line-applicator + repro-gap fix):
+
+| critic ↓ / coder → | DeepSeek-V4-Flash | qwen3-coder-30b | Opus-4.8 |
+|---|---|---|---|
+| **DeepSeek-V4-Flash** | 12% (3/25) | **0%** (0/25) | — |
+| **Opus-4.8** | **16%** (4/25) [6.4,34.7] | 4% (1/25) | **33%** (6/18) [16.3,56.3] |
+
+Costs: Opus-critic+DS-coder = **$0.08/inst**; Opus+Opus = **$3.49/inst** (44× more).
+
+**Findings:**
+1. **Coder is the binding constraint.** DeepSeek coder caps ~12-16% *regardless of oracle*; only the
+   Opus CODER reaches 33%. A strong (Opus) oracle lifts the cheap coder only 12→16% (overlapping CIs = noise).
+2. **Cheap-Pareto thesis FALSIFIED.** Opus-oracle + cheap-coder (A′=16%) does NOT approach frontier (D=33%).
+   The hope that a faithful contract unlocks cheap coding is wrong: DeepSeek patches pass even an Opus-
+   authored repro but still fail gold — the cheap model can't *write* the cross-file fix, contract or not.
+3. **qwen3-coder-30b is catastrophic in our scaffold** (0-4%) despite being leaderboard-#10 via EntroPO —
+   harness-specific; does not transfer. DeepSeek is the better cheap coder.
+4. **Even frontier coding caps at 33%** (D) — far below Opus's 76.8% Verified — so the SCAFFOLD (self-repro
+   gating + MCTS + localization) is also a ceiling. SOTA needs frontier coding AND scaffold levers.
+
+**Consequence:** the path to a real number is frontier *coding* where it matters (asymmetric Opus-sniper
+on the cheap coder's tail — budget-viable vs Opus-on-all at ~$1000/300) PLUS scaffold levers (SBFL,
+plan-then-edit, stronger gating) to lift the 33% ceiling toward the 45% top-10 bar. The "SOTA at pennies"
+framing is dead; the realistic play is "competitive resolve cheaper than pure-frontier", a Pareto point
+among expensive systems, not a cheap one. (n=18-25, CIs wide; coder>oracle direction + qwen-catastrophe
+are clear, A′≠D point estimate is the falsification.)
