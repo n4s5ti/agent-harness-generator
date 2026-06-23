@@ -25,11 +25,17 @@ const ENV_FILTER = !args.includes('--no-env-filter'); // Signal A: prune candida
 const manifest = JSON.parse(readFileSync(rel(argv('--manifest', 'pilot-sample-25.json')), 'utf8')).instances;
 
 // Existing tests in the changed file's package (conformant regression signal) — same rule as solve-agentic.
+// Target the SPECIFIC test file for each changed module (test_<mod>.py), NOT the whole package tests/
+// dir — `sklearn/tests` etc. spawn multi-hundred-%-CPU pytest storms (the 2026-06-23 load-180 incident).
 function existingTestTargets(diff) {
   const files = [...diff.matchAll(/^\+\+\+ b\/(.+\.py)$/gm)].map((m) => m[1]).filter((f) => !/(^|\/)(test_|tests?\/|conftest)/i.test(f));
-  const dirs = new Set();
-  for (const f of files) { const parts = f.split('/'); for (let i = parts.length - 1; i >= 1; i--) dirs.add(parts.slice(0, i).join('/') + '/tests'); }
-  return [...dirs].slice(0, 4);
+  const targets = new Set();
+  for (const f of files) {
+    const parts = f.split('/'); const base = parts[parts.length - 1].replace(/\.py$/, ''); const dir = parts.slice(0, -1).join('/');
+    targets.add(`${dir}/tests/test_${base}.py`); // pkg/sub/tests/test_mod.py
+    targets.add(`${dir}/test_${base}.py`);        // pkg/sub/test_mod.py
+  }
+  return [...targets].slice(0, 4);
 }
 // Returns 'pass' (ran clean) | 'fail' (ran + regressed → prune) | 'nosignal' (couldn't run → keep, abstain).
 function envSignal(instanceId, patch) {

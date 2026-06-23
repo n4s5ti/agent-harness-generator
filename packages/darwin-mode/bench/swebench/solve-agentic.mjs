@@ -111,13 +111,14 @@ let usedOracleDuringSolve = false;
 // for a changed `a/b/c.py`, run the nearest `tests/` dir under the package root.
 function existingTestTargets(diff) {
   const files = [...diff.matchAll(/^\+\+\+ b\/(.+\.py)$/gm)].map((m) => m[1]).filter((f) => !/(^|\/)(test_|tests?\/|conftest)/i.test(f));
-  const dirs = new Set();
+  // SPECIFIC test file per changed module (test_<mod>.py) — NOT whole package tests/ dirs (sklearn-pytest storm, 2026-06-23).
+  const targets = new Set();
   for (const f of files) {
-    const parts = f.split('/');
-    // walk up: prefer "<pkgroot>/tests" (e.g. lib/matplotlib/tests), else "tests" at a parent
-    for (let i = parts.length - 1; i >= 1; i--) { dirs.add(parts.slice(0, i).join('/') + '/tests'); }
+    const parts = f.split('/'); const base = parts[parts.length - 1].replace(/\.py$/, ''); const dir = parts.slice(0, -1).join('/');
+    targets.add(`${dir}/tests/test_${base}.py`);
+    targets.add(`${dir}/test_${base}.py`);
   }
-  return [...dirs].slice(0, 4);
+  return [...targets].slice(0, 4);
 }
 function runRepoTests(instanceId, diff) {
   const targets = existingTestTargets(diff);
