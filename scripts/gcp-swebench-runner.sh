@@ -48,6 +48,17 @@ python3 -m venv /opt/sweb-venv
 
 echo "=== [4/5] SOLVE ($BENCH, $MODE, sample=${SAMPLE:-full}) — interactive ReAct, conformant ==="
 OUT=/opt/darwin/out; mkdir -p "$OUT"
+# Generate the manifest from the HF dataset if it isn't committed (robust for any board — fixes verified-500 ENOENT).
+if [ ! -f "$MANIFEST" ]; then
+  echo "manifest $MANIFEST missing — generating from $DS"
+  /opt/sweb-venv/bin/python -c "
+import json
+from datasets import load_dataset
+d=load_dataset('$DS', split='test')
+inst=[{'instance_id':r['instance_id'],'repo':r['repo'],'base_commit':r['base_commit'],'problem_statement':r['problem_statement']} for r in d]
+json.dump({'instances':inst}, open('$MANIFEST','w')); print('generated', len(inst), 'instances')
+"
+fi
 # Early proving: slice the manifest to the first SAMPLE instances for a fast architecture pilot.
 if [ -n "$SAMPLE" ]; then
   node -e "const m=JSON.parse(require('fs').readFileSync('$MANIFEST','utf8'));require('fs').writeFileSync('/tmp/sample.json',JSON.stringify({instances:m.instances.slice(0,$SAMPLE)}))"
