@@ -1,0 +1,117 @@
+{
+  "w": 0.9,
+  "gens": 6,
+  "pop": 10,
+  "hist": [
+    {
+      "gen": 0,
+      "best": "45.9",
+      "bestGenome": "deepseek/deepseek-v4-flash|bo3||deepseek/deepseek-v4-flash|12",
+      "meanValue": "39.1"
+    },
+    {
+      "gen": 1,
+      "best": "44.5",
+      "bestGenome": "moonshotai/kimi-k2.6|cascade|moonshotai/kimi-k2.6|deepseek/deepseek-v4-flash|15",
+      "meanValue": "39.1"
+    },
+    {
+      "gen": 2,
+      "best": "48.4",
+      "bestGenome": "moonshotai/kimi-k2.6|bo3||anthropic/claude-opus-4.8|15",
+      "meanValue": "41.4"
+    },
+    {
+      "gen": 3,
+      "best": "48.7",
+      "bestGenome": "deepseek/deepseek-v4-flash|bo3||deepseek/deepseek-v4-flash|12",
+      "meanValue": "44.0"
+    },
+    {
+      "gen": 4,
+      "best": "48.9",
+      "bestGenome": "moonshotai/kimi-k2.6|bo3||anthropic/claude-opus-4.8|20",
+      "meanValue": "42.0"
+    },
+    {
+      "gen": 5,
+      "best": "47.7",
+      "bestGenome": "deepseek/deepseek-v4-flash|single||deepseek/deepseek-v4-flash|20",
+      "meanValue": "42.3"
+    }
+  ],
+  "champion": {
+    "g": {
+      "model": "deepseek/deepseek-v4-flash",
+      "mode": "bo3",
+      "escalate": null,
+      "judge": "deepseek/deepseek-v4-flash",
+      "maxSteps": 15
+    },
+    "mean": 45.248252076010516,
+    "sd": 2.2458448879448367,
+    "ci95": 1.9685698398551006
+  },
+  "leaderboard": [
+    {
+      "g": {
+        "model": "deepseek/deepseek-v4-flash",
+        "mode": "bo3",
+        "escalate": null,
+        "judge": "deepseek/deepseek-v4-flash",
+        "maxSteps": 15
+      },
+      "mean": 45.248252076010516,
+      "sd": 2.2458448879448367,
+      "ci95": 1.9685698398551006
+    },
+    {
+      "g": {
+        "model": "moonshotai/kimi-k2.6",
+        "mode": "bo3",
+        "escalate": null,
+        "judge": "anthropic/claude-opus-4.8",
+        "maxSteps": 15
+      },
+      "mean": 43.01713648322862,
+      "sd": 1.8135880711043324,
+      "ci95": 1.5896800343874276
+    },
+    {
+      "g": {
+        "model": "z-ai/glm-5.2",
+        "mode": "bo3",
+        "escalate": null,
+        "judge": "anthropic/claude-opus-4.8",
+        "maxSteps": 20
+      },
+      "mean": 42.54709738464334,
+      "sd": 1.55936757084823,
+      "ci95": 1.3668459410075415
+    },
+    {
+      "g": {
+        "model": "moonshotai/kimi-k2.6",
+        "mode": "bo3",
+        "escalate": null,
+        "judge": "anthropic/claude-opus-4.8",
+        "maxSteps": 20
+      },
+      "mean": 42.40095519446035,
+      "sd": 2.127653873506895,
+      "ci95": 1.8649708479508447
+    },
+    {
+      "g": {
+        "model": "moonshotai/kimi-k2.6",
+        "mode": "cascade",
+        "escalate": "z-ai/glm-5.2",
+        "judge": "anthropic/claude-opus-4.8",
+        "maxSteps": 20
+      },
+      "mean": 42.287505256933635,
+      "sd": 1.3651005462610848,
+      "ci95": 1.1965633860842575
+    }
+  ]
+}
