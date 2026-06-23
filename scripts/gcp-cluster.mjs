@@ -52,11 +52,12 @@ echo "STARTUP_DONE $(date)" >> /var/log/darwin-runner.log
 
 function listVMs() {
   try {
-    const out = gq(['compute', 'instances', 'list', `--project=${PROJECT}`, '--format=value(name,status)']);
-    return out.trim().split('\n').filter(l => l.startsWith(PREFIX)).map(l => { const [name, status] = l.split('\t'); return { name, status }; });
+    const out = gq(['compute', 'instances', 'list', `--project=${PROJECT}`, '--format=value(name,status,machineType.basename())']);
+    return out.trim().split('\n').filter(l => l.startsWith(PREFIX)).map(l => { const [name, status, mtype = ''] = l.split('\t'); const vcpu = +(mtype.match(/-(\d+)$/)?.[1]) || (/small|micro/.test(mtype) ? 2 : VCPU); return { name, status, mtype, vcpu }; });
   } catch { return []; }
 }
-function usedVCPU() { return listVMs().filter(v => v.status === 'RUNNING' || v.status === 'STAGING').length * VCPU; }
+function usedVCPU() { return listVMs().filter(v => v.status === 'RUNNING' || v.status === 'STAGING').reduce((s, v) => s + v.vcpu, 0); }
+function vmExists(name) { return listVMs().some(v => v.name === name); }
 
 function provision(o) {
   const { board, model, tag, mode = 'single', sample = '', escalate = '', machine = MACHINE } = o;
@@ -64,6 +65,7 @@ function provision(o) {
   const vcpu = +(machine.match(/-(\d+)$/)?.[1]) || VCPU;
   if (usedVCPU() + vcpu > CPU_QUOTA) { console.error(`SKIP ${tag}: would exceed CPU quota (${usedVCPU()}+${vcpu}/${CPU_QUOTA}) — down some VMs first`); return false; }
   const name = `${PREFIX}${board}-${tag}`;
+  if (vmExists(name)) { console.error(`SKIP ${tag}: ${name} already exists`); return false; }
   const tmp = `/tmp/startup-${name}.sh`; writeFileSync(tmp, STARTUP);
   const meta = `orkey=${key()},bench=${board},mode=${mode},model=${model}` + (escalate ? `,escalate=${escalate}` : '') + (sample ? `,sample=${sample}` : '');
   console.error(`provisioning ${name}  (${model} · ${mode}${sample ? ` · n=${sample}` : ''} · ${BOARDS[board]})`);
