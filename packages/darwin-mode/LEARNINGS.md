@@ -164,3 +164,20 @@ plan-then-edit, stronger gating) to lift the 33% ceiling toward the 45% top-10 b
 framing is dead; the realistic play is "competitive resolve cheaper than pure-frontier", a Pareto point
 among expensive systems, not a cheap one. (n=18-25, CIs wide; coder>oracle direction + qwen-catastrophe
 are clear, A′≠D point estimate is the falsification.)
+
+## 12. The asymmetric Opus-sniper is REFUTED — single repro-gated attempts overfit the oracle
+
+Hybrid = Opus critic + DS coder + **Opus sniper on DS-failures** (k=5 DS branches, then 1 Opus sniper).
+Gold: **4/25 = 16.0%** — IDENTICAL resolved set to A′ (Opus+DS, no sniper, 16%). The sniper coded ~14
+instances, drove in-loop repro-passes 7→23/25, cost $25.34 — and added **ZERO gold resolves**.
+
+**Why:** the sniper is a SINGLE repro-gated Opus attempt. It optimizes to *pass the repro* (a narrow/
+overfit patch) rather than fix the bug. Arm D (Opus **best-of-3** coding, no sniper) got 33% because 3
+diverse attempts found genuinely-correct patches that converted to gold. **Best-of-k diversity, not a
+single gated shot, is what makes frontier coding convert.** A high in-loop repro-pass rate (92%) with a
+low gold rate (16%) is the Goodhart signature — and it's worst for single-attempt gating.
+
+**Consequence:** the "cheap base + Opus-sniper-on-tail" cost-saver (ADR-176 L3) does NOT work — the sniper
+must be best-of-k Opus *coding* to convert, which collapses back to ~Arm-D cost. The honest frontier
+config is Opus best-of-3 coding (~33% @ $3.49/inst), and the remaining lever to reach 45% is the SCAFFOLD
+(plan-then-edit, stronger gating), not cheaper escalation. Record: hybrid resolved ⊆ A′ resolved exactly.
