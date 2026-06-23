@@ -7,7 +7,14 @@ Updated 2026-06-22 for the **ADR-176 SWE-Conductor ablation phase** (overnight a
 $1000 the Opus-coder arm + full-300 runs are affordable. Still `--max-cost` every paid run; never an
 external watchdog.
 
-## CONCURRENT ABLATION WORKFLOW (run until SOTA — conformant Lite ≥45% top-10, ideally >60.33% #1)
+## STATUS 2026-06-23: ablation COMPLETE — cheap-lever search exhausted, IDLING on health/upkeep (ADR-177)
+No conformant lever in this MCTS+self-repro scaffold reaches 45% top-10: cheap caps 12-16%, frontier
+(Opus best-of-3) 33%, scaffold-bound. Every cheap lever (oracle / qwen / Opus-sniper / plan-then-edit)
+is null — all resolve the same 4 easy instances. **Each tick now: health + upkeep only.** Do NOT launch
+new paid arms. Awaiting human go/no-go on ADR-177's 3 options (full-300 Opus ~$1000 → ~33% sub-top-10 /
+build mini-SWE-agent-v2 scaffold / ship dual-mode product). Resume active runs only on explicit instruction.
+
+## (ARCHIVED) CONCURRENT ABLATION WORKFLOW
 Keep MULTIPLE conformant MCTS arms in flight at once (container-reuse bounds Docker load; box handled
 3 arms at load <1). Each arm = `solve-mcts.mjs` with a model combo. On each arm completion → gold batch
 eval → resolved/25 + Wilson CI → record. When a round's arms finish, **read the 2×2, pick the winner,
