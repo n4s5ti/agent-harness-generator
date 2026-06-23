@@ -7,7 +7,22 @@ Updated 2026-06-22 for the **ADR-176 SWE-Conductor ablation phase** (overnight a
 $1000 the Opus-coder arm + full-300 runs are affordable. Still `--max-cost` every paid run; never an
 external watchdog.
 
-## STATUS 2026-06-23: SOTA push CLOSED → PRODUCT PIVOT (ADR-177 Option 3 chosen)
+## STATUS 2026-06-23 (re-opened): EXPLORE the STATEFUL INTERACTIVE LOOP until SOTA (the SWE-agent paradigm)
+New architecture to break the Goodhart trap that capped MCTS+self-repro: a **stateful interactive ReAct
+loop** (`solve-agentic.mjs --no-test-oracle`, already built — read/grep/ls/edit/run_tests/submit) where
+`run_tests` runs the **repository's OWN existing tests in Docker** (conformant; regression-guard, NOT a
+self-written proxy — this is what breaks Goodhart). Then **Best-of-N independent trajectories**.
+- **Step 1 (now): measure the SINGLE-trajectory conformant resolve rate** — the whole Best-of-N→45% math
+  hinges on it (~25% target). Gold batch eval, Wilson CI.
+- **Step 2:** if single-traj ≥~20%, add Best-of-N (5 independent sequential runs); the hard part is
+  **selection without a fix-oracle** (clean-exit heuristic is weak — needs a real selector or it regresses
+  to ~single-traj). Measure Best-of-N gold uplift honestly.
+- **Models:** DeepSeek-V4-Flash / DeepSeek-V3.2 / Qwen-2.5-Coder-32B (strong at interactive terminal loops;
+  qwen3-coder failed only on strict-format single-shot, not interactive). `--max-cost`, `--max-steps 15`.
+- **Goal:** conformant Lite ≥45% (top-10) at <$0.50/inst = the Pareto crown. Honest caveats throughout;
+  only batch-eval numbers. Product (TDR 68.3%, darwin 0.6.0) already shipped — this is the research push.
+
+## (SUPERSEDED) STATUS: SOTA push CLOSED → PRODUCT PIVOT (ADR-177 Option 3 chosen)
 Decision locked: **ship the dual-mode product with Test-Driven Repair (68.3% with-test) as the hero**;
 the conformant ablation (cheap 12-16% / frontier 33%, scaffold-capped — no top-10 lever) is banked as a
 transparent research appendix. SOTA loops idled; **no new paid SWE-bench arms** (a full-300 conformant
