@@ -16,6 +16,7 @@
 // Env: PROJECT (default cognitum-20260110), ZONE (us-central1-a). OpenRouter key from /tmp/.orkey.
 import { execSync, execFileSync } from 'node:child_process';
 import { readFileSync, mkdirSync, writeFileSync, existsSync } from 'node:fs';
+import { evolve as evolveArch, fetchFirestoreLookup, mockResolve, mkey, gkey } from '../packages/darwin-mode/bench/swebench/evolve-arch.mjs';
 
 const PROJECT = process.env.PROJECT || 'cognitum-20260110';
 const ZONE = process.env.ZONE || 'us-central1-a';
@@ -158,6 +159,17 @@ const [cmd, a, b, c] = process.argv.slice(2);
 if (cmd === 'up') provision({ board: a, model: b, tag: c || b.split('/').pop().replace(/[.:]/g, '-') });
 else if (cmd === 'matrix') { for (const [board, model, tag] of MATRIX) try { provision({ board, model, tag }); } catch (e) { console.error(e.message); } }
 else if (cmd === 'prove') prove(a);
+else if (cmd === 'evolve') {  // auto-tune: evolve on REAL Firestore data → dispatch unmeasured genomes as prove jobs
+  const w = +(a || 0.7);
+  const lookup = fetchFirestoreLookup(PROJECT);
+  console.log(`evolve: ${Object.keys(lookup).length} measured combos seed the population:`, lookup);
+  const unmeasured = new Map();
+  const resolveFn = (g) => { const v = lookup[mkey(g)]; if (v == null) { unmeasured.set(mkey(g), g); return mockResolve(g); } return v; };
+  const { champion } = evolveArch({ w, gens: 6, pop: 12, seed: 1, resolveFn });
+  console.log(`champion (w=${w}): ${gkey(champion.g)}  Value=${champion.mean.toFixed(1)} ±${champion.ci95.toFixed(1)}`);
+  console.log(`dispatching ${unmeasured.size} unmeasured genomes as prove-25 jobs (quota-aware):`);
+  for (const [k, g] of unmeasured) provision({ board: 'lite', model: g.model, mode: g.mode, escalate: g.escalate, sample: '25', machine: 'e2-standard-4', tag: 'ev-' + k.replace(/[|/.: ]/g, '-') });
+}
 else if (cmd === 'rank') rank();
 else if (cmd === 'status') status();
 else if (cmd === 'logs') console.log(serial(a).split('\n').slice(-30).join('\n'));
