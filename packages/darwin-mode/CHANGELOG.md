@@ -2,6 +2,21 @@
 
 All notable changes to this package. Dates UTC.
 
+## 0.7.0 — 2026-06-23
+
+- **Conformant (leaderboard-legal) SWE-bench Lite results — the interactive arc.** The stateful interactive
+  ReAct loop (repo's own tests as the regression gate, no gold in-loop) measured on the full 300, official
+  harness: **single-trajectory 34.0%** [28.9, 39.5] @ ~\$0.005/inst; **Best-of-3 + LLM-judge 39.7%**
+  [34.3, 45.3] @ ~\$0.015/inst; union-of-3 ceiling 45.0%. Replaces the MCTS conformant ceiling (16–33%).
+  LEARNINGS §13–18.
+- **Cost–Performance Pareto leaderboard (live):** https://ruvnet.github.io/agent-harness-generator/cost-pareto.html
+  — ranks Darwin vs real SWE-bench Lite/Verified/Pro + Draco entries by a tunable Value Score; real resolve %,
+  cost estimated from disclosed models, Darwin measured. Workbook explainer + run-total economics.
+- **Honest negatives banked** (the discipline): cost cascade refuted (repo tests are a regression guard, not a
+  resolution proxy — fire 3.7% vs 34% gold, §19); judge-validated repro-gate moderate (67%/44%, §20). Parallel
+  Best-of-3 + LLM-judge remains the conformant champion.
+- Docs only (README/LEARNINGS/CHANGELOG); shipped library unchanged.
+
 ## 0.6.0 — 2026-06-23
 
 - **Product pivot (ADR-177): Test-Driven Repair (TDR) is the hero.** README now leads with the CI-Autofixer

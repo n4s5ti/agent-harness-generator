@@ -2,6 +2,12 @@
 
 Scaffold your own focused AI agent harness — like [ruflo](https://github.com/ruvnet/ruflo), uniquely yours.
 
+> **Proven at the cost-Pareto frontier.** Same "evolve the harness" thesis, measured: the Darwin harness resolves
+> real **SWE-bench Lite** issues at **34.0%** single-trajectory (~$0.005/inst) and **39.7%** Best-of-3
+> (~$0.015/inst) — conformant, official harness. Live
+> **[Cost–Performance leaderboard](https://ruvnet.github.io/agent-harness-generator/cost-pareto.html)** ·
+> [`@metaharness/darwin`](https://www.npmjs.com/package/@metaharness/darwin).
+
 > Published as **`metaharness`** (the `metaharness` and `harness` CLIs). Earlier versions were published as `create-agent-harness`.
 
 ## Quick start
