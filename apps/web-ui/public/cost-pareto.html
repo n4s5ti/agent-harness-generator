@@ -109,7 +109,7 @@
     <table id="board">
       <thead><tr>
         <th>System</th><th>Scaffold</th><th class="num">Resolve %</th>
-        <th class="num">$ / inst</th><th class="num">Resolve / $</th><th>Evidence</th>
+        <th class="num">$ / inst</th><th class="num">Run total</th><th class="num">Resolve / $</th><th>Evidence</th>
       </tr></thead>
       <tbody></tbody>
     </table>
@@ -189,7 +189,7 @@ function render(key){
     if(e.ci){svg.appendChild(el('line',{x1:cx,y1:sy(e.ci[0]),x2:cx,y2:sy(e.ci[1]),stroke:colorFor(e),'stroke-width':1.5,opacity:.4}));}
     const dot=el('circle',{cx,cy,r:ours(e)?7:5.5,class:'dot',fill:colorFor(e),opacity:ours(e)?1:.85});
     dot.addEventListener('mousemove',ev=>{tip.style.opacity=1;tip.style.left=(ev.clientX+14)+'px';tip.style.top=(ev.clientY+14)+'px';
-      tip.innerHTML=`<b>${e.name}</b><br>${e.model||e.scaffold}<br>${e.resolve}%${e.ci?` [${e.ci[0]}–${e.ci[1]}]`:''} · $${e.cost}/inst${e.costEst?' (est)':''}<br>${e.note||''}`;});
+      tip.innerHTML=`<b>${e.name}</b><br>${e.model||e.scaffold}<br>${e.resolve}%${e.ci?` [${e.ci[0]}–${e.ci[1]}]`:''} · $${e.cost}/inst${e.costEst?' (est)':''}<br>full run (${bm.denom}): $${(e.cost*bm.denom).toLocaleString(undefined,{maximumFractionDigits:0})}<br>${e.note||''}`;});
     dot.addEventListener('mouseleave',()=>tip.style.opacity=0);
     svg.appendChild(dot);
     if(ours(e)){const lab=el('text',{x:cx+11,y:cy-9,class:'dotlabel'});lab.textContent=e.resolve+'%';svg.appendChild(lab);}
@@ -200,10 +200,13 @@ function render(key){
   for(const e of rows){
     const tr=document.createElement('tr'); if(ours(e))tr.className='ours';
     const costCell=e.cost==null?'<span style="color:var(--dim)">undisclosed</span>':`$${e.cost.toFixed(3)}${e.costEst?'<span style="color:var(--dim)"> est</span>':''}`;
+    const fmtTot=v=>v<100?'$'+v.toFixed(2):'$'+Math.round(v).toLocaleString();
+    const totCell=e.cost==null?'<span style="color:var(--dim)">—</span>':`${fmtTot(e.cost*bm.denom)}${ours(e)?'':'<span style="color:var(--dim)"> est</span>'}`;
     tr.innerHTML=`<td>${e.name}${e.src?` <a href="${e.src}" style="color:var(--dim);font-size:11px">↗</a>`:''}</td>
       <td style="color:var(--dim)">${e.model||e.scaffold}</td>
       <td class="num">${e.resolve.toFixed(1)}${e.ci?`<span style="color:var(--dim);font-size:11px"> [${e.ci[0]}–${e.ci[1]}]</span>`:''}</td>
       <td class="num">${costCell}</td>
+      <td class="num"${ours(e)?' style="color:var(--accent)"':''}>${totCell}</td>
       <td class="num eff">${e.rpd>0?Math.round(e.rpd).toLocaleString():'—'}</td>
       <td><span class="tag ${e.kind==='official'?'rep':e.kind}">${tagTxt[e.kind]}</span></td>`;
     tb.appendChild(tr);
