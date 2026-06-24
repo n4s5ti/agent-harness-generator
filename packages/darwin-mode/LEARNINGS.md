@@ -399,3 +399,16 @@ intelligence-bound) — because it injects frontier intelligence surgically, not
 
 CAVEAT: n=25 pilot; point estimate 55% but CI lower bound 48%. Confirming with the full 113-instance escalation
 (authoritative n=300 cascade, ~$58 Opus) before any firm >50% SOTA claim.
+
+## 26. The empty-patch confound: cheap-single full-300 at concurrency-4 is severely under-measured
+
+Recovered v3.2-single preds from the dead xbo-bo2 VM (model-0) + local gold-eval: **53/300 = 17.7%** — but with
+**182/300 empty patches (61%)**. Per-attempt = 53/117 = **45%** (the real capability). The 17.7% is NOT a clean
+model verdict — it's dominated by empty patches from CONCURRENCY=4 GitHub-clone failures (the directive warns
+conc 2-3). Compare: glm-single (§24) had 113 empties (38%) at the same concurrency. Cheap-single full-300 numbers
+at conc-4 are floors, not estimates; a conc-2 re-run is needed for a fair single number.
+
+**Why this STRENGTHENS the empty-patch cascade (§25):** the cascade escalates ALL empties to Opus regardless of
+*why* they're empty (model give-up OR infra clone-fail) — so it is robust to this confound; it mops up every 0%
+instance. The worse the cheap tier's empty rate, the more the cascade rescues. The cascade converts an infra
+weakness (clone-fails → empties) into escalation targets Opus resolves.
