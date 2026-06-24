@@ -2,22 +2,34 @@
 
 Versioned source of truth for the cron/`/loop` worker. **Cadence: self-paced, until SOTA or budget.**
 
-## ▶ CURRENT DIRECTIVE (2026-06-23): 12h SOTA push + orthogonal routing
+## ▶ CURRENT DIRECTIVE (2026-06-24): FREEZE — finish committed n=300, then free local levers
 
-**Budget cap: $800 cumulative OpenRouter spend** (leaves $200 buffer; abort all provisions if `curSpend() > 800`).
-**vCPU quota 32 (us-central1-a). Empirical only — NO SOTA claims on n=25; n=300 is the only verdict. Zero idle VMs.**
+**🧊 SPEND FREEZE IN EFFECT (user ruling 2026-06-24).** Spend ~$496/$800. **NO new paid runs** (no GCP provisions,
+no new Opus/cascade/xbo runs). Let the two committed n=300 runs finish gracefully, then idle on health + **free local
+levers only**. A future heartbeat must NOT dispatch a paid run — if tempted, stop. Empirical only — n=300 is the only
+verdict; n=25 is directional scouting, never a claim.
 
-- **Phase 1 — monitor & record** the running fleet → log full-300 verdicts (`glm-5.2`, `deepseek-v3.2`) vs the
-  champion (DeepSeek-V4 Best-of-3 **39.7% @ $0.015**) on the Value Score; log the opus n=25 ceiling + minimax/nemotron.
-- **Phase 2 — cross-model Best-of-N** (DONE): runner `MODE=xbo` + genome `mode:'xbo'` (model = comma-list of
-  DIFFERENT models), costModel sums, mockResolve union-bonus, LLM-mutation mixes orthogonal models. `provexbo <csv>`.
-- **Phase 3 — orthogonal prove-25**: `provexbo deepseek/deepseek-v4-flash,z-ai/glm-5.2,moonshotai/kimi-k2.6`
-  (open-weight orthogonal bo3) + `provexbo deepseek/deepseek-v3.2,z-ai/glm-5.2` (ultra-cheap bo2). `--no-address` + NAT,
-  aggressive `cleanupDone()`. Does orthogonality beat the 45% single-model union ceiling?
-- **Phase 4 — autotune + SOTA lock**: `node scripts/gcp-cluster.mjs autotune 3 0.7` → highest-Value champion →
-  ONE full-300 confirmation → if it beats 39.7% @ $0.015, codify it as the metaharness default (data-driven).
-- **Guards (CRITICAL)**: spend>$800 → abort; `cleanupDone()`/`down all` on any crash; each tick check spend +
-  `rank`. Final deliverable: a markdown table comparing the starting SOTA (39.7% @ $0.015) to the new SOTA.
+### The conformant frontier (measured, on the live leaderboard)
+- **n=300:** DeepSeek-V4 single 34% @ $0.005 · DeepSeek-V4 Best-of-3+judge (champion) 39.7% @ $0.015 · GLM 37% ·
+  **GLM→Opus empty-patch cascade 51.3%** @ $0.267 — **independently replicated by ecascade 50.7%** (§35b, pooled ~51%/600).
+- **n=500 Verified:** DeepSeek-V4 single 46.4% (§34).
+- **n=25 scouting:** xcascade FUGU 56% @ ~$0.215 · Opus single 60% · **Opus+GLM xbo 72%** (§32) = opus-bo3 72% but 3× cheaper (§33);
+  cross-model BoN sweet spot is **N=2** (3 models hurt judge selection, §31).
+
+### Committed n=300 runs (let finish — do NOT kill)
+- **🎯 opus+GLM xbo FULL-300** `darwin-lite-xbo-claude-glm-5` — the conformant SOTA shot: 72% n=25 → if n=300 ≥60% it
+  BEATS every official board entry (ExpeRepair 60.3%) at ~$0.52/inst. Record §36 + leaderboard when eval done; if GCP
+  eval looks artifact-low (<50%) → salvage preds + local-eval.
+- **xcascade FULL-300** `darwin-lite-xc-deeps-glm-5-claude` → §35 vs cascade 51.3%.
+
+### Free local levers (allowed under freeze — $0 / trivial)
+- **ADR-189 Chebyshev temperature** — n=25 A/B in-flight (`/tmp/salvage/cheb-glm-25.log`): control static-greedy
+  **11/25 (44%)** locked vs treatment hot→greedy. When `CHEB-AB-COMPLETE`, count
+  `grep -rl '"resolved": true' packages/darwin-mode/bench/swebench/logs/run_evaluation/cheb-glm-cheb-25/ | wc -l`,
+  compute Δ, record §37. If Δ≥+1 → queue ADR-189 Phase-3 (entropy gate); if flat → ruled-out, pivot to ADR-190.
+- **ADR-190 AST-fused mincut localization** — the next big lever (attacks the 50% BM25 miss, ADR-185 #1). M-effort,
+  local, free — build when the Chebyshev A/B settles. tree-sitter AST → `ruvector` mincut → step-1 context hint.
+- **Guards**: spend>$800 → hard abort (we are frozen well below). `down all` only on a crash, never the committed runs.
 
 Each loop tick: HEALTH (prune, kill >12min hangs) → check `rank` + fleet → advance the current phase → commit
 artifacts → report. The fleet is self-managing (AUTOSTOP + controller auto-delete); never leave VMs billing idle.
