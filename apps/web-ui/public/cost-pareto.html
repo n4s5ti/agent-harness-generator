@@ -165,6 +165,26 @@
     .bookmain .fx,.bookmain .step .n{font-size:13.5px}
     .bookclose{top:12px;right:14px;font-size:30px;padding:4px}
   }
+  /* ── welcome splash ── */
+  .wmodal{position:fixed;inset:0;background:rgba(4,7,11,.86);backdrop-filter:blur(5px);z-index:60;
+    display:none;opacity:0;transition:opacity .3s;align-items:center;justify-content:center;padding:20px}
+  .wmodal.open{display:flex;opacity:1}
+  .wcard{max-width:540px;width:100%;background:linear-gradient(180deg,var(--panel),var(--panel2));
+    border:1px solid var(--line);border-radius:20px;padding:34px 32px;text-align:center;
+    box-shadow:0 30px 80px rgba(0,0,0,.6);transform:translateY(14px) scale(.98);transition:transform .3s}
+  .wmodal.open .wcard{transform:none}
+  .wcard .kick{font-family:var(--mono);font-size:12px;letter-spacing:.12em;text-transform:uppercase;color:var(--accent);margin:0 0 6px}
+  .wcard h1{font-size:25px;margin:0 0 4px;letter-spacing:-.01em}
+  .wcard p{font-size:15px;line-height:1.6;color:#cdd6e0;margin:14px 4px 0}
+  .wcard p.sub{font-size:13.5px;color:var(--dim);margin-top:10px}
+  .wbtns{display:flex;gap:10px;justify-content:center;margin-top:24px;flex-wrap:wrap}
+  .wbtn{cursor:pointer;font-family:var(--mono);font-size:14px;padding:11px 20px;border-radius:10px;
+    border:1px solid var(--accent);background:var(--accent);color:#0a0e14;font-weight:600;transition:filter .15s}
+  .wbtn:hover{filter:brightness(1.12)}
+  .wbtn.ghost{background:transparent;color:var(--accent2);border-color:var(--accent2)}
+  .wanim{width:100%;max-width:380px;margin:18px auto 4px;display:block}
+  .wanim .fl{stroke:var(--accent);stroke-width:2;fill:none;stroke-dasharray:340;stroke-dashoffset:340;animation:dash 1.4s .2s ease forwards}
+  @media(max-width:640px){.wcard{padding:26px 20px}.wcard h1{font-size:21px}}
 </style>
 </head>
 <body>
@@ -389,6 +409,36 @@
   </div>
 </div>
 
+<div class="wmodal" id="welcome">
+  <div class="wcard">
+    <div class="kick">Welcome</div>
+    <h1>The Cost–Performance <span class="hl">Pareto Frontier</span></h1>
+    <svg class="wanim" viewBox="0 0 380 165" aria-label="cost vs resolve frontier">
+      <line x1="42" y1="18" x2="42" y2="132" class="axis"/>
+      <line x1="42" y1="132" x2="346" y2="132" class="axis"/>
+      <!-- dominated systems (costlier for the same resolve) -->
+      <circle cx="150" cy="58" r="4.5" fill="var(--dim)" opacity="0" style="animation:fadein .5s 1.2s both"/>
+      <circle cx="250" cy="66" r="4.5" fill="var(--dim)" opacity="0" style="animation:fadein .5s 1.4s both"/>
+      <circle cx="300" cy="95" r="4.5" fill="var(--dim)" opacity="0" style="animation:fadein .5s 1.6s both"/>
+      <!-- the frontier line draws in -->
+      <path class="fl" d="M58,118 L120,96 L195,70 L270,48 L330,40"/>
+      <!-- frontier systems (green, pulse) -->
+      <circle cx="58" cy="118" r="5.5" fill="var(--accent)" class="anim-pulse"/>
+      <circle cx="195" cy="70" r="5.5" fill="var(--accent)" class="anim-pulse" style="animation-delay:.3s"/>
+      <circle cx="330" cy="40" r="5.5" fill="var(--accent2)" class="anim-pulse" style="animation-delay:.6s"/>
+      <text x="194" y="152" fill="var(--dim)" font-size="10" text-anchor="middle" font-family="var(--mono)">cheaper · cost / instance →</text>
+      <text x="16" y="78" fill="var(--dim)" font-size="10" text-anchor="middle" font-family="var(--mono)" transform="rotate(-90 16 78)">resolve % →</text>
+    </svg>
+    <p>Most leaderboards rank by score alone. This one ranks by <strong>resolve-per-dollar</strong> — the
+      <strong>cheapest</strong> harness that reaches each level of capability.</p>
+    <p class="sub">Each dot is a system; the green line is the frontier — nothing beats it on cost <em>and</em> capability.
+      Drag the <strong>Value Score</strong> slider to set your own cost-vs-capability tradeoff.</p>
+    <div class="wbtns">
+      <button class="wbtn" id="wExplore">Explore the board →</button>
+      <button class="wbtn ghost" id="wHow">How it works</button>
+    </div>
+  </div>
+</div>
 <script>
 // chart geometry
 const W=900,H=460,L=64,R=24,T=24,B=56;
@@ -506,6 +556,17 @@ if(bm2){const spy=new IntersectionObserver(es=>{es.forEach(en=>{if(en.isIntersec
 function updW(){const w=weight();document.getElementById('wval').textContent=`${Math.round((1-w)*100)}% cost · ${Math.round(w*100)}% capability`;}
 document.getElementById('wslider').addEventListener('input',()=>{updW();if(DATA)render(CUR);});
 
+// welcome splash — first visit (or ?welcome=1 to force); dismiss persists in localStorage
+(function(){const w=document.getElementById('welcome');if(!w)return;
+  const force=/[?&]welcome=1/.test(location.search);
+  let seen=false; try{seen=localStorage.getItem('mh_welcomed')==='1'}catch(e){}
+  if(force||!seen)w.classList.add('open');
+  const close=()=>{w.classList.remove('open');try{localStorage.setItem('mh_welcomed','1')}catch(e){}};
+  document.getElementById('wExplore').onclick=close;
+  document.getElementById('wHow').onclick=()=>{close();document.getElementById('book').classList.add('open');};
+  w.addEventListener('click',e=>{if(e.target===w)close();});
+  document.addEventListener('keydown',e=>{if(e.key==='Escape')close();});
+})();
 fetch('assets/swe-pareto.json?v='+Date.now()).then(r=>r.json()).then(d=>{DATA=d;buildTabs();updW();render('lite');}).catch(e=>{
   document.getElementById('srcline').textContent='Failed to load assets/swe-pareto.json: '+e.message;
 });
