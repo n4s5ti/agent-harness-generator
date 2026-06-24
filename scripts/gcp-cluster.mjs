@@ -100,6 +100,40 @@ function rank() {
   } catch (e) { console.error('rank failed:', e.message.split('\n')[0]); }
 }
 
+function cleanupDone() {
+  for (const v of listVMs()) {
+    if (v.name === `${PREFIX}controller`) continue;
+    if (v.status === 'TERMINATED' || v.status === 'STOPPED') { try { gq(['compute', 'instances', 'delete', v.name, `--project=${PROJECT}`, `--zone=${ZONE}`, '--quiet']); console.log(`  cleaned ${v.name}`); } catch { /**/ } }
+  }
+}
+// CLOSED multi-generation loop: each gen evolves on REAL Firestore data, dispatches the unmeasured genomes it
+// proposes as prove-N jobs, waits for their self-reports, then evolves the next generation. The 2-phase gate
+// + full-300 confirmation (separate) guard against n=25 noise. This is "Sovereign Evolution" running for real.
+async function autotune({ gens = 4, w = 0.7, sample = '25' }) {
+  for (let gen = 1; gen <= gens; gen++) {
+    const lookup = fetchFirestoreLookup(PROJECT);
+    const unmeasured = new Map();
+    const resolveFn = (g) => { const v = lookup[mkey(g)]; if (v == null) { unmeasured.set(mkey(g), g); return mockResolve(g); } return v; };
+    const { champion } = evolveArch({ w, gens: 6, pop: 12, seed: gen, resolveFn });
+    console.log(`\n[autotune gen ${gen}] measured=${Object.keys(lookup).length} combos · champion=${gkey(champion.g)} V=${champion.mean.toFixed(1)} · proposing ${unmeasured.size} new genomes`);
+    if (unmeasured.size === 0) { console.log('converged — every proposed genome already measured.'); break; }
+    cleanupDone();
+    const dispatched = [];
+    for (const [k, g] of unmeasured) { const tag = `g${gen}-${k.replace(/[|/.: ]/g, '-')}`.slice(0, 40); if (provision({ board: 'lite', model: g.model, mode: g.mode, escalate: g.escalate, sample, machine: 'e2-standard-4', tag })) dispatched.push(k); }
+    if (!dispatched.length) { console.log('quota full — waiting a cycle to free VMs'); }
+    console.log(`dispatched ${dispatched.length} prove-${sample} jobs; polling for self-reports…`);
+    for (let t = 0; t < 24 && dispatched.length; t++) { // ≤2h
+      await new Promise((r) => setTimeout(r, 300000));
+      cleanupDone();
+      const lk = fetchFirestoreLookup(PROJECT);
+      const done = dispatched.filter((k) => lk[k] != null).length;
+      console.log(`  gen ${gen}: ${done}/${dispatched.length} self-reported`);
+      if (done >= dispatched.length) break;
+    }
+  }
+  console.log('\nautotune done. `rank` for the frontier; confirm the champion at full-300 before any claim (phase-2).');
+}
+
 function serial(name) { try { return gq(['compute', 'instances', 'get-serial-port-output', name, `--project=${PROJECT}`, `--zone=${ZONE}`]); } catch { return ''; } }
 function phaseOf(log) {
   if (/STARTUP_DONE|=== DONE/.test(log)) return 'DONE';
@@ -180,6 +214,7 @@ else if (cmd === 'evolve') {  // auto-tune: evolve on REAL Firestore data → di
   console.log(`dispatching ${unmeasured.size} unmeasured genomes as prove-25 jobs (quota-aware):`);
   for (const [k, g] of unmeasured) provision({ board: 'lite', model: g.model, mode: g.mode, escalate: g.escalate, sample: '25', machine: 'e2-standard-4', tag: 'ev-' + k.replace(/[|/.: ]/g, '-') });
 }
+else if (cmd === 'autotune') await autotune({ gens: +(a || 4), w: +(b || 0.7) });
 else if (cmd === 'rank') rank();
 else if (cmd === 'status') status();
 else if (cmd === 'logs') console.log(serial(a).split('\n').slice(-30).join('\n'));

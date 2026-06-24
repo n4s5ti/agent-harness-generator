@@ -10,7 +10,7 @@
 //                         are emitted as `prove` jobs (run on GCP → Firestore → next generation)
 import { execSync } from 'node:child_process';
 
-export const MODELS = ['deepseek/deepseek-v4-flash', 'z-ai/glm-5.2', 'moonshotai/kimi-k2.6'];
+export const MODELS = ['deepseek/deepseek-v4-flash', 'z-ai/glm-5.2', 'moonshotai/kimi-k2.6', 'deepseek/deepseek-v3.2'];
 export const MODES = ['single', 'bo3', 'cascade'];
 export const JUDGES = ['deepseek/deepseek-v4-flash', 'anthropic/claude-opus-4.8'];
 export const STEPS = [12, 15, 20];
@@ -39,7 +39,7 @@ export function crossover(rng, a, b) { return { model: rng() < 0.5 ? a.model : b
 
 // deterministic cost model (mode/model) — cost is calculable; resolve is the measured part.
 export function costModel(g) {
-  const m = g.model.includes('glm') ? 0.018 : g.model.includes('kimi') ? 0.02 : 0.005;
+  const m = g.model.includes('glm') ? 0.018 : g.model.includes('kimi') ? 0.02 : g.model.includes('v3.2') ? 0.012 : 0.005;
   let c = m; if (g.mode === 'bo3') c = 3 * m + 0.0002; if (g.mode === 'cascade') c = m + 0.62 * (m * 6);
   if ((g.judge || '').includes('opus') && g.mode !== 'single') c += 0.01;
   return c * (g.maxSteps / 15);
