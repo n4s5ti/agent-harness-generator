@@ -463,6 +463,20 @@
           "note": "13/25 n=25 GCP fleet, gold, conformant (directional — n=300 confirms)"
         },
         {
+          "name": "Darwin · GLM-5.2 single",
+          "scaffold": "interactive ReAct",
+          "model": "GLM-5.2",
+          "resolve": 52,
+          "ci": [
+            33.5,
+            70
+          ],
+          "cost": 0.018,
+          "kind": "meas",
+          "costEst": false,
+          "note": "13/25 n=25 GCP fleet, gold, conformant (directional — n=300 confirms)"
+        },
+        {
           "name": "Darwin · DeepSeek-V4 cascade",
           "scaffold": "repo-test cascade",
           "model": "DeepSeek-V4",
@@ -503,20 +517,6 @@
           "kind": "meas",
           "costEst": false,
           "note": "12/25 n=25 GCP fleet, gold, conformant (directional — n=300 confirms)"
-        },
-        {
-          "name": "Darwin · GLM-5.2 single",
-          "scaffold": "interactive ReAct",
-          "model": "GLM-5.2",
-          "resolve": 44,
-          "ci": [
-            26.7,
-            62.9
-          ],
-          "cost": 0.018,
-          "kind": "meas",
-          "costEst": false,
-          "note": "11/25 n=25 GCP fleet, gold, conformant (directional — n=300 confirms)"
         },
         {
           "name": "Darwin · V3.2 single",
