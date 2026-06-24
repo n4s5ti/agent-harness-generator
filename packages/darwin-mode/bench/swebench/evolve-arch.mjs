@@ -10,7 +10,7 @@
 //                         are emitted as `prove` jobs (run on GCP → Firestore → next generation)
 import { execSync } from 'node:child_process';
 
-export const MODELS = ['deepseek/deepseek-v4-flash', 'z-ai/glm-5.2', 'moonshotai/kimi-k2.6', 'deepseek/deepseek-v3.2'];
+export const MODELS = ['deepseek/deepseek-v4-flash', 'z-ai/glm-5.2', 'moonshotai/kimi-k2.6', 'deepseek/deepseek-v3.2', 'minimax/minimax-m2.5'];
 export const MODES = ['single', 'bo3', 'cascade'];
 export const JUDGES = ['deepseek/deepseek-v4-flash', 'anthropic/claude-opus-4.8'];
 export const STEPS = [12, 15, 20];

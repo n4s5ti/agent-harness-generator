@@ -226,6 +226,7 @@ const [cmd, a, b, c] = process.argv.slice(2);
 if (cmd === 'up') provision({ board: a, model: b, tag: c || b.split('/').pop().replace(/[.:]/g, '-') });
 else if (cmd === 'matrix') { for (const [board, model, tag] of MATRIX) try { provision({ board, model, tag }); } catch (e) { console.error(e.message); } }
 else if (cmd === 'prove') prove(a);
+else if (cmd === 'proveone') provision({ board: 'lite', model: a, mode: b || 'single', sample: c || '25', machine: 'e2-standard-4', tag: 'x-' + a.split('/').pop().replace(/[.:]/g, '-') + '-' + (b || 'single') });
 else if (cmd === 'evolve') {  // auto-tune: evolve on REAL Firestore data → dispatch unmeasured genomes as prove jobs
   const w = +(a || 0.7);
   const lookup = fetchFirestoreLookup(PROJECT);
