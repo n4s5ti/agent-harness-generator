@@ -1,6 +1,29 @@
 # Darwin Mode — autonomous loop worker directive
 
-Versioned source of truth for the cron/`/loop` worker. **Cadence: every 10 min, CONCURRENT workflow, until SOTA.**
+Versioned source of truth for the cron/`/loop` worker. **Cadence: self-paced, until SOTA or budget.**
+
+## ▶ CURRENT DIRECTIVE (2026-06-23): 12h SOTA push + orthogonal routing
+
+**Budget cap: $800 cumulative OpenRouter spend** (leaves $200 buffer; abort all provisions if `curSpend() > 800`).
+**vCPU quota 32 (us-central1-a). Empirical only — NO SOTA claims on n=25; n=300 is the only verdict. Zero idle VMs.**
+
+- **Phase 1 — monitor & record** the running fleet → log full-300 verdicts (`glm-5.2`, `deepseek-v3.2`) vs the
+  champion (DeepSeek-V4 Best-of-3 **39.7% @ $0.015**) on the Value Score; log the opus n=25 ceiling + minimax/nemotron.
+- **Phase 2 — cross-model Best-of-N** (DONE): runner `MODE=xbo` + genome `mode:'xbo'` (model = comma-list of
+  DIFFERENT models), costModel sums, mockResolve union-bonus, LLM-mutation mixes orthogonal models. `provexbo <csv>`.
+- **Phase 3 — orthogonal prove-25**: `provexbo deepseek/deepseek-v4-flash,z-ai/glm-5.2,moonshotai/kimi-k2.6`
+  (open-weight orthogonal bo3) + `provexbo deepseek/deepseek-v3.2,z-ai/glm-5.2` (ultra-cheap bo2). `--no-address` + NAT,
+  aggressive `cleanupDone()`. Does orthogonality beat the 45% single-model union ceiling?
+- **Phase 4 — autotune + SOTA lock**: `node scripts/gcp-cluster.mjs autotune 3 0.7` → highest-Value champion →
+  ONE full-300 confirmation → if it beats 39.7% @ $0.015, codify it as the metaharness default (data-driven).
+- **Guards (CRITICAL)**: spend>$800 → abort; `cleanupDone()`/`down all` on any crash; each tick check spend +
+  `rank`. Final deliverable: a markdown table comparing the starting SOTA (39.7% @ $0.015) to the new SOTA.
+
+Each loop tick: HEALTH (prune, kill >12min hangs) → check `rank` + fleet → advance the current phase → commit
+artifacts → report. The fleet is self-managing (AUTOSTOP + controller auto-delete); never leave VMs billing idle.
+
+---
+
 Updated 2026-06-22 for the **ADR-176 SWE-Conductor ablation phase** (overnight autonomous).
 
 **Budget: $1000 SOTA (raised from $500, 2026-06-22).** Track real spend vs the session baseline; with
