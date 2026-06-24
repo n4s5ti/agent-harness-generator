@@ -690,3 +690,28 @@ present), explicitly NOT applying the gold test patch. That is the genuine confo
 clone cannot produce one. Next build = L0.5; then L1 (conformant MiniMax-M2.5 full-300) is meaningful.
 (Process note: backgrounded solver launches are flaky in this sandbox — long runs need a resilient
 launcher or in-session supervision.)
+
+## 32. Conformant cost-Pareto arc (2026-06-24) — cascade 51.3% n=300; opus+GLM 72% n=25 is the conformant SOTA shot
+
+A distinct arc from §30's 68.3% 3-tier (which was **non-conformant** — §31's L0.5 Docker test-signal was never
+unblocked, so that number used signals not allowed on the conformant board). Everything below is **fully conformant**
+(solver never sees gold tests in-loop; official `swebench` Docker eval only for scoring), measured on the GCP fleet /
+local eval, and lives on the live cost-Pareto leaderboard.
+
+**Conformant frontier (Lite):**
+| structure | resolve | n | $/inst |
+|---|---|---|---|
+| DeepSeek-V4 single | 34.0% | 300 | $0.005 |
+| DeepSeek-V4 Best-of-3 + judge (champion) | 39.7% | 300 | $0.015 |
+| **GLM→Opus empty-patch cascade** | **51.3%** | **300** | $0.267 |
+| xcascade FUGU (V3.2+GLM base → Opus) | 56% | 25 | ~$0.215 |
+| Opus single (ceiling) | 60% | 25 | $0.50 |
+| **Opus+GLM xbo** | **72%** | 25 | ~$0.52 |
+
+**Levers (LEARNINGS §28-33):** empty-patch escalation (100%-precision gate) broke the ~45% cheap-union ceiling →
+51.3% n=300. DGM line_edit tool (+8pt). Cross-model BoN sweet spot N=2 (3 models hurt judge selection). At the
+frontier tier, Opus+GLM xbo 72% = Opus-bo3 72% but 3× cheaper.
+
+**The conformant SOTA shot:** Opus+GLM xbo **72% (n=25)** would, if confirmed at n=300, **beat every official board
+entry** (top is ExpeRepair 60.3%) — at ~$0.52/inst vs labs' $15+. That n=300 confirm (or the xcascade-300 now
+running) is the decisive next measurement. Until then it is n=25 scouting, not a claim.
