@@ -44,3 +44,8 @@ with a second session. Per-machine result files (JSON in the tree) also don't ag
   (and `autotune`) collect-then-DELETE done workers. No idle-billing, no orphans.
 - **Self-report denominator must equal instances run** (`TOTAL=SAMPLE` for prove-N) — a hardcoded /300 made
   prove-25 numbers 12× too low + mislabeled; caught only by live data, not unit tests. Purge bad rows on fix.
+- **Metadata fetch MUST use `curl -f`** — a *missing* instance-attribute (e.g. no `sample` on a full-300 `up`)
+  returns a **404 HTML page**, not empty. Without `-f` that HTML became `SAMPLE`, so `[ -n "$SAMPLE" ]` was true
+  and the slice ran `slice(0,<!DOCTYPE html>…)` → SyntaxError → solver never started → **0 preds, VM billed idle
+  for hours** (both full-300 verdict runs were silently dead). `M(){ curl -sf … || true; }`. Sanity-check
+  long-running VMs (`wc -l out/*.jsonl`) — a flat spend + 0 preds = a startup crash, not slow solving.
