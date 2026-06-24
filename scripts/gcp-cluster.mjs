@@ -69,10 +69,12 @@ function provision(o) {
   const tmp = `/tmp/startup-${name}.sh`; writeFileSync(tmp, STARTUP);
   const meta = `orkey=${key()},bench=${board},mode=${mode},model=${model}` + (escalate ? `,escalate=${escalate}` : '') + (sample ? `,sample=${sample}` : '');
   console.error(`provisioning ${name}  (${model} · ${mode}${sample ? ` · n=${sample}` : ''} · ${BOARDS[board]})`);
-  gq(['compute', 'instances', 'create', name, `--project=${PROJECT}`, `--zone=${ZONE}`,
-    `--machine-type=${machine}`, '--image-family=ubuntu-2204-lts', '--image-project=ubuntu-os-cloud',
-    '--boot-disk-size=200GB', '--boot-disk-type=pd-standard',
-    `--metadata=${meta}`, `--metadata-from-file=startup-script=${tmp}`, '--scopes=cloud-platform']);
+  try {
+    gq(['compute', 'instances', 'create', name, `--project=${PROJECT}`, `--zone=${ZONE}`,
+      `--machine-type=${machine}`, '--image-family=ubuntu-2204-lts', '--image-project=ubuntu-os-cloud',
+      '--boot-disk-size=200GB', '--boot-disk-type=pd-standard', '--no-address', // no external IP (egress via Cloud NAT) — dodges IN_USE_ADDRESSES quota (8)
+      `--metadata=${meta}`, `--metadata-from-file=startup-script=${tmp}`, '--scopes=cloud-platform']);
+  } catch (e) { console.error(`SKIP ${tag}: create failed — ${(e.message || '').split('\n').find((l) => /ERROR|Quota|exceeded/.test(l)) || 'error'}`); return false; }
   console.log(`✓ ${name} provisioning (self-runs on boot)`); return true;
 }
 // Early-proving matrix: cheap architecture variants raced on a small sample to find the optimum fast.
