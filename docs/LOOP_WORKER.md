@@ -22,6 +22,17 @@ Versioned source of truth for the cron/`/loop` worker. **Cadence: self-paced, un
 Each loop tick: HEALTH (prune, kill >12min hangs) → check `rank` + fleet → advance the current phase → commit
 artifacts → report. The fleet is self-managing (AUTOSTOP + controller auto-delete); never leave VMs billing idle.
 
+### Tick discipline (added 2026-06-23 — the run is mostly GCP-idle)
+- **Idle tick** (no new `rank` row, no phase change, spend flat): emit **ONE line** — `spend $X/$800 · N VMs · waiting on <what>`.
+  Do NOT re-explain the standings or re-derive analysis every heartbeat. Substantive output only when something lands.
+- **A verdict lands** (new n=25 or n=300 row): record it (LEARNINGS if material), commit, and report the delta only.
+- **Phase-4 trigger** (explicit): when the **xbo** results AND **≥1 full-300 verdict** (glm-5.2 or deepseek-v3.2) are in
+  Firestore → run `node scripts/gcp-cluster.mjs autotune 3 0.7` ONCE (guarded), then promote the highest-Value
+  genome to ONE full-300 confirm. Codify the metaharness default ONLY if that full-300 beats 39.7% @ $0.015 on Value.
+- **Report the champion across `w`, not one `w`.** w=0.7 (capability-leaning) is for SOTA hunting; the honest
+  deliverable is the cost-Pareto *frontier* (which config wins at each w), not a single "the SOTA" cherry-picked at one w.
+- **Spend guard every tick**: `curSpend() > 800` → abort all provisions + `down all`. n=300 is the only verdict — never claim on n=25.
+
 ---
 
 Updated 2026-06-22 for the **ADR-176 SWE-Conductor ablation phase** (overnight autonomous).
