@@ -16,7 +16,7 @@
 // Env: PROJECT (default cognitum-20260110), ZONE (us-central1-a). OpenRouter key from /tmp/.orkey.
 import { execSync, execFileSync } from 'node:child_process';
 import { readFileSync, mkdirSync, writeFileSync, existsSync } from 'node:fs';
-import { evolve as evolveArch, fetchFirestoreLookup, mockResolve, mkey, gkey } from '../packages/darwin-mode/bench/swebench/evolve-arch.mjs';
+import { evolve as evolveArch, fetchFirestoreLookup, mockResolve, mkey, gkey, llmPropose } from '../packages/darwin-mode/bench/swebench/evolve-arch.mjs';
 
 const PROJECT = process.env.PROJECT || 'cognitum-20260110';
 const ZONE = process.env.ZONE || 'us-central1-a';
@@ -109,29 +109,50 @@ function cleanupDone() {
 // CLOSED multi-generation loop: each gen evolves on REAL Firestore data, dispatches the unmeasured genomes it
 // proposes as prove-N jobs, waits for their self-reports, then evolves the next generation. The 2-phase gate
 // + full-300 confirmation (separate) guard against n=25 noise. This is "Sovereign Evolution" running for real.
-async function autotune({ gens = 4, w = 0.7, sample = '25' }) {
-  for (let gen = 1; gen <= gens; gen++) {
-    const lookup = fetchFirestoreLookup(PROJECT);
-    const unmeasured = new Map();
-    const resolveFn = (g) => { const v = lookup[mkey(g)]; if (v == null) { unmeasured.set(mkey(g), g); return mockResolve(g); } return v; };
-    const { champion } = evolveArch({ w, gens: 6, pop: 12, seed: gen, resolveFn });
-    console.log(`\n[autotune gen ${gen}] measured=${Object.keys(lookup).length} combos · champion=${gkey(champion.g)} V=${champion.mean.toFixed(1)} · proposing ${unmeasured.size} new genomes`);
-    if (unmeasured.size === 0) { console.log('converged — every proposed genome already measured.'); break; }
-    cleanupDone();
-    const dispatched = [];
-    for (const [k, g] of unmeasured) { const tag = `g${gen}-${k.replace(/[|/.: ]/g, '-')}`.slice(0, 40); if (provision({ board: 'lite', model: g.model, mode: g.mode, escalate: g.escalate, sample, machine: 'e2-standard-4', tag })) dispatched.push(k); }
-    if (!dispatched.length) { console.log('quota full — waiting a cycle to free VMs'); }
-    console.log(`dispatched ${dispatched.length} prove-${sample} jobs; polling for self-reports…`);
-    for (let t = 0; t < 24 && dispatched.length; t++) { // ≤2h
-      await new Promise((r) => setTimeout(r, 300000));
+function curSpend() { try { const j = JSON.parse(sh(`curl -sS -m8 https://openrouter.ai/api/v1/auth/key -H "Authorization: Bearer ${key()}"`)); return +(j.data.usage - 1052.01).toFixed(2); } catch { return null; } }
+async function autotune({ gens = 4, w = 0.7, sample = '25', maxVms = 20, spendCapUsd = 200, maxRuntimeMin = 360, maxGenVms = 8 }) {
+  // ── RUNAWAY GUARDS ──: gen cap, total-VM cap, per-gen-VM cap, OpenRouter spend cap, wall-clock cap, guaranteed cleanup.
+  const t0 = Date.now(); let provisioned = 0;
+  const startSpend = curSpend() ?? 0;
+  console.log(`autotune: gens≤${gens} maxVms≤${maxVms} spendCap=$${spendCapUsd} runtime≤${maxRuntimeMin}m (start spend $${startSpend})`);
+  const tripped = () => {
+    const mins = (Date.now() - t0) / 60000; if (mins > maxRuntimeMin) return `runtime ${mins.toFixed(0)}m`;
+    if (provisioned >= maxVms) return `maxVms ${provisioned}`;
+    const s = curSpend(); if (s != null && s > spendCapUsd) return `spend $${s} > $${spendCapUsd}`;
+    return null;
+  };
+  try {
+    for (let gen = 1; gen <= gens; gen++) {
+      const stop = tripped(); if (stop) { console.log(`STOP (guard): ${stop}`); break; }
+      const lookup = fetchFirestoreLookup(PROJECT);
+      const unmeasured = new Map();
+      const resolveFn = (g) => { const v = lookup[mkey(g)]; if (v == null) { unmeasured.set(mkey(g), g); return mockResolve(g); } return v; };
+      const { champion } = evolveArch({ w, gens: 6, pop: 12, seed: gen, resolveFn });
+      let llmGenomes = []; try { llmGenomes = await llmPropose(lookup, { w, n: 4, key: readFileSync('/tmp/.orkey', 'utf8').trim() }); } catch { /**/ }
+      for (const g of llmGenomes) if (!unmeasured.has(mkey(g))) unmeasured.set(mkey(g), g);
+      console.log(`\n[gen ${gen}] measured=${Object.keys(lookup).length} · champion=${gkey(champion.g)} V=${champion.mean.toFixed(1)} · proposing ${unmeasured.size} (LLM ${llmGenomes.length}) · provisioned-so-far ${provisioned}/${maxVms}`);
+      if (unmeasured.size === 0) { console.log('converged — all proposals already measured.'); break; }
       cleanupDone();
-      const lk = fetchFirestoreLookup(PROJECT);
-      const done = dispatched.filter((k) => lk[k] != null).length;
-      console.log(`  gen ${gen}: ${done}/${dispatched.length} self-reported`);
-      if (done >= dispatched.length) break;
+      const dispatched = []; let genCount = 0;
+      for (const [k, g] of unmeasured) {
+        if (provisioned >= maxVms) { console.log(`maxVms cap (${maxVms}) — not dispatching more`); break; }
+        if (genCount >= maxGenVms) break;                    // per-gen cap (also respects 32-vCPU quota in provision)
+        if (provision({ board: 'lite', model: g.model, mode: g.mode, escalate: g.escalate, sample, machine: 'e2-standard-4', tag: `g${gen}-${k.replace(/[|/.: ]/g, '-')}`.slice(0, 40) })) { dispatched.push(k); provisioned++; genCount++; }
+      }
+      console.log(`dispatched ${dispatched.length} prove-${sample} jobs (total provisioned ${provisioned}/${maxVms}); polling…`);
+      for (let t = 0; t < 24 && dispatched.length; t++) { // ≤2h/gen
+        const s2 = tripped(); if (s2) { console.log(`STOP mid-poll (guard): ${s2}`); break; }
+        await new Promise((r) => setTimeout(r, 300000));
+        cleanupDone();
+        const done = dispatched.filter((k) => fetchFirestoreLookup(PROJECT)[k] != null).length;
+        console.log(`  gen ${gen}: ${done}/${dispatched.length} self-reported`);
+        if (done >= dispatched.length) break;
+      }
     }
+  } finally {
+    cleanupDone();  // never leave halted VMs billing, even on abort/error
+    console.log(`\nautotune finished. provisioned ${provisioned} VMs, spend $${curSpend()} (Δ$${((curSpend() ?? 0) - startSpend).toFixed(2)}). \`rank\` for the frontier; confirm champion at full-300 (phase-2). Run \`down all\` if any VM lingers.`);
   }
-  console.log('\nautotune done. `rank` for the frontier; confirm the champion at full-300 before any claim (phase-2).');
 }
 
 function serial(name) { try { return gq(['compute', 'instances', 'get-serial-port-output', name, `--project=${PROJECT}`, `--zone=${ZONE}`]); } catch { return ''; } }

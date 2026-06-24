@@ -1,7 +1,7 @@
 // Tests for the Sovereign Evolution genome engine (ADR-184). Run: node --test evolve-arch.test.mjs
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { MODELS, MODES, JUDGES, STEPS, mkRng, cheapness, valueOf, gkey, mkey, randomGenome, mutate, crossover, costModel, evolve, normMode, buildLookup } from './evolve-arch.mjs';
+import { MODELS, MODES, JUDGES, STEPS, mkRng, cheapness, valueOf, gkey, mkey, randomGenome, mutate, crossover, costModel, evolve, normMode, buildLookup, parseGenomes } from './evolve-arch.mjs';
 
 const rng = mkRng(42);
 
@@ -78,6 +78,17 @@ test('buildLookup parses Firestore docs + normalizes modes (the real-data fix)',
   assert.equal(lk['deepseek-v4-flash|bo3'], 39.7);
   assert.equal(lk['deepseek-v4-flash|union-of-3-ceiling'], undefined); // ceiling excluded
 });
+
+test('parseGenomes: validates LLM output, filters bad fields, handles fenced JSON', () => {
+  const raw = '```json\n[{"model":"z-ai/glm-5.2","mode":"bo3","judge":"deepseek/deepseek-v4-flash","maxSteps":15},' +
+    '{"model":"FAKE-MODEL","mode":"single"},{"model":"deepseek/deepseek-v4-flash","mode":"cascade","escalate":"z-ai/glm-5.2","maxSteps":99}]\n```';
+  const g = parseGenomes(raw);
+  assert.equal(g.length, 2);                       // FAKE-MODEL dropped
+  assert.equal(g[0].model, 'z-ai/glm-5.2'); assert.equal(g[0].mode, 'bo3');
+  assert.equal(g[1].mode, 'cascade'); assert.ok(MODELS.includes(g[1].escalate));
+  assert.equal(g[1].maxSteps, 15);                 // invalid 99 → default 15
+});
+test('parseGenomes: garbage → []', () => { assert.deepEqual(parseGenomes('not json at all'), []); });
 
 test('2-phase gate prefers a stable genome over a noisy-lucky one', () => {
   // genome A: mean 36 but huge variance; genome B: stable 38. The gate (phase-2 low-noise) should pick B.

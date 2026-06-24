@@ -79,6 +79,25 @@ export function fetchFirestoreLookup(project = 'cognitum-20260110') {
   return buildLookup(JSON.parse(out).documents || []);
 }
 
+// ── LLM-as-mutation-operator: given the measured frontier + Value formula, propose INFORMED genomes ──
+// (complements blind GA mutation; shrinks the search space. NEVER used for promotion — stats decide that.)
+export function parseGenomes(raw) {
+  let arr; try { arr = JSON.parse(raw.replace(/^```(json)?\n?|\n?```$/g, '').trim()); } catch { const m = raw.match(/\[[\s\S]*\]/); arr = m ? JSON.parse(m[0]) : []; }
+  if (!Array.isArray(arr)) return [];
+  return arr.filter((g) => g && MODELS.includes(g.model) && MODES.includes(g.mode) && (!g.judge || JUDGES.includes(g.judge)))
+    .map((g) => ({ model: g.model, mode: g.mode, escalate: g.mode === 'cascade' ? (MODELS.includes(g.escalate) ? g.escalate : MODELS[1]) : null, judge: JUDGES.includes(g.judge) ? g.judge : JUDGES[0], maxSteps: STEPS.includes(g.maxSteps) ? g.maxSteps : 15 }));
+}
+export async function llmPropose(lookup, { w = 0.7, n = 4, model = 'deepseek/deepseek-v4-flash', key } = {}) {
+  key = (key || process.env.OPENROUTER_API_KEY || '').trim(); if (!key) return [];
+  const frontier = Object.entries(lookup).map(([k, v]) => `${k}: ${v}% resolve`).join('\n') || '(none yet)';
+  const prompt = `You are the mutation operator of an architecture search optimizing a SWE-bench solver for VALUE = ${w}·resolve% + ${1 - w}·cheapness (cheapness = log-scaled, $5/inst→0, $0.005/inst→100).\n\nGenome fields: model ∈ ${JSON.stringify(MODELS)}; mode ∈ ${JSON.stringify(MODES)} (single cheapest, bo3 = 3× cost +~6pt resolve, cascade = expensive); escalate (cascade only) ∈ models; judge ∈ ${JSON.stringify(JUDGES)}; maxSteps ∈ ${JSON.stringify(STEPS)}.\n\nMeasured frontier (resolve%, all n=25 noisy):\n${frontier}\n\nPropose ${n} NEW genomes (not already measured) most likely to maximize VALUE — reason about cost vs capability (e.g. wrap a strong cheap model in bo3 to capture its union while keeping a cheap judge). Reply ONLY a JSON array of {model,mode,escalate,judge,maxSteps}.`;
+  try {
+    const res = await fetch('https://openrouter.ai/api/v1/chat/completions', { method: 'POST', signal: AbortSignal.timeout(60000), headers: { Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ model, messages: [{ role: 'user', content: prompt }], max_tokens: 800, temperature: 0.4 }) });
+    const j = await res.json(); const proposed = parseGenomes(j.choices?.[0]?.message?.content ?? '');
+    return proposed.filter((g) => lookup[mkey(g)] == null); // only unmeasured
+  } catch { return []; }
+}
+
 // ── evolution with 2-phase statistical gate ──
 export function evolve({ w = 0.5, gens = 6, pop = 8, seed = 1, resolveFn, noise1 = 8, noise2 = 3.5 }) {
   const rng = mkRng(seed);
