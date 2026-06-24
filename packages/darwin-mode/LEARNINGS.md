@@ -377,3 +377,25 @@ hold at scale (scale-corrected ~38% predicted; 37% measured — the prediction w
    The directive warns concurrency 2-3 for GitHub-clone limits; this is likely part clone-failure, part 15-step
    give-up. So 37% is a LOWER BOUND (per-attempt rate 111/187 = 59%). A concurrency-2 re-run would measure fairer —
    but GLM single is not the SOTA candidate (the xbo bo2 V3.2+GLM is), so compute goes there first.
+
+## 25. Empty-patch → Opus escalation BREAKS 50% (pilot): blended ~55% @ $0.27 — a new high-w frontier point
+
+The deterministic 100%-precision gate works. Pilot (n=25 of GLM's 113 give-up instances, conformant, local eval):
+**Opus-4.8 resolved 12/25 = 48%** of instances where the cheap model produced an EMPTY patch (guaranteed 0%).
+Opus wrote 20/25 patches ($16.58, ~$0.66/inst); 5 it couldn't patch; 12 resolved.
+
+**Projected GLM→Opus empty-patch cascade (n=300):** blended = (111 GLM-resolved + 0.48×113 Opus-on-empties)/300
+≈ **165/300 = 55.1% @ $0.267/inst** (blended 95% CI [48, 62]% — n=25 pilot noise).
+
+Why it works (where §19 blind cascade + §20 repro-gate failed): the gate is **binary ground truth** — an empty patch is
+mathematically 0%, so escalating it carries ZERO regression risk (no Goodhart trap) and spends the $0.66 Opus token
+ONLY where the $0.018 model completely tapped out. It is the FIRST lever to break the ~45% cheap-union ceiling (§21,
+intelligence-bound) — because it injects frontier intelligence surgically, not via orchestration.
+
+**Cost-Pareto position (report across w):**
+- Economy: DeepSeek-V4 bo3 — 39.7% @ $0.015 (champion at low w)
+- **Performance: GLM→Opus empty-patch cascade — ~55% @ $0.27 (NEW; wins at high w)**
+- Brute-force (labs): Opus single — ~60% @ $15+ (this cascade is ~56× cheaper for near-comparable resolve)
+
+CAVEAT: n=25 pilot; point estimate 55% but CI lower bound 48%. Confirming with the full 113-instance escalation
+(authoritative n=300 cascade, ~$58 Opus) before any firm >50% SOTA claim.
