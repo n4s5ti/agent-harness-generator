@@ -474,3 +474,13 @@ Kimi-specific — **adding a 3rd model degrades the judge's selection faster tha
 of member strength. The discriminator's accuracy drops as the candidate pool grows (more ways to pick wrong). So
 cross-model BoN's sweet spot is firmly **N=2, the two strongest orthogonal models**. Practical upshot: the xcascade
 (§30) correctly uses a 2-model base; a 3-model base would have hurt it.
+
+## 32. 🚀 Opus+GLM cross-model xbo = 72% (n=25) — diversity lifts the FRONTIER tier too (+12pt over Opus-single)
+
+SOTA-push probe: xbo (cross-model Best-of-2 + judge) of **Claude-Opus-4.8 + GLM-5.2** = **18/25 = 72% (n=25)** —
+vs Opus-single 60% (§21) and the cheap structures (~52-56%). The N=2 pair-strongest rule (§31) holds at the top:
+Opus's raw capability + GLM's orthogonal failure modes, judge-selected, clears +12pt over Opus alone. Cost ~$0.52/inst
+(Opus $0.50 + GLM $0.018 + judge) — approaching published lab SOTA (68-79%) at <1/25th the $15+ frontier-only cost.
+**Caveat:** n=25 (18 vs 15 = +3 instances, noise-compatible) — directional, needs n=300 to claim. But it's the new
+resolve high and confirms cross-model diversity compounds with model strength. The Performance/Brute-force tiers now
+have a cheaper bridge: Opus+GLM xbo ~72%@$0.52 sits between the cascade (51.3%@$0.27) and frontier-only ($15+).
