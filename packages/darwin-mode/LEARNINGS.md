@@ -442,3 +442,14 @@ The empty-patch gate (100%-precision: escalate only guaranteed-0% patches) is th
 cheap-union ceiling (§18/§21) — it injects frontier intelligence surgically. At $0.267 it is ~56× cheaper than
 frontier-only labs for >50% resolve. Next: xcascade (diverse cross-model base → Opus) should push higher still
 by shrinking the escalation set; queued on GCP.
+
+## 29. Sakana/DGM line_edit tool: GLM single 44% → 52% (n=25) — the empty-patch fix works (directional)
+
+Added a `line_edit` (line-range) tool to agentic-loop alongside search/replace (SAKANA_FUGU Improvement 4; the DGM
+evolved the same primitive). Search/replace needs char-for-char matches — when it fails the model often gives up →
+empty patch → 0% (our measured 38-61% bottleneck, §24/§26). Editing by line number (from `read`) is robust.
+**Result: GLM single n=25 = 52%** vs the 44% baseline (+8pt). n=25 caveat: that's 13 vs 11 resolved (+2 instances,
+noise-compatible) — but the direction + mechanism (fewer failed-edit empties) are sound and it's a free additive
+tool, so it's **kept as the default**. n=300 would confirm the magnitude; worth re-running glm full-300 with it to
+see if the 113-empty rate drops. This also lifts every downstream structure (bo3/xbo/cascade) that builds on the
+base solver.
