@@ -412,3 +412,13 @@ at conc-4 are floors, not estimates; a conc-2 re-run is needed for a fair single
 *why* they're empty (model give-up OR infra clone-fail) — so it is robust to this confound; it mops up every 0%
 instance. The worse the cheap tier's empty rate, the more the cascade rescues. The cascade converts an infra
 weakness (clone-fails → empties) into escalation targets Opus resolves.
+
+## 27. GPT-5.5 underperforms our ReAct scaffold: 28% (n=25) @ $1.25 — Opus stays the escalation tier
+
+GCP prove-25, openai/gpt-5.5 single, interactive ReAct: **28% (n=25)** [7/25] @ ~$1.25/inst — far below Opus-4.8
+single (60% n=25 @ $0.50) and even below the cheap singles (GLM/V3.2 44%). A frontier model scoring this low in our
+harness points to a **scaffold/format mismatch** (GPT-5.5's tool-use/output style fits our ReAct loop worse than
+Claude's) rather than raw capability — but as-measured in OUR conformant pipeline, it's both worse AND pricier than
+Opus. **Implication: Opus-4.8 remains the empty-patch escalation tier of choice** (higher resolve, 2.5× cheaper).
+GPT-5.5-codex (a SWE-tuned variant) might fare better and is worth a future n=25 probe; raw gpt-5.5 is not the lever.
+(n=25 directional; the point is the large Opus>GPT-5.5 gap in-scaffold, not the exact %.)
