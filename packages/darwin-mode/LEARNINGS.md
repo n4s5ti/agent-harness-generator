@@ -484,3 +484,16 @@ Opus's raw capability + GLM's orthogonal failure modes, judge-selected, clears +
 **Caveat:** n=25 (18 vs 15 = +3 instances, noise-compatible) — directional, needs n=300 to claim. But it's the new
 resolve high and confirms cross-model diversity compounds with model strength. The Performance/Brute-force tiers now
 have a cheaper bridge: Opus+GLM xbo ~72%@$0.52 sits between the cascade (51.3%@$0.27) and frontier-only ($15+).
+
+## 33. Opus bo3 = 72% (n=25) = Opus+GLM xbo — same ceiling, but cross-model is 3× cheaper
+
+SOTA-push: Opus best-of-3 (×3 temps + judge) = **18/25 = 72% (n=25)** — IDENTICAL to Opus+GLM cross-model xbo (§32,
+72%). Two takeaways:
+1. **~72% is the scaffold ceiling** above Opus-single (60%) at n=25 — both "more samples + judge" routes (temp-diverse
+   and cross-model-diverse) converge there. Frontier intelligence + Best-of-N selection tops out ~72% in our conformant
+   ReAct harness on Lite (n=25).
+2. **Cross-model xbo is the cost-efficient route:** Opus-bo3 ≈ $1.50/inst (3× Opus) vs Opus+GLM xbo ≈ $0.52/inst
+   (Opus + cheap GLM). Same 72% resolve, **~3× cheaper** — because GLM ($0.018) supplies orthogonal diversity at near-zero
+   marginal cost vs a 2nd/3rd Opus pass. So for any target resolve, prefer cross-model diversity over same-model temps.
+Opus-bo3 is therefore DOMINATED (same resolve, higher cost) → not a frontier point; Opus+GLM xbo (72%@$0.52) is the
+high-resolve anchor. n=25 caveat on both; n=300 confirm before any SOTA claim.
