@@ -361,3 +361,19 @@ helps (cf. §C: discriminator precision drops as the candidate pool dilutes). So
 more union captured" — it's **pair the two strongest orthogonal models** (V3.2+GLM, both 44% single). The bo2 is the
 standout cheap-frontier candidate; dispatching its **full-300 confirmation** to test vs the 39.7% champion on Value.
 (n=25 — the 16pt gap likely exceeds noise, but n=300 is the verdict.)
+
+## 24. First cross-model-era full-300: GLM-5.2 single = 37.0% (n=300) — does NOT beat the bo3 champion
+
+Real n=300 (local gold-eval of salvaged GCP preds, cache_level=env): **GLM-5.2 single = 111/300 = 37.0%**
+[Wilson 95% CI 31.4–42.3%], cost ~$0.018/inst. vs the reigning **DeepSeek-V4 Best-of-3 = 39.7% @ $0.015**.
+→ GLM single is **below the champion on resolve AND costs more** — the champion's CI (39.7%) sits inside GLM's
+interval, so they're not statistically distinguishable, but GLM single has no Value case. The n=25 (44%) did NOT
+hold at scale (scale-corrected ~38% predicted; 37% measured — the prediction was right, the n=25 optimism wasn't).
+
+**Two infra bugs found + fixed this run (both produced silent under-measurement):**
+1. **Eval disk-exhaustion** — `cache_level=instance` wrote 300 Docker images (~1GB ea) → 200GB disk full → most
+   instances failed to build → counted unresolved (v3.2 reported a fake "14%", purged). Fix: `cache_level=env` + 300GB.
+2. **113/300 empty patches** — the interactive solver produced NO patch on 38% of instances, at CONCURRENCY=4.
+   The directive warns concurrency 2-3 for GitHub-clone limits; this is likely part clone-failure, part 15-step
+   give-up. So 37% is a LOWER BOUND (per-attempt rate 111/187 = 59%). A concurrency-2 re-run would measure fairer —
+   but GLM single is not the SOTA candidate (the xbo bo2 V3.2+GLM is), so compute goes there first.
