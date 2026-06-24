@@ -603,6 +603,20 @@
           "note": "8/25 n=25 GCP fleet, gold, conformant (directional — n=300 confirms)"
         },
         {
+          "name": "Darwin · GPT-5.5 single",
+          "scaffold": "interactive ReAct",
+          "model": "GPT-5.5",
+          "resolve": 28,
+          "ci": [
+            14.3,
+            47.6
+          ],
+          "cost": 1.25,
+          "kind": "meas",
+          "costEst": false,
+          "note": "7/25 n=25 GCP fleet, gold, conformant (directional — n=300 confirms)"
+        },
+        {
           "name": "Darwin · Kimi cascade",
           "scaffold": "repo-test cascade",
           "model": "Kimi",
