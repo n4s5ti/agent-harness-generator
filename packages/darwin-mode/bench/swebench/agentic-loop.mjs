@@ -25,11 +25,13 @@ export const AGENTIC_SYSTEM =
   + '{"tool":"read","path":"f.py","start":1,"end":80}  read a file (range optional; omit for whole file)\n'
   + '{"tool":"grep","pattern":"reg","glob":"*.py"}     search the repo (glob optional)\n'
   + '{"tool":"edit","path":"f.py","search":"<exact lines incl. indentation>","replace":"<new lines>"}  apply a search/replace edit\n'
+  + '{"tool":"line_edit","path":"f.py","start":12,"end":15,"replace":"<new text for lines 12-15>"}  replace an inclusive LINE RANGE (robust — line numbers come from `read`)\n'
   + '{"tool":"run_tests"}                   run the failing tests against your current edits; returns the trace\n'
   + '{"tool":"submit"}                      finalize your patch and stop\n'
   + 'Strategy: explore (read/grep/ls) to locate the fix, make minimal edit(s), run_tests, iterate on '
-  + 'the trace, then submit once tests pass. SEARCH must match the file character-for-character. Never '
-  + 'edit test files. Output ONE JSON action per turn.';
+  + 'the trace, then submit once tests pass. PREFER line_edit (use the line numbers from `read`) — it is far '
+  + 'more reliable than search/replace, which must match the file character-for-character. If an `edit` fails '
+  + 'to match, switch to line_edit. Never edit test files. Output ONE JSON action per turn.';
 
 /** Parse the model's turn into a single action object, tolerating stray prose/fences around the JSON. */
 export function parseAction(raw) {
@@ -108,6 +110,22 @@ export function makeTools(io) {
         if (next == null || next === cur) return `edit failed: SEARCH text did not match ${r} (copy it character-for-character, indentation included)`;
         io.writeFile(abs, next); return `edited ${r} (${next.length - cur.length >= 0 ? '+' : ''}${next.length - cur.length} chars)`;
       } catch (e) { return `edit error: ${String(e.message || e)}`; }
+    },
+    line_edit(a) {
+      try {
+        const r = rel(a.path);
+        if (io.isTestPath(r)) return `line_edit rejected: ${r} is a test file (never edit tests)`;
+        const abs = guardInside(a.path); if (!io.exists(abs)) return `line_edit error: no such file ${r}`;
+        const s = a.start | 0, e = a.end | 0;
+        if (!s || !e || e < s) return 'line_edit error: need 1-based inclusive start,end with end>=start (line numbers from `read`)';
+        if (typeof a.replace !== 'string') return 'line_edit error: replace must be a string';
+        const cur = io.readFile(abs); const lines = cur.split('\n');
+        if (s > lines.length) return `line_edit error: start ${s} is past EOF (file has ${lines.length} lines)`;
+        const next = [...lines.slice(0, s - 1), ...a.replace.split('\n'), ...lines.slice(Math.min(lines.length, e))].join('\n');
+        if (next === cur) return 'line_edit: no change (replacement identical)';
+        io.writeFile(abs, next);
+        return `line_edit ${r}: replaced lines ${s}-${e} (${next.length - cur.length >= 0 ? '+' : ''}${next.length - cur.length} chars)`;
+      } catch (e) { return `line_edit error: ${String(e.message || e)}`; }
     },
     run_tests() {
       try {
