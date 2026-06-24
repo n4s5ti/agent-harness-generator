@@ -67,13 +67,15 @@ function provision(o) {
   const name = `${PREFIX}${board}-${tag}`;
   if (vmExists(name)) { console.error(`SKIP ${tag}: ${name} already exists`); return false; }
   const tmp = `/tmp/startup-${name}.sh`; writeFileSync(tmp, STARTUP);
-  const meta = `orkey=${key()},bench=${board},mode=${mode},model=${model}` + (escalate ? `,escalate=${escalate}` : '') + (sample ? `,sample=${sample}` : '') + (xmodels ? `,xmodels=${xmodels}` : '');
-  console.error(`provisioning ${name}  (${model} · ${mode}${sample ? ` · n=${sample}` : ''} · ${BOARDS[board]})`);
+  const meta = `orkey=${key()},bench=${board},mode=${mode},model=${model}` + (escalate ? `,escalate=${escalate}` : '') + (sample ? `,sample=${sample}` : '');
+  let mff = `startup-script=${tmp}`;
+  if (xmodels) { const xf = `/tmp/xmodels-${name}.txt`; writeFileSync(xf, xmodels); mff += `,xmodels=${xf}`; } // commas break --metadata; use a file
+  console.error(`provisioning ${name}  (${model}${xmodels ? `=[${xmodels}]` : ''} · ${mode}${sample ? ` · n=${sample}` : ''} · ${BOARDS[board]})`);
   try {
     gq(['compute', 'instances', 'create', name, `--project=${PROJECT}`, `--zone=${ZONE}`,
       `--machine-type=${machine}`, '--image-family=ubuntu-2204-lts', '--image-project=ubuntu-os-cloud',
       '--boot-disk-size=200GB', '--boot-disk-type=pd-standard', '--no-address', // no external IP (egress via Cloud NAT) — dodges IN_USE_ADDRESSES quota (8)
-      `--metadata=${meta}`, `--metadata-from-file=startup-script=${tmp}`, '--scopes=cloud-platform']);
+      `--metadata=${meta}`, `--metadata-from-file=${mff}`, '--scopes=cloud-platform']);
   } catch (e) { console.error(`SKIP ${tag}: create failed — ${(e.message || '').split('\n').find((l) => /ERROR|Quota|exceeded/.test(l)) || 'error'}`); return false; }
   console.log(`✓ ${name} provisioning (self-runs on boot)`); return true;
 }
