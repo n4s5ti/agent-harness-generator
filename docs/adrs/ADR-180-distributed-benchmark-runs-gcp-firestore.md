@@ -31,3 +31,16 @@ with a second session. Per-machine result files (JSON in the tree) also don't ag
 - Cost: VM ~$2–5/run + model spend; remember to delete the VM after retrieval.
 - gcloud user creds need periodic interactive reauth (`gcloud auth login`) — a manual gate for provisioning.
 - The leaderboard JSON can be regenerated from `darwin_runs` once enough runs accumulate.
+
+## Operational hardening (2026-06-23, learned in production)
+
+- **`IN_USE_ADDRESSES` quota (8/region) is the REAL concurrency cap** — it trips before the 32-vCPU limit
+  (each VM with an external IP consumes one). Fix: provision with **`--no-address`** + a **Cloud NAT**
+  (`darwin-nat-router` / `darwin-nat`, AUTO_ONLY, all subnets) for shared egress (Docker Hub, OpenRouter, GitHub,
+  Firestore). Now the fleet scales to the vCPU boundary, not the 8-IP wall.
+- **`provision` must catch create-errors** (try/catch → return false) — a single quota-failed `create` otherwise
+  throws and crashes the whole `autotune` loop (it did, once). Now it skips the variant and the loop continues.
+- **Cost auto-control**: workers `shutdown -h` after self-reporting (AUTOSTOP=1); the controller's supervise
+  (and `autotune`) collect-then-DELETE done workers. No idle-billing, no orphans.
+- **Self-report denominator must equal instances run** (`TOTAL=SAMPLE` for prove-N) — a hardcoded /300 made
+  prove-25 numbers 12× too low + mislabeled; caught only by live data, not unit tests. Purge bad rows on fix.

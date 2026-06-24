@@ -34,3 +34,17 @@ fraction vs 0-100 cheapness) — fixed. This proves the search mechanics before 
 - A turn-key, over-fitting-safe architecture search: generate → small-`prove` filter → larger-`prove` gate → scale winner.
 - Next: run `--fitness prove` once the fleet's multi-model rows seed the population from real data (not priors).
 - The genome surface is extensible (temperatures, N, env-filter toggle, model-mix) as new levers are measured.
+
+## Completion (2026-06-23): real-data fitness + LLM-mutation + autonomous autotune
+
+- **Real fitness wired** (`--fitness firestore`): reads measured resolve from `darwin_runs`; `normMode` maps
+  stored modes (`single-traj`/`best-of-3+judge`) → genome vocab (the fix that made real 34%/39.7% register);
+  unmeasured genomes emit as a prove queue.
+- **LLM-as-mutation-operator** (`llmPropose`): the LLM reads the measured frontier + Value formula and proposes
+  INFORMED genomes (e.g. wrap a cheap model in bo3 to capture union while keeping a cheap judge) — complements
+  blind GA mutation. `parseGenomes` validates/filters (tested). **NEVER used for promotion** — the statistical
+  2-phase gate decides; the LLM only proposes + (optionally) sanity-checks. This is the firewall against meta-Goodhart.
+- **Autonomous multi-generation loop** (`gcp-cluster autotune [gens] [w]`): each gen evolves on real Firestore
+  data (GA + LLM proposals) → dispatches unmeasured as prove-25 GCP jobs → polls self-reports → re-evolves.
+- **Runaway guards** (mandatory for an autonomous VM-spawner): gen cap, total-VM cap (≤20), per-gen cap (≤8),
+  OpenRouter spend cap ($200), wall-clock cap (6h), and `finally { cleanupDone() }` so VMs never leak. 13 unit tests.
