@@ -14,7 +14,7 @@ import { execSync } from 'node:child_process';
 import { tmpdir } from 'node:os';
 import { join, dirname, isAbsolute } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { agenticSolve } from './agentic-loop.mjs';
+import { agenticSolve, chebTemp } from './agentic-loop.mjs';
 import { runConformantTests } from './conformant-tests.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
@@ -36,6 +36,8 @@ const CONCURRENCY = Math.max(1, +argv('--concurrency', 1));
 // new instances once cumulative LLM cost reaches it; in-flight finish + write.
 const MAX_COST = +argv('--max-cost', Infinity);
 const TEMP = +argv('--temperature', 0); // Best-of-N diversity: run N trajectories at temp>0 to vary them
+const CHEB_TEMP = process.argv.includes('--cheb-temp'); // PR#49/ADR-188: Chebyshev step-depth temp (hot→greedy)
+const CHEB_HI = +argv('--cheb-hi', 0.8);                 // hot-end temperature for the schedule
 
 let manifest = JSON.parse(readFileSync(rel(argv('--manifest', 'pilot-sample-25.json')), 'utf8')).instances;
 if (onlyInstance) manifest = manifest.filter((i) => i.instance_id === onlyInstance);
@@ -75,13 +77,13 @@ function fetchRepo(repo, sha) {
   return work;
 }
 function mkLlm(model) {
-  return async function (prompt, system) {
+  return async function (prompt, system, temp) {
     const messages = system ? [{ role: 'system', content: system }, { role: 'user', content: prompt }] : [{ role: 'user', content: prompt }];
     let lastErr;
     for (let attempt = 0; attempt < 5; attempt++) {
       if (attempt) await new Promise((r) => setTimeout(r, 2000 * 2 ** (attempt - 1)));
       try {
-        const res = await fetch(CHAT_URL, { method: 'POST', headers: { Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ model, messages, max_tokens: 4096, temperature: TEMP }) });
+        const res = await fetch(CHAT_URL, { method: 'POST', headers: { Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ model, messages, max_tokens: 4096, temperature: (temp ?? TEMP) }) });
         if (!res.ok && (res.status === 429 || res.status >= 500)) { lastErr = new Error(`http ${res.status}`); continue; }
         const j = await res.json(); return { raw: j.choices?.[0]?.message?.content ?? '', cost: j.usage?.cost ?? 0 };
       } catch (e) { lastErr = e; }
@@ -155,7 +157,7 @@ async function solveTier(inst, llmFn) {
     },
     MAX_OUT: 4000,
   };
-  const res = await agenticSolve({ problem: inst.problem_statement, io, llm: llmFn, maxSteps: MAX_STEPS });
+  const res = await agenticSolve({ problem: inst.problem_statement, io, llm: llmFn, maxSteps: MAX_STEPS, tempSchedule: CHEB_TEMP ? ((s, n) => chebTemp(s, n, CHEB_HI)) : undefined });
   return { res, work };
 }
 // Cascade tie-break: neither tier passed the repo gate — judge picks the likelier fix (cheap, conformant).

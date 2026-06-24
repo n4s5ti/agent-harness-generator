@@ -157,7 +157,16 @@ export function stateHash(s) {
   return (h >>> 0).toString(36);
 }
 
-export async function agenticSolve({ problem, io, llm, maxSteps = 20, onStep }) {
+// Chebyshev step-depth temperature schedule (PR #49 / ADR-188): hot for exploration early (cluster high temp via a
+// raised half-cosine, the Chebyshev-node spacing), then collapse to greedy precision at the edit/submit steps.
+// x∈[0,1] over loop depth; w=((1+cos πx)/2)^gamma holds high early + sharp late collapse. gamma>1 = longer hot burst.
+export function chebTemp(step, maxSteps, tHi = 0.8, tLo = 0.0, gamma = 2) {
+  const x = maxSteps > 1 ? (step - 1) / (maxSteps - 1) : 0;
+  const w = Math.pow((1 + Math.cos(Math.PI * x)) / 2, gamma);
+  return +(tLo + (tHi - tLo) * w).toFixed(3);
+}
+
+export async function agenticSolve({ problem, io, llm, maxSteps = 20, onStep, tempSchedule }) {
   const tools = makeTools(io);
   const transcript = [];
   let submitted = false; let resolvedInLoop = false; let cost = 0; let thrash = 0;
@@ -171,7 +180,7 @@ export async function agenticSolve({ problem, io, llm, maxSteps = 20, onStep }) 
   for (let step = 1; step <= maxSteps && !submitted; step++) {
     const convo = header + '\n' + transcript.map((t) => `>>> ${t.actionRaw}\n${t.obs}`).join('\n').slice(-12000);
     let raw = '';
-    try { const r = await llm(convo, AGENTIC_SYSTEM); raw = r.raw; cost += r.cost || 0; }
+    try { const r = await llm(convo, AGENTIC_SYSTEM, tempSchedule ? tempSchedule(step, maxSteps) : undefined); raw = r.raw; cost += r.cost || 0; }
     catch (e) { transcript.push({ actionRaw: '(model error)', obs: String(e.message || e) }); break; }
     const action = parseAction(raw);
     let obs;
