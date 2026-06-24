@@ -272,6 +272,20 @@
           "kind": "official",
           "costEst": true,
           "note": "est: cheap 14B OSS model"
+        },
+        {
+          "name": "Darwin · single-traj",
+          "scaffold": "interactive ReAct",
+          "model": "DeepSeek-V4-Flash",
+          "resolve": 46.4,
+          "ci": [
+            42.1,
+            50.8
+          ],
+          "cost": 0.005,
+          "kind": "meas",
+          "costEst": false,
+          "note": "232/500 SWE-bench Verified, gold, conformant; cost = measured. First Darwin Verified row."
         }
       ]
     },

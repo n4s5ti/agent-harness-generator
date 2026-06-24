@@ -497,3 +497,11 @@ SOTA-push: Opus best-of-3 (×3 temps + judge) = **18/25 = 72% (n=25)** — IDENT
    marginal cost vs a 2nd/3rd Opus pass. So for any target resolve, prefer cross-model diversity over same-model temps.
 Opus-bo3 is therefore DOMINATED (same resolve, higher cost) → not a frontier point; Opus+GLM xbo (72%@$0.52) is the
 high-resolve anchor. n=25 caveat on both; n=300 confirm before any SOTA claim.
+
+## 34. SWE-bench Verified: DeepSeek-V4 single = 46.4% (n=500) — first Darwin Verified number
+
+GCP full-500 on the fixed runner (cache_level=env), official harness, conformant: **DeepSeek-V4-Flash single =
+232/500 = 46.4%** @ $0.005/inst. Higher than its Lite single (34%) as expected (Verified is the human-curated
+"definitely-solvable" subset → cleaner, higher base rates). First Darwin row on the Verified leaderboard tab. The
+GCP full-500 eval completing cleanly also CONFIRMS the cache_level=env + 300GB disk fix works end-to-end on GCP at
+n=500 (no disk-starve). Next: bo3/cascade on Verified for the cost-Pareto frontier there.
