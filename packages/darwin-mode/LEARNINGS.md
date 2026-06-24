@@ -453,3 +453,15 @@ noise-compatible) — but the direction + mechanism (fewer failed-edit empties) 
 tool, so it's **kept as the default**. n=300 would confirm the magnitude; worth re-running glm full-300 with it to
 see if the 113-empty rate drops. This also lifts every downstream structure (bo3/xbo/cascade) that builds on the
 base solver.
+
+## 30. 🎯 xcascade (FUGU) = 56% (n=25) — cross-model base → Opus beats the single-base cascade on BOTH axes
+
+The composed structure (§23 cross-model diversity + §25 empty-patch escalation): xbo base (V3.2+GLM, judge-selected)
+→ escalate only the patches where BOTH models gave up to Opus. **Result: 14/25 = 56% (n=25)** @ ~**$0.215/inst**
+(base 25×$0.030 + Opus on **7** empties × ~$0.66). Both predictions confirmed:
+- **Resolve up:** 56% > glm-cascade (51.3% n=300) / bo2 (52%) — the stronger base lifts the ceiling. 2nd only to raw Opus (60% n=25).
+- **Cost down:** the cross-model base left **7 empties (28%)** vs glm-single's ~38% → fewer $0.66 Opus calls → $0.215 < $0.267.
+
+So the Fugu architecture — *diversity for breadth, frontier escalation only where everything failed* — is the best
+cheap-frontier structure found. n=25 caveat (14 vs the cascade's scaled ~13/25 — directional); **the next n=300 run
+to confirm should be xcascade, not glm-cascade.** It's the new top of the cost-Pareto Performance tier.
