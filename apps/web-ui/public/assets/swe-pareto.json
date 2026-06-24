@@ -561,6 +561,20 @@
           "note": "11/25 n=25 GCP fleet, gold, conformant (directional — n=300 confirms)"
         },
         {
+          "name": "Darwin · V3.2+GLM-5.2+DeepSeek-V4 xbo",
+          "scaffold": "cross-model Best-of-N",
+          "model": "V3.2+GLM-5.2+DeepSeek-V4",
+          "resolve": 44,
+          "ci": [
+            26.7,
+            62.9
+          ],
+          "cost": 0.0352,
+          "kind": "meas",
+          "costEst": false,
+          "note": "11/25 n=25 GCP fleet, gold, conformant (directional — n=300 confirms)"
+        },
+        {
           "name": "Darwin · DeepSeek-V4 single",
           "scaffold": "interactive ReAct",
           "model": "DeepSeek-V4",
