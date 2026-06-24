@@ -532,3 +532,28 @@ run is **deferred under the spend freeze**. The schedule stays available (`--che
 higher-value form of this lever is the **entropy-gated** version (ADR-189 Phase-3 / ADR-185 #2) — Chebyshev applied to
 the escalation threshold, not just temperature — which should be built/tested before committing to the temperature
 schedule. Net: temperature scheduling is a real-but-small lever; localization (ADR-190) remains the larger floor-lifter.
+
+## 38. 🔑 Measured: localization is NOT our bottleneck — the ReAct agent self-localizes 7/7. ADR-190 re-graded.
+
+Before building ADR-190's AST-mincut to fix a "50% localization miss," we measured our OWN miss rate on the 25 static-GLM
+preds vs gold patches. Of 14 failures:
+- **empty-patch (gave up): 7**
+- **localization-miss (committed a patch but never touched the gold file): 0**
+- **reasoning-miss (edited the RIGHT file, wrong fix): 7**
+
+**Every non-empty patch we produce edits the gold file (7/7 = 100%).** The ADR-185 "BM25 misses oracle file ~50%" figure
+is about **retrieve-then-generate** pipelines (Agentless feeds top-K files). Our **interactive ReAct agent localizes
+itself** (grep/read/ls) and does it well — the paper's bottleneck does not transfer to our architecture. This is exactly
+why we measure before building.
+
+**Consequences (roadmap correction):**
+- **ADR-190 (AST-fused mincut localization) is LOW-VALUE for us → deferred/likely-declined.** It would attack a
+  bottleneck we don't have. The addressable surface is at most the 7 empty-patches, and those are *already handled* by
+  the empty-patch → Opus cascade (§28).
+- The real failure split is **50% empty (gave up) + 50% reasoning (right file, wrong fix)**. The empty half is solved by
+  escalation (cascade/xcascade). The reasoning half is a **pure capability gap** — fixed only by a stronger model on the
+  hard instance (xbo/cascade/Opus escalation), NOT by localization or retrieval.
+- So the existing **cascade/xbo escalation direction is the correct lever**; the highest-value remaining work is sharper
+  *escalation routing* (which instances to escalate) and *selection* among candidates — ADR-185 #2 (entropy gate) and #3
+  (diverse-edit BoN), not #1 (localization). Caveat: n=25; the 7 empties are ambiguous (give-up could be reasoning- or
+  search-driven) but produce no wrong-file signal. Re-measure on a larger sample when the freeze lifts.
