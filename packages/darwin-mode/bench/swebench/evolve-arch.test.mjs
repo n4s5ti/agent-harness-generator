@@ -1,23 +1,24 @@
 // Tests for the Sovereign Evolution genome engine (ADR-184). Run: node --test evolve-arch.test.mjs
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { MODELS, MODES, JUDGES, STEPS, mkRng, cheapness, valueOf, gkey, mkey, randomGenome, mutate, crossover, costModel, evolve, normMode, buildLookup, parseGenomes } from './evolve-arch.mjs';
+import { MODELS, MODES, JUDGES, STEPS, mkRng, cheapness, valueOf, gkey, mkey, randomGenome, mutate, crossover, costModel, mockResolve, evolve, normMode, buildLookup, parseGenomes } from './evolve-arch.mjs';
 
 const rng = mkRng(42);
+const modelOK = (g) => g.mode === 'xbo' ? (typeof g.model === 'string' && g.model.split(',').every((m) => MODELS.includes(m))) : MODELS.includes(g.model);
 
-test('randomGenome produces a valid genome', () => {
+test('randomGenome produces a valid genome (xbo-aware)', () => {
   for (let i = 0; i < 50; i++) { const g = randomGenome(rng);
-    assert.ok(MODELS.includes(g.model)); assert.ok(MODES.includes(g.mode));
+    assert.ok(modelOK(g)); assert.ok(MODES.includes(g.mode));
     assert.ok(JUDGES.includes(g.judge)); assert.ok(STEPS.includes(g.maxSteps));
     if (g.mode === 'cascade') assert.ok(MODELS.includes(g.escalate)); else assert.equal(g.escalate, null);
   }
 });
 
-test('mutate keeps the genome valid + changes ≤1 field', () => {
+test('mutate keeps the genome valid + ≤1 logical field changes (model co-varies with mode)', () => {
   const g = { model: MODELS[0], mode: 'single', escalate: null, judge: JUDGES[0], maxSteps: 15 };
   for (let i = 0; i < 50; i++) { const h = mutate(rng, g);
-    assert.ok(MODELS.includes(h.model) && MODES.includes(h.mode) && JUDGES.includes(h.judge) && STEPS.includes(h.maxSteps));
-    const diffs = ['model', 'mode', 'judge', 'maxSteps'].filter((k) => h[k] !== g[k]); assert.ok(diffs.length <= 1);
+    assert.ok(modelOK(h) && MODES.includes(h.mode) && JUDGES.includes(h.judge) && STEPS.includes(h.maxSteps));
+    const diffs = ['mode', 'judge', 'maxSteps'].filter((k) => h[k] !== g[k]); assert.ok(diffs.length <= 1); // model is dependent on mode
   }
 });
 
@@ -95,4 +96,16 @@ test('2-phase gate prefers a stable genome over a noisy-lucky one', () => {
   const fn = (g) => g.maxSteps === 20 ? 36 : 38; // B (steps≠20) is higher-mean + we'll let noise hit A harder via seed
   const r = evolve({ w: 1, gens: 6, pop: 10, seed: 5, resolveFn: fn, noise1: 10, noise2: 0.5 });
   assert.notEqual(r.champion.g.maxSteps, 20); // the lower-mean noisy variant must not be promoted
+});
+
+test('xbo cross-model: costModel sums distinct base costs; mockResolve adds union bonus; mkey on the set', () => {
+  const g = { model: 'deepseek/deepseek-v4-flash,moonshotai/kimi-k2.6', mode: 'xbo', escalate: null, judge: JUDGES[0], maxSteps: 15 };
+  assert.ok(costModel(g) > costModel({ ...g, mode: 'single', model: 'deepseek/deepseek-v4-flash' })); // sum > single
+  assert.ok(mockResolve(g) >= Math.max(34, 33) + 5);  // union bonus over best member
+  assert.equal(mkey(g), mkey({ ...g, model: 'moonshotai/kimi-k2.6,deepseek/deepseek-v4-flash' })); // order-independent
+});
+test('parseGenomes accepts xbo (comma model or models[] array), rejects single-member xbo', () => {
+  const g = parseGenomes('[{"model":"deepseek/deepseek-v4-flash,z-ai/glm-5.2","mode":"xbo"},{"models":["z-ai/glm-5.2","moonshotai/kimi-k2.6"],"mode":"xbo"},{"model":"z-ai/glm-5.2","mode":"xbo"}]');
+  assert.equal(g.length, 2);                          // single-member xbo dropped
+  assert.ok(g[1].model.includes(','));                 // models[] joined
 });

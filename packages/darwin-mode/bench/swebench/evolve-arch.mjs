@@ -11,7 +11,7 @@
 import { execSync } from 'node:child_process';
 
 export const MODELS = ['deepseek/deepseek-v4-flash', 'z-ai/glm-5.2', 'moonshotai/kimi-k2.6', 'deepseek/deepseek-v3.2', 'minimax/minimax-m2.5'];
-export const MODES = ['single', 'bo3', 'cascade'];
+export const MODES = ['single', 'bo3', 'cascade', 'xbo']; // xbo = cross-model Best-of-N (model = comma-list of DIFFERENT models)
 export const JUDGES = ['deepseek/deepseek-v4-flash', 'anthropic/claude-opus-4.8'];
 export const STEPS = [12, 15, 20];
 
@@ -19,27 +19,36 @@ export const mkRng = (s) => () => { s = (s * 1103515245 + 12345) & 0x7fffffff; r
 export const cheapness = (c) => Math.max(0, Math.min(100, 100 * (Math.log10(5) - Math.log10(c)) / (Math.log10(5) - Math.log10(0.005))));
 export const valueOf = (w, resolvePct, cost) => w * resolvePct + (1 - w) * cheapness(cost); // both 0-100
 export const gkey = (g) => `${g.model}|${g.mode}|${g.escalate || ''}|${g.judge}|${g.maxSteps}`;
-// the {model,mode} key Firestore measures by (judge/steps are secondary dims)
-export const mkey = (g) => `${g.model.split('/').pop()}|${g.mode}`;
+// the {model,mode} key Firestore measures by (judge/steps are secondary dims). xbo keys on the model SET.
+export const mkey = (g) => g.mode === 'xbo'
+  ? `xbo|${String(g.model).replace(/^xbo:/, '').split(',').map((m) => m.split('/').pop()).sort().join('+')}`
+  : `${g.model.split('/').pop()}|${g.mode}`;
 
 const pickW = (rng, a) => a[Math.floor(rng() * a.length)];
+// pick K distinct models, comma-joined (for xbo cross-model Best-of-N)
+function pickModels(rng, k) { const pool = [...MODELS]; const out = []; for (let i = 0; i < k && pool.length; i++) out.push(pool.splice(Math.floor(rng() * pool.length), 1)[0]); return out.join(','); }
+function modelFor(rng, mode) { return mode === 'xbo' ? pickModels(rng, 2 + Math.floor(rng() * 2)) : pickW(rng, MODELS); }
 export function randomGenome(rng) {
   const mode = pickW(rng, MODES);
-  return { model: pickW(rng, MODELS), mode, escalate: mode === 'cascade' ? pickW(rng, MODELS) : null, judge: pickW(rng, JUDGES), maxSteps: pickW(rng, STEPS) };
+  return { model: modelFor(rng, mode), mode, escalate: mode === 'cascade' ? pickW(rng, MODELS) : null, judge: pickW(rng, JUDGES), maxSteps: pickW(rng, STEPS) };
 }
 export function mutate(rng, g) {
   const h = { ...g }; const f = pickW(rng, ['model', 'mode', 'judge', 'maxSteps']);
-  if (f === 'model') h.model = pickW(rng, MODELS);
-  else if (f === 'mode') { h.mode = pickW(rng, MODES); h.escalate = h.mode === 'cascade' ? pickW(rng, MODELS.filter((m) => m !== h.model)) : null; }
+  if (f === 'model') h.model = modelFor(rng, h.mode);
+  else if (f === 'mode') { h.mode = pickW(rng, MODES); h.model = modelFor(rng, h.mode); h.escalate = h.mode === 'cascade' ? pickW(rng, MODELS.filter((m) => m !== h.model)) : null; }
   else if (f === 'judge') h.judge = pickW(rng, JUDGES);
   else h.maxSteps = pickW(rng, STEPS);
   return h;
 }
 export function crossover(rng, a, b) { return { model: rng() < 0.5 ? a.model : b.model, mode: rng() < 0.5 ? a.mode : b.mode, escalate: rng() < 0.5 ? a.escalate : b.escalate, judge: rng() < 0.5 ? a.judge : b.judge, maxSteps: rng() < 0.5 ? a.maxSteps : b.maxSteps }; }
 
+// per-single-model priors (cost $/inst, resolve %) — real data overrides these via Firestore.
+export const baseCost = (m) => m.includes('glm') ? 0.018 : m.includes('kimi') ? 0.02 : m.includes('v3.2') ? 0.012 : m.includes('minimax') ? 0.012 : m.includes('opus') ? 0.5 : 0.005;
+export const singleResolve = (m) => m.includes('glm') ? 31 : m.includes('kimi') ? 33 : m.includes('v3.2') ? 34 : m.includes('minimax') ? 32 : m.includes('opus') ? 60 : 34;
 // deterministic cost model (mode/model) — cost is calculable; resolve is the measured part.
 export function costModel(g) {
-  const m = g.model.includes('glm') ? 0.018 : g.model.includes('kimi') ? 0.02 : g.model.includes('v3.2') ? 0.012 : 0.005;
+  if (g.mode === 'xbo') { let c = g.model.split(',').reduce((s, m) => s + baseCost(m), 0) + 0.0002; if ((g.judge || '').includes('opus')) c += 0.01; return c * (g.maxSteps / 15); }
+  const m = baseCost(g.model);
   let c = m; if (g.mode === 'bo3') c = 3 * m + 0.0002; if (g.mode === 'cascade') c = m + 0.62 * (m * 6);
   if ((g.judge || '').includes('opus') && g.mode !== 'single') c += 0.01;
   return c * (g.maxSteps / 15);
@@ -47,7 +56,8 @@ export function costModel(g) {
 
 // ── MOCK fitness: measured anchors (§13/18/20) + priors + bounded noise (engine self-test) ──
 export function mockResolve(g) {
-  let r = 34; if (g.model.includes('glm')) r = 31; if (g.model.includes('kimi')) r = 33; // priors for unmeasured
+  if (g.mode === 'xbo') { const rs = g.model.split(',').map(singleResolve); return Math.min(55, Math.max(...rs) + 6); } // orthogonality union-capture bonus
+  let r = singleResolve(g.model);
   if (g.mode === 'bo3') r = Math.min(46, r + 5.7); if (g.mode === 'cascade') r = Math.min(45, r + 4);
   if ((g.judge || '').includes('opus') && g.mode !== 'single') r += 1.5;
   if (g.maxSteps === 20) r += 1; if (g.maxSteps === 12) r -= 1;
@@ -69,7 +79,12 @@ export function buildLookup(docs) {
   for (const d of docs) {
     const f = d.fields; const model = f.model?.stringValue || ''; const mode = normMode(f.mode?.stringValue);
     const pct = f.resolve_pct?.doubleValue ?? (f.resolve_pct?.integerValue && +f.resolve_pct.integerValue);
-    if (model && mode && pct != null) { const k = `${model.split('/').pop().replace(/ .*/, '')}|${mode}`; lookup[k] = Math.max(lookup[k] ?? 0, pct); }
+    if (model && mode && pct != null) {
+      const k = mode === 'xbo'
+        ? `xbo|${model.replace(/^xbo:/, '').split(',').map((m) => m.split('/').pop()).sort().join('+')}`
+        : `${model.split('/').pop().replace(/ .*/, '')}|${mode}`;
+      lookup[k] = Math.max(lookup[k] ?? 0, pct);
+    }
   }
   return lookup;
 }
@@ -84,13 +99,17 @@ export function fetchFirestoreLookup(project = 'cognitum-20260110') {
 export function parseGenomes(raw) {
   let arr; try { arr = JSON.parse(raw.replace(/^```(json)?\n?|\n?```$/g, '').trim()); } catch { const m = raw.match(/\[[\s\S]*\]/); arr = m ? JSON.parse(m[0]) : []; }
   if (!Array.isArray(arr)) return [];
-  return arr.filter((g) => g && MODELS.includes(g.model) && MODES.includes(g.mode) && (!g.judge || JUDGES.includes(g.judge)))
-    .map((g) => ({ model: g.model, mode: g.mode, escalate: g.mode === 'cascade' ? (MODELS.includes(g.escalate) ? g.escalate : MODELS[1]) : null, judge: JUDGES.includes(g.judge) ? g.judge : JUDGES[0], maxSteps: STEPS.includes(g.maxSteps) ? g.maxSteps : 15 }));
+  const norm = (g) => Array.isArray(g.models) ? g.models.join(',') : g.model; // accept {models:[...]} for xbo
+  const okModel = (g) => g.mode === 'xbo'
+    ? (typeof norm(g) === 'string' && norm(g).split(',').length >= 2 && norm(g).split(',').every((m) => MODELS.includes(m)))
+    : MODELS.includes(g.model);
+  return arr.filter((g) => g && MODES.includes(g.mode) && okModel(g) && (!g.judge || JUDGES.includes(g.judge)))
+    .map((g) => ({ model: norm(g), mode: g.mode, escalate: g.mode === 'cascade' ? (MODELS.includes(g.escalate) ? g.escalate : MODELS[1]) : null, judge: JUDGES.includes(g.judge) ? g.judge : JUDGES[0], maxSteps: STEPS.includes(g.maxSteps) ? g.maxSteps : 15 }));
 }
 export async function llmPropose(lookup, { w = 0.7, n = 4, model = 'deepseek/deepseek-v4-flash', key } = {}) {
   key = (key || process.env.OPENROUTER_API_KEY || '').trim(); if (!key) return [];
   const frontier = Object.entries(lookup).map(([k, v]) => `${k}: ${v}% resolve`).join('\n') || '(none yet)';
-  const prompt = `You are the mutation operator of an architecture search optimizing a SWE-bench solver for VALUE = ${w}·resolve% + ${1 - w}·cheapness (cheapness = log-scaled, $5/inst→0, $0.005/inst→100).\n\nGenome fields: model ∈ ${JSON.stringify(MODELS)}; mode ∈ ${JSON.stringify(MODES)} (single cheapest, bo3 = 3× cost +~6pt resolve, cascade = expensive); escalate (cascade only) ∈ models; judge ∈ ${JSON.stringify(JUDGES)}; maxSteps ∈ ${JSON.stringify(STEPS)}.\n\nMeasured frontier (resolve%, all n=25 noisy):\n${frontier}\n\nPropose ${n} NEW genomes (not already measured) most likely to maximize VALUE — reason about cost vs capability (e.g. wrap a strong cheap model in bo3 to capture its union while keeping a cheap judge). Reply ONLY a JSON array of {model,mode,escalate,judge,maxSteps}.`;
+  const prompt = `You are the mutation operator of an architecture search optimizing a SWE-bench solver for VALUE = ${w}·resolve% + ${1 - w}·cheapness (cheapness = log-scaled, $5/inst→0, $0.005/inst→100).\n\nGenome fields: model ∈ ${JSON.stringify(MODELS)}; mode ∈ ${JSON.stringify(MODES)}:\n- single: cheapest, 1 trajectory\n- bo3: same model ×3 temps + judge (3× cost, +~6pt resolve)\n- cascade: cheap then escalate (expensive)\n- xbo: CROSS-MODEL Best-of-N — set "model" to a comma-list of 2-3 DIFFERENT models; orthogonal failure modes raise the UNION ceiling. Cost = sum of the distinct models' base costs.\nescalate (cascade only) ∈ models; judge ∈ ${JSON.stringify(JUDGES)}; maxSteps ∈ ${JSON.stringify(STEPS)}.\n\nMeasured frontier (resolve%, all n=25 noisy):\n${frontier}\n\nPropose ${n} NEW genomes (not already measured) most likely to maximize VALUE — reason about cost vs capability (e.g. mix orthogonal cheap models in xbo to capture a richer union without paying frontier prices). Reply ONLY a JSON array of {model,mode,escalate,judge,maxSteps} (for xbo, model is the comma-list).`;
   try {
     const res = await fetch('https://openrouter.ai/api/v1/chat/completions', { method: 'POST', signal: AbortSignal.timeout(60000), headers: { Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ model, messages: [{ role: 'user', content: prompt }], max_tokens: 800, temperature: 0.4 }) });
     const j = await res.json(); const proposed = parseGenomes(j.choices?.[0]?.message?.content ?? '');

@@ -139,7 +139,8 @@ async function autotune({ gens = 4, w = 0.7, sample = '25', maxVms = 20, spendCa
       for (const [k, g] of unmeasured) {
         if (provisioned >= maxVms) { console.log(`maxVms cap (${maxVms}) — not dispatching more`); break; }
         if (genCount >= maxGenVms) break;                    // per-gen cap (also respects 32-vCPU quota in provision)
-        if (provision({ board: 'lite', model: g.model, mode: g.mode, escalate: g.escalate, sample, machine: 'e2-standard-4', tag: `g${gen}-${k.replace(/[|/.: ]/g, '-')}`.slice(0, 40) })) { dispatched.push(k); provisioned++; genCount++; }
+        const isX = g.mode === 'xbo';
+        if (provision({ board: 'lite', model: isX ? 'xbo' : g.model, mode: g.mode, escalate: g.escalate, xmodels: isX ? g.model : '', sample, machine: 'e2-standard-4', tag: `g${gen}-${k.replace(/[|/.: +]/g, '-')}`.slice(0, 40) })) { dispatched.push(k); provisioned++; genCount++; }
       }
       console.log(`dispatched ${dispatched.length} prove-${sample} jobs (total provisioned ${provisioned}/${maxVms}); polling…`);
       for (let t = 0; t < 24 && dispatched.length; t++) { // ≤2h/gen
