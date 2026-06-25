@@ -7,8 +7,7 @@
   },
   "sources": [
     "https://github.com/swe-bench/experiments",
-    "https://www.swebench.com/",
-    "https://www.morphllm.com/swe-bench-pro"
+    "https://www.swebench.com/"
   ],
   "benchmarks": {
     "lite": {
@@ -286,103 +285,6 @@
           "kind": "meas",
           "costEst": false,
           "note": "232/500 SWE-bench Verified, gold, conformant; cost = measured. First Darwin Verified row."
-        }
-      ]
-    },
-    "pro": {
-      "label": "SWE-bench Pro (Scale SEAL, 731)",
-      "denom": 731,
-      "darwinNote": "Darwin Pro (VALIDATED eval, §42/§45): Kimi K2.6 @ our 60-step harness = 1/25 = 4% (Wilson CI [0.7,19.5]). Real verdict (fixed eval fails-loud on missing images), NOT the old artifact — Pro returned exactly 1/25 three times across broken→fixed eval, i.e. ~1 easy instance + 24 uncrackable enterprise repos at 60 steps. Confirms the turn-budget cliff: Kimi vendor 58.6% @250turns → ~4% @60steps. A cheap cost-Pareto play on Pro is structurally dead — Pro needs the expensive ~250-turn budget.",
-      "entries": [
-        {
-          "name": "GPT-5.4 (xHigh)",
-          "scaffold": "vendor",
-          "model": "GPT-5.4",
-          "resolve": 59.1,
-          "cost": 3,
-          "kind": "official",
-          "costEst": true,
-          "note": "est: reasoning-heavy xHigh"
-        },
-        {
-          "name": "Muse Spark",
-          "scaffold": "vendor",
-          "model": "undisclosed",
-          "resolve": 55,
-          "cost": null,
-          "kind": "official",
-          "costEst": true,
-          "note": "undisclosed model/cost"
-        },
-        {
-          "name": "Claude Opus 4.6 (thinking)",
-          "scaffold": "vendor",
-          "model": "Claude-Opus-4.6",
-          "resolve": 51.9,
-          "cost": 4,
-          "kind": "official",
-          "costEst": true,
-          "note": "est: Opus thinking"
-        },
-        {
-          "name": "Gemini 3.1 Pro (thinking)",
-          "scaffold": "vendor",
-          "model": "Gemini-3.1-Pro",
-          "resolve": 46.1,
-          "cost": 2,
-          "kind": "official",
-          "costEst": true,
-          "note": "est: Gemini-3.1-Pro"
-        },
-        {
-          "name": "Claude Opus 4.5",
-          "scaffold": "vendor",
-          "model": "Claude-Opus-4.5",
-          "resolve": 45.9,
-          "cost": 3,
-          "kind": "official",
-          "costEst": true,
-          "note": "est: Opus-4.5"
-        },
-        {
-          "name": "Claude Sonnet 4.5",
-          "scaffold": "vendor",
-          "model": "Claude-Sonnet-4.5",
-          "resolve": 43.6,
-          "cost": 1.5,
-          "kind": "official",
-          "costEst": true,
-          "note": "est: Sonnet-4.5"
-        },
-        {
-          "name": "Gemini 3 Pro",
-          "scaffold": "vendor",
-          "model": "Gemini-3-Pro",
-          "resolve": 43.3,
-          "cost": 1.5,
-          "kind": "official",
-          "costEst": true,
-          "note": "est: Gemini-3-Pro"
-        },
-        {
-          "name": "GPT-5.2 Codex",
-          "scaffold": "vendor",
-          "model": "GPT-5.2-Codex",
-          "resolve": 41,
-          "cost": 2,
-          "kind": "official",
-          "costEst": true,
-          "note": "est: GPT-5.2 Codex"
-        },
-        {
-          "name": "Qwen3 Coder 480B",
-          "scaffold": "open-weights",
-          "model": "Qwen3-Coder-480B",
-          "resolve": 38.7,
-          "cost": 0.4,
-          "kind": "official",
-          "costEst": true,
-          "note": "est: only open-source SEAL top-12 entry"
         }
       ]
     },

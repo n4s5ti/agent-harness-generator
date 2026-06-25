@@ -341,7 +341,7 @@
         <div class="step"><div class="n">1</div><p>Read the bug ticket + the code.</p></div>
         <div class="step"><div class="n">2</div><p>Write a code change (a patch).</p></div>
         <div class="step"><div class="n">3</div><p>Run the project's tests. All green → <strong style="color:var(--accent)">resolved ✅</strong>. Any red → not resolved.</p></div>
-        <p>SWE-bench <strong>Lite</strong> = 300 bugs · <strong>Verified</strong> = 500 · <strong>Pro</strong> = 731 (harder). The score is "% of bugs resolved".</p>
+        <p>SWE-bench <strong>Lite</strong> = 300 bugs · <strong>Verified</strong> = 500. The score is "% of bugs resolved".</p>
       </section>
 
       <section id="s3">
@@ -429,7 +429,7 @@
         <div class="step"><div class="n">✓</div><p><strong>Resolve %</strong> (all systems) are <em>real</em> — from the official SWE-bench results.</p></div>
         <div class="step"><div class="n">~</div><p><strong>Competitor costs</strong> are <em>estimated</em> from each system's disclosed model × public token prices (marked <span class="tag rep">est</span>). "Undisclosed" where no model is public.</p></div>
         <div class="step"><div class="n">★</div><p><strong>Darwin's numbers</strong> are <em>measured</em>: resolve via the official harness, cost from real API spend. Darwin is also <strong>conformant</strong> — it never sees the answer tests while solving.</p></div>
-        <p style="color:var(--dim)">Sources: SWE-bench experiments repo · swebench.com · Scale SEAL (Pro). All linked at the bottom of the page.</p>
+        <p style="color:var(--dim)">Sources: SWE-bench experiments repo · swebench.com. All linked at the bottom of the page.</p>
       </section>
 
     </main>
@@ -571,7 +571,7 @@ function render(key){
     tb.appendChild(tr);
   }
   const sl=document.getElementById('srcline');
-  if(sl)sl.innerHTML=`Data: <code>assets/swe-pareto.json</code> · sources: <a href="${DATA.sources[0]}" style="color:var(--accent2)">swe-bench/experiments</a>, <a href="${DATA.sources[2]}" style="color:var(--accent2)">SEAL Pro</a> · updated ${DATA.updated}`;
+  if(sl)sl.innerHTML=`Data: <code>assets/swe-pareto.json</code> · sources: <a href="${DATA.sources[0]}" style="color:var(--accent2)">swe-bench/experiments</a> · updated ${DATA.updated}`;
 }
 
 function buildTabs(){
