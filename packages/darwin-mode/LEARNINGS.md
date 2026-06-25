@@ -636,3 +636,20 @@ what actually works on Pro:
 gcp-cluster metadata. **Config A test dispatched: Kimi K2.6 single, max-steps 60, Pro n=25.** Expected ~20-35% (vs our 4%
 cascade) at ~$1/inst — a real cost-Pareto point above the cliff if it lands. Honest: this is mid-tier, not cheap-tier;
 there is NO sub-$0.30 cost-Pareto play on Pro (the cliff forbids it).
+
+## 41. ⚠️ Pro eval infra is the confound — both Pro runs = exactly 1/25; solver quality INCONCLUSIVE
+
+Config A (Kimi K2.6 single, max-steps 60 — the §40 research's #1, expected ~20-35%) on Pro n=25 self-reported **4%
+(1/25)** — IDENTICAL to the GLM→Opus cascade's 4% (§39). Two structurally different solvers returning *exactly* 1/25,
+plus BOTH Pro VMs going SSH-unresponsive immediately post-eval, is strong circumstantial evidence that **the Pro eval
+infrastructure — not the solver — is producing the 4% floor.** The Pro eval pulls 8 large enterprise `jefzda/sweap-images`
+anonymously (Docker Hub rate limits + size) and scores any missing-image instance False (graceful fallback). If most
+images fail to pull, ~24/25 score False regardless of patch quality — and "1 resolved" is plausibly just the one
+instance whose image cached. I could NOT verify image-pull success (both VMs SSH-dead post-eval).
+
+**Honest conclusion: our Pro RESOLVE numbers are not yet trustworthy.** The Config A (Kimi) test is **inconclusive on
+solver quality** — eval-confounded, NOT a refutation of the §40 thesis. **Prerequisite before any Pro solver verdict:
+make the Pro eval reliable** — pre-pull/cache all 8 images with Docker Hub auth (avoid anon rate limits), verify
+per-instance scoring is real (not infra-False), and confirm the VM survives the eval. Until then: Pro solver comparisons
+are blocked; do NOT read the 4% as "Kimi failed" or "cheap cascade = Kimi." The Lite/Verified eval path (princeton
+swebench harness, cached images on ruvultra) is reliable; only the Scale-Pro path is suspect.

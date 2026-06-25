@@ -1,0 +1,69 @@
+diff --git a/src/flask/cli.py b/src/flask/cli.py
+index 37a15ff..cf34e9a 100644
+--- a/src/flask/cli.py
++++ b/src/flask/cli.py
+@@ -1019,19 +1019,54 @@ def routes_command(sort: str, all_methods: bool) -> None:
+     ]
+ 
+     headers = ("Endpoint", "Methods", "Rule")
+-    widths = (
+-        max(len(rule.endpoint) for rule in rules),
+-        max(len(methods) for methods in rule_methods),
+-        max(len(rule.rule) for rule in rules),
++
++    has_domain = any(
++        rule.host is not None or rule.subdomain for rule in rules
+     )
+-    widths = [max(len(h), w) for h, w in zip(headers, widths)]
+-    row = "{{0:<{0}}}  {{1:<{1}}}  {{2:<{2}}}".format(*widths)
+ 
+-    click.echo(row.format(*headers).strip())
+-    click.echo(row.format(*("-" * width for width in widths)))
++    if has_domain:
++        server_name = current_app.config["SERVER_NAME"] or ""
++        domains = []
++
++        for rule in rules:
++            if rule.host is not None:
++                domains.append(rule.host)
++            elif rule.subdomain:
++                domains.append(f"{rule.subdomain}.{server_name}")
++            else:
++                domains.append(server_name)
++
++        headers = ("Domain", *headers)
++        widths = (
++            max(len(domain) for domain in domains),
++            max(len(rule.endpoint) for rule in rules),
++            max(len(methods) for methods in rule_methods),
++            max(len(rule.rule) for rule in rules),
++        )
++        widths = [max(len(h), w) for h, w in zip(headers, widths)]
++        row = "{{0:<{0}}}  {{1:<{1}}}  {{2:<{2}}}  {{3:<{3}}}".format(*widths)
++
++        click.echo(row.format(*headers).strip())
++        click.echo(row.format(*("-" * width for width in widths)))
++
++        for domain, rule, methods in zip(domains, rules, rule_methods):
++            click.echo(
++                row.format(domain, rule.endpoint, methods, rule.rule).rstrip()
++            )
++    else:
++        widths = (
++            max(len(rule.endpoint) for rule in rules),
++            max(len(methods) for methods in rule_methods),
++            max(len(rule.rule) for rule in rules),
++        )
++        widths = [max(len(h), w) for h, w in zip(headers, widths)]
++        row = "{{0:<{0}}}  {{1:<{1}}}  {{2:<{2}}}".format(*widths)
++
++        click.echo(row.format(*headers).strip())
++        click.echo(row.format(*("-" * width for width in widths)))
+ 
+-    for rule, methods in zip(rules, rule_methods):
+-        click.echo(row.format(rule.endpoint, methods, rule.rule).rstrip())
++        for rule, methods in zip(rules, rule_methods):
++            click.echo(row.format(rule.endpoint, methods, rule.rule).rstrip())
+ 
+ 
+ cli = FlaskGroup(

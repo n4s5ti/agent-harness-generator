@@ -1,0 +1,18 @@
+diff --git a/django/db/models/sql/compiler.py b/django/db/models/sql/compiler.py
+index 92213a4..db4c9a8 100644
+--- a/django/db/models/sql/compiler.py
++++ b/django/db/models/sql/compiler.py
+@@ -724,6 +724,13 @@ class SQLCompiler:
+                 if hasattr(item, 'resolve_expression') and not isinstance(item, OrderBy):
+                     item = item.desc() if descending else item.asc()
+                 if isinstance(item, OrderBy):
++                    # Avoid query QuerySet.order_by() interpretation when
++                    # ordering as a result of related fields ordering. The
++                    # ordering direction of an OrderBy() can be reversed by
++                    # passing in the descending parameter of OrderBy().
++                    if descending:
++                        item = item.copy()
++                        item.reverse_ordering()
+                     results.append((item, False))
+                     continue
+                 results.extend(self.find_ordering_name(item, opts, alias,

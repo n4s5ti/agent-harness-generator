@@ -1,0 +1,15 @@
+diff --git a/django/db/backends/base/creation.py b/django/db/backends/base/creation.py
+index 503f7f5..4c4175b 100644
+--- a/django/db/backends/base/creation.py
++++ b/django/db/backends/base/creation.py
+@@ -60,8 +60,8 @@ class BaseDatabaseCreation:
+ 
+         if self.connection.settings_dict['TEST']['MIGRATE']:
+             # We report migrate messages at one level lower than that
+-            # requested. This ensures we don't get flooded with messages during
+-            # testing (unless you really ask to be flooded).
++            # requested. This ensures we don't get flooded with messages
++            # during testing (unless you really ask to be flooded).
+             call_command(
+                 'migrate',
+                 verbosity=max(verbosity - 1, 0),

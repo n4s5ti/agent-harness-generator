@@ -1,0 +1,21 @@
+diff --git a/sklearn/preprocessing/_encoders.py b/sklearn/preprocessing/_encoders.py
+index 1e05aba..fd7043f 100644
+--- a/sklearn/preprocessing/_encoders.py
++++ b/sklearn/preprocessing/_encoders.py
+@@ -111,6 +111,16 @@ class _BaseEncoder(BaseEstimator, TransformerMixin):
+                     # removed later.
+                     X_mask[:, i] = valid_mask
+                     Xi = Xi.copy()
++                    # If the array is of string dtype and the unknown
++                    # category value is longer than the maximum string
++                    # length in the array, we need to cast the array to
++                    # object dtype to avoid truncation.
++                    if Xi.dtype.kind in ('U', 'S'):
++                        max_len = (Xi.dtype.itemsize // 4
++                                   if Xi.dtype.kind == 'U'
++                                   else Xi.dtype.itemsize)
++                        if len(self.categories_[i][0]) > max_len:
++                            Xi = Xi.astype(object)
+                     Xi[~valid_mask] = self.categories_[i][0]
+             _, encoded = _encode(Xi, self.categories_[i], encode=True)
+             X_int[:, i] = encoded

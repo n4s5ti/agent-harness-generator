@@ -1,0 +1,19 @@
+diff --git a/django/utils/tree.py b/django/utils/tree.py
+index 302cd37..ab412a4 100644
+--- a/django/utils/tree.py
++++ b/django/utils/tree.py
+@@ -40,6 +40,14 @@ class Node:
+         obj.__class__ = cls
+         return obj
+ 
++    def create(self):
++        """
++        Return a new, shallow copy of this node (including a copy of its
++        children) so that it can be combined with another node without
++        mutating the original.
++        """
++        return self._new_instance(self.children, self.connector, self.negated)
++
+     def __str__(self):
+         template = '(NOT (%s: %s))' if self.negated else '(%s: %s)'
+         return template % (self.connector, ', '.join(str(c) for c in self.children))

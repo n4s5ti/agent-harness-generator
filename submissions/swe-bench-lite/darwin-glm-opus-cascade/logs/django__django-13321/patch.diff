@@ -1,0 +1,35 @@
+diff --git a/django/contrib/sessions/backends/base.py b/django/contrib/sessions/backends/base.py
+index 187e14b..b70b93a 100644
+--- a/django/contrib/sessions/backends/base.py
++++ b/django/contrib/sessions/backends/base.py
+@@ -124,16 +124,10 @@ class SessionBase:
+         except Exception:
+             return self._legacy_decode(session_data)
+ 
+-    def _legacy_encode(self, session_dict):
+-        # RemovedInDjango40Warning.
+-        serialized = self.serializer().dumps(session_dict)
+-        hash = self._hash(serialized)
+-        return base64.b64encode(hash.encode() + b':' + serialized).decode('ascii')
+-
+     def _legacy_decode(self, session_data):
+         # RemovedInDjango40Warning: pre-Django 3.1 format will be invalid.
+-        encoded_data = base64.b64decode(session_data.encode('ascii'))
+         try:
++            encoded_data = base64.b64decode(session_data.encode('ascii'))
+             # could produce ValueError if there is no ':'
+             hash, serialized = encoded_data.split(b':', 1)
+             expected_hash = self._hash(serialized)
+@@ -149,6 +143,12 @@ class SessionBase:
+                 logger.warning(str(e))
+             return {}
+ 
++    def _legacy_encode(self, session_dict):
++        # RemovedInDjango40Warning.
++        serialized = self.serializer().dumps(session_dict)
++        hash = self._hash(serialized)
++        return base64.b64encode(hash.encode() + b':' + serialized).decode('ascii')
++
+     def update(self, dict_):
+         self._session.update(dict_)
+         self.modified = True

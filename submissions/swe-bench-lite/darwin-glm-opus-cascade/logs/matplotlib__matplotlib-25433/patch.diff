@@ -1,0 +1,31 @@
+diff --git a/lib/matplotlib/widgets.py b/lib/matplotlib/widgets.py
+index ebe5da4..d478e3a 100644
+--- a/lib/matplotlib/widgets.py
++++ b/lib/matplotlib/widgets.py
+@@ -968,6 +968,26 @@ class RangeSlider(SliderBase):
+         if self.eventson:
+             self._observers.process("changed", (vmin, vmax))
+ 
++    def _update(self, event):
++        """Update the slider position."""
++        if self.ignore(event) or event.button != 1:
++            return
++
++        if event.name == "button_press_event" and event.inaxes == self.ax:
++            self.drag_active = True
++            event.canvas.grab_mouse(self.ax)
++
++        if not self.drag_active:
++            return
++
++        elif (event.name == "button_release_event") or (
++            event.name == "button_press_event" and event.inaxes != self.ax
++        ):
++            self.drag_active = False
++            event.canvas.release_mouse(self.ax)
++            self._active_handle = None
++            return
++
+     def on_changed(self, func):
+         """
+         Connect *func* as callback function to changes of the slider value.

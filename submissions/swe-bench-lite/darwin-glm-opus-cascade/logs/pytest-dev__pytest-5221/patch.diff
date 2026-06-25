@@ -1,0 +1,12 @@
+diff --git a/src/_pytest/python.py b/src/_pytest/python.py
+index 3773578..7fa1127 100644
+--- a/src/_pytest/python.py
++++ b/src/_pytest/python.py
+@@ -1353,6 +1353,7 @@ def _showfixtures_main(config, session):
+             write_docstring(tw, doc)
+         else:
+             tw.line("    %s: no docstring available" % (loc,), red=True)
++        tw.line("    scope: %s" % fixturedef.scope)
+ 
+ 
+ def write_docstring(tw, doc, indent="    "):

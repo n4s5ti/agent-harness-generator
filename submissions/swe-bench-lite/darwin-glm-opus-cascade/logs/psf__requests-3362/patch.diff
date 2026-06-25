@@ -1,0 +1,18 @@
+diff --git a/requests/utils.py b/requests/utils.py
+index 8d17b6b..22d3de6 100644
+--- a/requests/utils.py
++++ b/requests/utils.py
+@@ -372,6 +372,13 @@ def stream_decode_response_unicode(iterator, r):
+     rv = decoder.decode(b'', final=True)
+     if rv:
+         yield rv
++    for chunk in iterator:
++        rv = decoder.decode(chunk)
++        if rv:
++            yield rv
++    rv = decoder.decode(b'', final=True)
++    if rv:
++        yield rv
+ 
+ 
+ def iter_slices(string, slice_length):

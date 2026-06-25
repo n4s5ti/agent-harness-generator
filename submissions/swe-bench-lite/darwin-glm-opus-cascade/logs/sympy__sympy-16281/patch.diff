@@ -1,0 +1,12 @@
+diff --git a/sympy/printing/pretty/pretty.py b/sympy/printing/pretty/pretty.py
+index 6d3cc05..316bb4b 100644
+--- a/sympy/printing/pretty/pretty.py
++++ b/sympy/printing/pretty/pretty.py
+@@ -496,6 +496,7 @@ def _print_Product(self, expr):
+             for i in range(func_height + 1):
+                 sign_lines.append(vertical_chr + (' '*width) + vertical_chr)
+ 
++
+             pretty_sign = stringPict('')
+             pretty_sign = prettyForm(*pretty_sign.stack(*sign_lines))
+ 

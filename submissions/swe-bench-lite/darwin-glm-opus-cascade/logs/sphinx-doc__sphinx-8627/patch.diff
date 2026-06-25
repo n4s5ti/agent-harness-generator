@@ -1,0 +1,18 @@
+diff --git a/sphinx/util/typing.py b/sphinx/util/typing.py
+index 2d4f67b..2c645b5 100644
+--- a/sphinx/util/typing.py
++++ b/sphinx/util/typing.py
+@@ -301,8 +301,11 @@ def stringify(annotation: Any) -> str:
+     elif annotation is NoneType:
+         return 'None'
+     elif (getattr(annotation, '__module__', None) == 'builtins' and
+-          hasattr(annotation, '__qualname__')):
+-        return annotation.__qualname__
++          getattr(annotation, '__qualname__', None)):
++        if hasattr(annotation, '__args__'):  # PEP 585 generic
++            return repr(annotation)
++        else:
++            return annotation.__qualname__
+     elif annotation is Ellipsis:
+         return '...'
+ 

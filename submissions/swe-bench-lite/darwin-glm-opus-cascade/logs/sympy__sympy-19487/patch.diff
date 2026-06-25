@@ -1,0 +1,16 @@
+diff --git a/sympy/functions/elementary/complexes.py b/sympy/functions/elementary/complexes.py
+index 7fda459..3f07956 100644
+--- a/sympy/functions/elementary/complexes.py
++++ b/sympy/functions/elementary/complexes.py
+@@ -385,6 +385,11 @@ def _sage_(self):
+         import sage.all as sage
+         return sage.sgn(self.args[0]._sage_())
+ 
++    def _eval_rewrite_as_Abs(self, arg, **kwargs):
++        if arg.is_zero:
++            return S.NaN
++        return arg / Abs(arg)
++
+     def _eval_rewrite_as_Piecewise(self, arg, **kwargs):
+         if arg.is_extended_real:
+             return Piecewise((1, arg > 0), (-1, arg < 0), (0, True))

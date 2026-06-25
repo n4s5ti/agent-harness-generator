@@ -1,0 +1,47 @@
+diff --git a/sympy/printing/mathml.py b/sympy/printing/mathml.py
+index 1aa0ee0..7ec713f 100644
+--- a/sympy/printing/mathml.py
++++ b/sympy/printing/mathml.py
+@@ -449,6 +449,17 @@ def _print_Basic(self, e):
+             x.appendChild(self._print(arg))
+         return x
+ 
++    def _print_IndexedBase(self, e):
++        return self._print(e.label)
++
++    def _print_Indexed(self, e):
++        x = self.dom.createElement('apply')
++        x.appendChild(self.dom.createElement('csymbol'))
++        x.appendChild(self._print(e.base))
++        for arg in e.indices:
++            x.appendChild(self._print(arg))
++        return x
++
+     def _print_AssocOp(self, e):
+         x = self.dom.createElement('apply')
+         x_1 = self.dom.createElement(self.mathml_tag(e))
+@@ -1025,6 +1036,24 @@ def _print_Tuple(self, e):
+         mrow.appendChild(x)
+         return mrow
+ 
++    def _print_IndexedBase(self, e):
++        return self._print(e.label)
++
++    def _print_Indexed(self, e):
++        mrow = self.dom.createElement('mrow')
++        msub = self.dom.createElement('msub')
++        msub.appendChild(self._print(e.base))
++        if len(e.indices) == 1:
++            msub.appendChild(self._print(e.indices[0]))
++            mrow.appendChild(msub)
++            return mrow
++        mfenced = self.dom.createElement('mfenced')
++        for arg in e.indices:
++            mfenced.appendChild(self._print(arg))
++        msub.appendChild(mfenced)
++        mrow.appendChild(msub)
++        return mrow
++
+     def _print_Interval(self, i):
+         mrow = self.dom.createElement('mrow')
+         brac = self.dom.createElement('mfenced')

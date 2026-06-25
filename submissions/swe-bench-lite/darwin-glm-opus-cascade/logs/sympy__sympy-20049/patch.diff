@@ -1,0 +1,33 @@
+diff --git a/sympy/physics/vector/point.py b/sympy/physics/vector/point.py
+index d4e3cfc..61ea442 100644
+--- a/sympy/physics/vector/point.py
++++ b/sympy/physics/vector/point.py
+@@ -519,8 +519,26 @@ def vel(self, frame):
+ 
+         _check_frame(frame)
+         if not (frame in self._vel_dict):
+-            raise ValueError('Velocity of point ' + self.name + ' has not been'
+-                             ' defined in ReferenceFrame ' + frame.name)
++            visited = []
++            queue = [self]
++            while queue:  # BFS to find nearest point with defined position
++                node = queue.pop(0)
++                if node not in visited:
++                    visited.append(node)
++                    for neighbor, neighbor_pos in node._pos_dict.items():
++                        try:
++                            # Velocity of neighbor is defined in this frame.
++                            neighbor_velocity = neighbor._vel_dict[frame]
++                        except KeyError:
++                            queue.append(neighbor)
++                            continue
++                        self.set_vel(frame, self.pos_from(neighbor).dt(frame)
++                                     + neighbor_velocity)
++                        return self._vel_dict[frame]
++            raise ValueError('Velocity of point ' + self.name +
++                             ' has not been defined in ReferenceFrame '
++                             + frame.name)
++
+         return self._vel_dict[frame]
+ 
+     def partial_velocity(self, frame, *gen_speeds):

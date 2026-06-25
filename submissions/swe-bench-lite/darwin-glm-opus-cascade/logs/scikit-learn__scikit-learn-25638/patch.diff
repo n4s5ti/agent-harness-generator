@@ -1,0 +1,32 @@
+diff --git a/sklearn/utils/multiclass.py b/sklearn/utils/multiclass.py
+index 5eaef2f..747eba3 100644
+--- a/sklearn/utils/multiclass.py
++++ b/sklearn/utils/multiclass.py
+@@ -295,6 +295,27 @@ def type_of_target(y, input_name=""):
+     if sparse_pandas:
+         raise ValueError("y cannot be class 'SparseSeries' or 'SparseArray'")
+ 
++    # Convert nullable pandas dtypes (e.g. "Int64", "Float64", "boolean") to
++    # their numpy equivalents so that they are not treated as object arrays.
++    if hasattr(y, "dtype") and y.dtype.__class__.__name__ in (
++        "Int8Dtype",
++        "Int16Dtype",
++        "Int32Dtype",
++        "Int64Dtype",
++        "UInt8Dtype",
++        "UInt16Dtype",
++        "UInt32Dtype",
++        "UInt64Dtype",
++        "Float32Dtype",
++        "Float64Dtype",
++        "BooleanDtype",
++    ):
++        # If there are missing values, keep as object to trigger the
++        # appropriate error later; otherwise cast to numpy dtype.
++        if not y.isna().any():
++            dtype = "O" if y.dtype.kind == "O" else y.dtype.numpy_dtype
++            y = check_array(y, dtype=dtype, ensure_2d=False)
++
+     if is_multilabel(y):
+         return "multilabel-indicator"
+ 

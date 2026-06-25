@@ -1,0 +1,27 @@
+diff --git a/requests/models.py b/requests/models.py
+index d845637..352c005 100644
+--- a/requests/models.py
++++ b/requests/models.py
+@@ -461,9 +461,20 @@ class Request(object):
+         return ''.join(url)
+ 
+     def register_hook(self, event, hook):
+-        """Properly register a hook."""
++        """Properly register a hook.
+ 
+-        self.hooks[event].append(hook)
++        If hook is a list, each item in the list is registered.
++        """
++
++        if callable(hook):
++            self.hooks[event].append(hook)
++        elif hasattr(hook, '__iter__'):
++            for h in hook:
++                if not callable(h):
++                    raise ValueError('Hook must be callable.')
++                self.hooks[event].append(h)
++        else:
++            raise ValueError('Hook must be callable.')
+ 
+     def deregister_hook(self, event, hook):
+         """Deregister a previously registered hook.

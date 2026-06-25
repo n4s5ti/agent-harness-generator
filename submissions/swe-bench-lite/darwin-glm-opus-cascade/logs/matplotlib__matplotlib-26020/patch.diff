@@ -1,0 +1,22 @@
+diff --git a/lib/mpl_toolkits/axes_grid1/axes_grid.py b/lib/mpl_toolkits/axes_grid1/axes_grid.py
+index 2b1b1d3..680f828 100644
+--- a/lib/mpl_toolkits/axes_grid1/axes_grid.py
++++ b/lib/mpl_toolkits/axes_grid1/axes_grid.py
+@@ -1,5 +1,6 @@
+ from numbers import Number
+ import functools
++from types import MethodType
+ 
+ import numpy as np
+ 
+@@ -13,6 +14,10 @@ from .mpl_axes import Axes
+ def _tick_only(ax, bottom_on, left_on):
+     bottom_off = not bottom_on
+     left_off = not left_on
++    if isinstance(ax.axis, MethodType):
++        # The axis machinery (e.g. cartopy GeoAxes) does not support the
++        # mpl_axes.Axes ``axis`` dict interface, so there is nothing to do.
++        return
+     ax.axis["bottom"].toggle(ticklabels=bottom_off, label=bottom_off)
+     ax.axis["left"].toggle(ticklabels=left_off, label=left_off)
+ 

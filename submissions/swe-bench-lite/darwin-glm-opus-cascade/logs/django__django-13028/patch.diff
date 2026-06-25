@@ -1,0 +1,12 @@
+diff --git a/django/db/models/sql/query.py b/django/db/models/sql/query.py
+index ce18098..3461165 100644
+--- a/django/db/models/sql/query.py
++++ b/django/db/models/sql/query.py
+@@ -1133,6 +1133,7 @@ class Query(BaseExpression):
+             for expr in expression.get_source_expressions():
+                 self.check_filterable(expr)
+ 
++
+     def build_lookup(self, lookups, lhs, rhs):
+         """
+         Try to extract transforms and lookup from given lhs.

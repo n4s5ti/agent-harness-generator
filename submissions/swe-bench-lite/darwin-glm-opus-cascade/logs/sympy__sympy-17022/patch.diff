@@ -1,0 +1,18 @@
+diff --git a/sympy/printing/pycode.py b/sympy/printing/pycode.py
+index 6ec7bd8..d89a3ea 100644
+--- a/sympy/printing/pycode.py
++++ b/sympy/printing/pycode.py
+@@ -513,6 +513,13 @@ def _print_Inverse(self, expr):
+         return '{0}({1})'.format(self._module_format('numpy.linalg.inv'),
+             self._print(expr.args[0]))
+ 
++    def _print_Identity(self, expr):
++        shape = expr.shape
++        if all([dim.is_Integer for dim in shape]):
++            return "%s(%s)" % (self._module_format('numpy.eye'), self._print(expr.shape[0]))
++        else:
++            raise NotImplementedError("Symbolic matrix dimensions are not yet supported for identity matrices")
++
+     def _print_DotProduct(self, expr):
+         # DotProduct allows any shape order, but numpy.dot does matrix
+         # multiplication, so we have to make sure it gets 1 x n by n x 1.

@@ -1,0 +1,21 @@
+diff --git a/django/contrib/auth/management/__init__.py b/django/contrib/auth/management/__init__.py
+index 0b5a982..d34effc 100644
+--- a/django/contrib/auth/management/__init__.py
++++ b/django/contrib/auth/management/__init__.py
+@@ -101,11 +101,16 @@ def create_permissions(
+         if (ct.pk, codename) not in all_perms
+     ]
+     Permission.objects.using(using).bulk_create(perms)
++    for perm in perms:
++        perm._state.db = using
+     if verbosity >= 2:
+         for perm in perms:
+             print("Adding permission '%s'" % perm)
+ 
+ 
++def _check_permission_clashing(custom, builtin, ctype):
++
++
+ def get_system_username():
+     """
+     Return the current system user's username, or an empty string if the

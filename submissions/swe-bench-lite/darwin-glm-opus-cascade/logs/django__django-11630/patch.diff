@@ -1,0 +1,32 @@
+diff --git a/django/core/checks/model_checks.py b/django/core/checks/model_checks.py
+index 5c2266c..3a9f764 100644
+--- a/django/core/checks/model_checks.py
++++ b/django/core/checks/model_checks.py
+@@ -4,6 +4,7 @@ from collections import defaultdict
+ from itertools import chain
+ 
+ from django.apps import apps
++from django.conf import settings
+ from django.core.checks import Error, Tags, register
+ 
+ 
+@@ -37,12 +38,18 @@ def check_all_models(app_configs=None, **kwargs):
+             constraints[model_constraint.name].append(model._meta.label)
+     for db_table, model_labels in db_table_models.items():
+         if len(model_labels) != 1:
++            model_labels_str = ', '.join(model_labels)
+             errors.append(
+                 Error(
+                     "db_table '%s' is used by multiple models: %s."
+-                    % (db_table, ', '.join(db_table_models[db_table])),
++                    % (db_table, model_labels_str),
+                     obj=db_table,
+                     id='models.E028',
++                    hint=(
++                        'You have configured settings.DATABASE_ROUTERS. Verify '
++                        'that %s are correctly routed to separate databases.'
++                        % model_labels_str
++                    ) if settings.DATABASE_ROUTERS else None,
+                 )
+             )
+     for index_name, model_labels in indexes.items():

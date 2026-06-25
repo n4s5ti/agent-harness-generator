@@ -1,0 +1,42 @@
+diff --git a/django/db/migrations/autodetector.py b/django/db/migrations/autodetector.py
+index 89e2dce..d81c039 100644
+--- a/django/db/migrations/autodetector.py
++++ b/django/db/migrations/autodetector.py
+@@ -618,6 +618,18 @@ class MigrationAutodetector:
+                 for name in sorted(related_fields)
+             ]
+             related_dependencies.append((app_label, model_name, None, True))
++            if order_with_respect_to:
++                self.add_operation(
++                    app_label,
++                    operations.AlterOrderWithRespectTo(
++                        name=model_name,
++                        order_with_respect_to=order_with_respect_to,
++                    ),
++                    dependencies=[
++                        (app_label, model_name, order_with_respect_to, True),
++                        (app_label, model_name, None, True),
++                    ]
++                )
+             for index in indexes:
+                 self.add_operation(
+                     app_label,
+@@ -654,18 +666,6 @@ class MigrationAutodetector:
+                     ),
+                     dependencies=related_dependencies
+                 )
+-            if order_with_respect_to:
+-                self.add_operation(
+-                    app_label,
+-                    operations.AlterOrderWithRespectTo(
+-                        name=model_name,
+-                        order_with_respect_to=order_with_respect_to,
+-                    ),
+-                    dependencies=[
+-                        (app_label, model_name, order_with_respect_to, True),
+-                        (app_label, model_name, None, True),
+-                    ]
+-                )
+ 
+             # Fix relationships if the model changed from a proxy model to a
+             # concrete model.

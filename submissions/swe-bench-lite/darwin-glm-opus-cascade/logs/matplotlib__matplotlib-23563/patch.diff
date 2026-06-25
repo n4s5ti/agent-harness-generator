@@ -1,0 +1,19 @@
+diff --git a/lib/mpl_toolkits/mplot3d/art3d.py b/lib/mpl_toolkits/mplot3d/art3d.py
+index 8fe6e7a..4c6cfb5 100644
+--- a/lib/mpl_toolkits/mplot3d/art3d.py
++++ b/lib/mpl_toolkits/mplot3d/art3d.py
+@@ -193,9 +193,11 @@ class Line3D(lines.Line2D):
+         Accepts x, y, z arguments or a single array-like (x, y, z)
+         """
+         if len(args) == 1:
+-            self._verts3d = args[0]
+-        else:
+-            self._verts3d = args
++            args = args[0]
++        for name, xyz in zip('xyz', args):
++            if not np.iterable(xyz):
++                raise RuntimeError(f'{name} must be a sequence')
++        self._verts3d = args
+         self.stale = True
+ 
+     def get_data_3d(self):

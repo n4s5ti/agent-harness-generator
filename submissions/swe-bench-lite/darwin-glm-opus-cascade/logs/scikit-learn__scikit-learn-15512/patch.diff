@@ -1,0 +1,37 @@
+diff --git a/sklearn/cluster/_affinity_propagation.py b/sklearn/cluster/_affinity_propagation.py
+index 4806afe..812778a 100644
+--- a/sklearn/cluster/_affinity_propagation.py
++++ b/sklearn/cluster/_affinity_propagation.py
+@@ -152,6 +152,7 @@ def affinity_propagation(S, preference=None, convergence_iter=15, max_iter=200,
+ 
+     ind = np.arange(n_samples)
+ 
++    converged = False
+     for it in range(max_iter):
+         # tmp = A + S; compute responsibilities
+         np.add(A, S, tmp)
+@@ -193,7 +194,8 @@ def affinity_propagation(S, preference=None, convergence_iter=15, max_iter=200,
+             se = np.sum(e, axis=1)
+             unconverged = (np.sum((se == convergence_iter) + (se == 0))
+                            != n_samples)
+-            if (not unconverged and (K > 0)) or (it == max_iter):
++            if (not unconverged and (K > 0)):
++                converged = True
+                 if verbose:
+                     print("Converged after %d iterations." % it)
+                 break
+@@ -201,8 +203,12 @@ def affinity_propagation(S, preference=None, convergence_iter=15, max_iter=200,
+         if verbose:
+             print("Did not converge")
+ 
+-    I = np.flatnonzero(E)
+-    K = I.size  # Identify exemplars
++    if converged:
++        I = np.flatnonzero(E)
++        K = I.size  # Identify exemplars
++    else:
++        I = np.array([])
++        K = 0
+ 
+     if K > 0:
+         c = np.argmax(S[:, I], axis=1)

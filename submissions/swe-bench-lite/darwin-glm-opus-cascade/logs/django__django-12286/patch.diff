@@ -1,0 +1,12 @@
+diff --git a/django/core/checks/translation.py b/django/core/checks/translation.py
+index 138ed07..67c858f 100644
+--- a/django/core/checks/translation.py
++++ b/django/core/checks/translation.py
+@@ -57,5 +57,6 @@ def check_language_settings_consistent(app_configs, **kwargs):
+     """Error if language settings are not consistent with each other."""
+     available_tags = {i for i, _ in settings.LANGUAGES} | {'en-us'}
+     if settings.LANGUAGE_CODE not in available_tags:
+-        return [E004]
++        if settings.LANGUAGE_CODE.split('-')[0] not in available_tags:
++            return [E004]
+     return []

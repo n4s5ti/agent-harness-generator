@@ -1,0 +1,15 @@
+diff --git a/django/db/models/expressions.py b/django/db/models/expressions.py
+index 6f26dff..6aeb039 100644
+--- a/django/db/models/expressions.py
++++ b/django/db/models/expressions.py
+@@ -1152,6 +1152,10 @@ class Subquery(BaseExpression, Combinable):
+         self.query = getattr(queryset, 'query', queryset)
+         self.extra = extra
+         super().__init__(output_field)
++        # QuerySet.as_sql() returns the query without parentheses but they
++        # are required by the template, so add them if missing.
++        if not self.query.subquery:
++            self.query.subquery = True
+ 
+     def get_source_expressions(self):
+         return [self.query]

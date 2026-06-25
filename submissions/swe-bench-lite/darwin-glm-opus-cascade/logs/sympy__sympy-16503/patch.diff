@@ -1,0 +1,13 @@
+diff --git a/sympy/printing/pretty/pretty.py b/sympy/printing/pretty/pretty.py
+index 7a3de33..c33e027 100644
+--- a/sympy/printing/pretty/pretty.py
++++ b/sympy/printing/pretty/pretty.py
+@@ -622,6 +622,8 @@ def adjust(s, wid=None, how='<^>'):
+                                          prettyF.baseline) - adjustment
+                 first = False
+ 
++            # put padding to the right
++
+             # put padding to the right
+             pad = stringPict('')
+             pad = prettyForm(*pad.stack(*[' ']*h))

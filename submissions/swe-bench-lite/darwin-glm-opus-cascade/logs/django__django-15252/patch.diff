@@ -1,0 +1,22 @@
+diff --git a/django/db/migrations/recorder.py b/django/db/migrations/recorder.py
+index 1a37c6b..0321337 100644
+--- a/django/db/migrations/recorder.py
++++ b/django/db/migrations/recorder.py
+@@ -1,5 +1,6 @@
+ from django.apps.registry import Apps
+ from django.db import DatabaseError, models
++from django.db.utils import router
+ from django.utils.functional import classproperty
+ from django.utils.timezone import now
+ 
+@@ -52,6 +53,10 @@ class MigrationRecorder:
+ 
+     def has_table(self):
+         """Return True if the django_migrations table exists."""
++        # If the database is not allowed to migrate the Migration model, the
++        # table effectively doesn't exist for our purposes.
++        if not router.allow_migrate(self.connection.alias, self.Migration):
++            return False
+         with self.connection.cursor() as cursor:
+             tables = self.connection.introspection.table_names(cursor)
+         return self.Migration._meta.db_table in tables

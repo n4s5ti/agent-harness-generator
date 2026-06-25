@@ -1,0 +1,13 @@
+diff --git a/lib/matplotlib/colorbar.py b/lib/matplotlib/colorbar.py
+index d3d53e3..6620e25 100644
+--- a/lib/matplotlib/colorbar.py
++++ b/lib/matplotlib/colorbar.py
+@@ -1106,6 +1106,8 @@ class Colorbar:
+             self.norm.vmax = 1
+         self.norm.vmin, self.norm.vmax = mtransforms.nonsingular(
+             self.norm.vmin, self.norm.vmax, expander=0.1)
++        if not isinstance(self.norm, colors.BoundaryNorm):
++            b = self.norm.inverse(b)
+         if (not isinstance(self.norm, colors.BoundaryNorm) and
+                 (self.boundaries is None)):
+             b = self.norm.inverse(b)

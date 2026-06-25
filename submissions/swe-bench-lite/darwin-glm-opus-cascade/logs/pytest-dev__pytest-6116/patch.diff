@@ -1,0 +1,17 @@
+diff --git a/src/_pytest/main.py b/src/_pytest/main.py
+index 843c5b5..f8ec950 100644
+--- a/src/_pytest/main.py
++++ b/src/_pytest/main.py
+@@ -112,6 +112,12 @@ def pytest_addoption(parser):
+         action="store_true",
+         help="only collect tests, don't execute them.",
+     ),
++    group.addoption(
++        "--co",
++        action="store_true",
++        dest="collectonly",
++        help="only collect tests, don't execute them.",
++    ),
+     group.addoption(
+         "--pyargs",
+         action="store_true",
