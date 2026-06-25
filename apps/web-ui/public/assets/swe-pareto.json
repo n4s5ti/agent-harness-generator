@@ -659,6 +659,20 @@
           "note": "9/25 n=25 GCP fleet, gold, conformant (directional — n=300 confirms)"
         },
         {
+          "name": "Darwin · Opus-4.8 ecascade",
+          "scaffold": "empty-patch → Opus escalation",
+          "model": "Opus-4.8",
+          "resolve": 32,
+          "ci": [
+            17.2,
+            51.6
+          ],
+          "cost": 0.5,
+          "kind": "meas",
+          "costEst": false,
+          "note": "8/25 n=25 GCP fleet, gold, conformant (directional — n=300 confirms)"
+        },
+        {
           "name": "Darwin · Nemotron single",
           "scaffold": "interactive ReAct",
           "model": "Nemotron",
