@@ -69,7 +69,7 @@ CASCADE_FLAG=""; [ "$MODE" = cascade ] && [ -n "$ESCALATE" ] && CASCADE_FLAG="--
 solve() { # temp out
   OPENROUTER_API_KEY="$ORKEY" node --experimental-strip-types --no-warnings solve-agentic.mjs \
     --manifest "$MANIFEST" --no-test-oracle --model "$MODEL" $CASCADE_FLAG \
-    --temperature "$1" --max-steps 15 --concurrency "$CONC" --max-cost 20 \
+    --temperature "$1" --max-steps 15 --concurrency "$CONC" --max-cost "${MAXCOST:-20}" \
     --out "$OUT/$2" --report "$OUT/${2%.jsonl}-report.json"
 }
 if [ "$MODE" = bo3 ]; then
@@ -96,7 +96,7 @@ elif [ "$MODE" = ecascade ]; then
   node -e 'const fs=require("fs");const P=fs.readFileSync(process.env.OUT+"/preds-cheap.jsonl","utf8").split("\n").filter(Boolean).map(l=>JSON.parse(l));const E=new Set(P.filter(p=>!(p.model_patch||"").trim()).map(p=>p.instance_id));const m=JSON.parse(fs.readFileSync(process.env.MANIFEST,"utf8"));fs.writeFileSync("/tmp/esc-manifest.json",JSON.stringify({instances:m.instances.filter(i=>E.has(i.instance_id))}));console.error("ecascade: escalating "+E.size+" empty-patch give-ups to "+process.env.ESCALATE);'
   OPENROUTER_API_KEY="$ORKEY" node --experimental-strip-types --no-warnings solve-agentic.mjs \
     --manifest /tmp/esc-manifest.json --no-test-oracle --model "$ESCALATE" \
-    --temperature 0 --max-steps 18 --concurrency 2 --max-cost 120 \
+    --temperature 0 --max-steps 18 --concurrency 2 --max-cost "${ESCCOST:-120}" \
     --out "$OUT/preds-esc.jsonl" --report "$OUT/esc-report.json" || true
   node -e 'const fs=require("fs");const O=process.env.OUT;const cheap=fs.readFileSync(O+"/preds-cheap.jsonl","utf8").split("\n").filter(Boolean).map(l=>JSON.parse(l));const esc=fs.existsSync(O+"/preds-esc.jsonl")?fs.readFileSync(O+"/preds-esc.jsonl","utf8").split("\n").filter(Boolean).map(l=>JSON.parse(l)):[];const byId=Object.fromEntries(esc.map(p=>[p.instance_id,p]));const merged=cheap.map(p=>(!(p.model_patch||"").trim()&&byId[p.instance_id])?byId[p.instance_id]:p);fs.writeFileSync(O+"/preds-merged.jsonl",merged.map(p=>JSON.stringify(p)).join("\n"));console.error("ecascade: merged "+merged.length+" preds ("+esc.length+" escalated)");'
   PREDS="$OUT/preds-merged.jsonl"; MODEL="ecascade:$MODEL>$ESCALATE"
@@ -113,7 +113,7 @@ elif [ "$MODE" = xcascade ]; then
   node -e 'const fs=require("fs");const P=fs.readFileSync(process.env.OUT+"/preds-judged.jsonl","utf8").split("\n").filter(Boolean).map(l=>JSON.parse(l));const E=new Set(P.filter(p=>!(p.model_patch||"").trim()).map(p=>p.instance_id));const m=JSON.parse(fs.readFileSync(process.env.MANIFEST,"utf8"));fs.writeFileSync("/tmp/esc-manifest.json",JSON.stringify({instances:m.instances.filter(i=>E.has(i.instance_id))}));console.error("xcascade: "+E.size+" empties after cross-model base → escalate to "+process.env.ESCALATE);'
   OPENROUTER_API_KEY="$ORKEY" node --experimental-strip-types --no-warnings solve-agentic.mjs \
     --manifest /tmp/esc-manifest.json --no-test-oracle --model "$ESCALATE" \
-    --temperature 0 --max-steps 18 --concurrency 2 --max-cost 120 \
+    --temperature 0 --max-steps 18 --concurrency 2 --max-cost "${ESCCOST:-120}" \
     --out "$OUT/preds-esc.jsonl" --report "$OUT/esc-report.json" || true
   node -e 'const fs=require("fs");const O=process.env.OUT;const base=fs.readFileSync(O+"/preds-judged.jsonl","utf8").split("\n").filter(Boolean).map(l=>JSON.parse(l));const esc=fs.existsSync(O+"/preds-esc.jsonl")?fs.readFileSync(O+"/preds-esc.jsonl","utf8").split("\n").filter(Boolean).map(l=>JSON.parse(l)):[];const byId=Object.fromEntries(esc.map(p=>[p.instance_id,p]));const merged=base.map(p=>(!(p.model_patch||"").trim()&&byId[p.instance_id])?byId[p.instance_id]:p);fs.writeFileSync(O+"/preds-merged.jsonl",merged.map(p=>JSON.stringify(p)).join("\n"));console.error("xcascade: merged "+merged.length+" ("+esc.length+" escalated)");'
   PREDS="$OUT/preds-merged.jsonl"; MODEL="xcascade:$XMODELS>$ESCALATE"
