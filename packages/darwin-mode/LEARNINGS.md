@@ -666,3 +666,45 @@ NOT solver verdicts** — vindicating the refusal to record them as solver concl
 rate-limit-vs-not-found discrimination) + runner pre-pulls & verifies every image present before scoring → a missing
 image is now a HARD ERROR, never a silent False. The real Darwin Pro resolve is now MEASURABLE; re-running Kimi K2.6
 (§40 Config A) with the fixed eval to get the first trustworthy Pro number.
+
+## 43. ✅ Abstracted HU NLHE game tree — exact CFR converges (1,116 infosets; 0.0155 → 0.0038 over 1k→10k)
+
+Closed the gap in `crates/poker-darwin`: it had the scaling *primitives* (validated `realgames` rs_poker equity —
+QQ 53.8% vs AKs 46.2%; `abstraction.rs` ruvector bucketing compressing Leduc 288→7–144) but **no NLHE game tree** to
+run the exact-CFR solver on. New `src/games/holdem.rs` (`AbstractHoldem`) implements the same `Game` trait as Kuhn/
+Leduc, so it plugs into `cfr.rs` and the exact `exploit.rs` best-response **unchanged**.
+
+**The abstraction (honest scope — baked into the module doc + the `exploit` bin output):**
+- **Streets:** pre-flop + flop only (2 streets; `--streets 1|2` knob). No turn/river.
+- **Cards:** each hand → 1 of 6 *strength buckets* per street (higher = stronger). Throws away card-removal, suit
+  texture, intra-bucket strength. The deal is a fully-specified chance measure: pre-flop bucket *marginals* (per
+  player, independent) × an explicit row-stochastic *flop transition matrix* `T[pre][flop]` (stay/improve/fade
+  kernel). Every chance edge carries its probability summing to 1 ⇒ `exploit.rs` integrates over the deal **exactly**,
+  so exploitability is ground-truth *within the abstraction*.
+- **Bets:** continuous NLHE sizing → `{fold, check/call, pot-bet, all-in}`, standard HU blinds (SB 1 / BB 2),
+  20bb stacks, ≤3 raises/round to bound the tree.
+
+**Tree size (the tractability win):** 2-street/6-bucket = **1,116 infosets**, 39,096 decision nodes, 54,648
+terminals, ~94k total histories, depth 8 — comfortably under the < ~100k exact-CFR budget. 1-street = 36 infosets.
+
+**Convergence (real measured CFR+ exploitability, exact best-response oracle):**
+
+| iters | exploitability | game value (p0) |
+|------:|---------------:|----------------:|
+| 1,000 | 0.015534 | 0.191416 |
+| 2,000 | 0.010006 | 0.194233 |
+| 5,000 | 0.005610 | 0.196170 |
+| 10,000 | 0.003769 | 0.197241 |
+
+Monotone-decreasing, exactly like Kuhn/Leduc did — proof the tree, chance weighting, and showdown logic are sound.
+The 1-street tree drives to < 0.01 in 5k iters. **Darwin Mode also plugs in unchanged**: on holdem (pop 6, gen 3,
+150 eval-iters) the evolved champion cut exploitability **0.185 → 0.025 (86.4%)** vs the vanilla baseline, and the
+best non-stationary genome beat the best static one by 55.4% — the same "dynamic > static" edge seen on Leduc.
+
+**Honest caveat (do NOT misread):** this is the equilibrium of the **ABSTRACTION**, measured exactly within it —
+**NOT** full No-Limit Hold'em (~10^160 states, intractable for any exact solver). What is **not** captured vs full
+NLHE: turn + river, finer/lossless card buckets (and card-removal correlation between the two players' hands), and
+full continuous bet-sizing. "Exploitability → 0 here" means "Nash of this bucketed/discretised game", never
+"unexploitable at a real table". The exact-exploitability oracle is the runtime bottleneck (each call walks the full
+~94k-history tree twice), so the largest comfortably-exact size is the 2-street/6-bucket default; pushing buckets or
+adding the turn grows the tree super-linearly and would need MCCFR sampling rather than exact CFR.

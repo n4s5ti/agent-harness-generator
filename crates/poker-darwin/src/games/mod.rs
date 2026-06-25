@@ -6,8 +6,10 @@
 // plausible), yet structurally identical to full poker — private cards, betting
 // rounds, bluffing, slow-playing.
 
+pub mod holdem;
 pub mod kuhn;
 pub mod leduc;
 
+pub use holdem::{AbstractHoldem, HoldemAction, HoldemConfig, HoldemState};
 pub use kuhn::{KuhnAction, KuhnPoker, KuhnState};
 pub use leduc::{LeducAction, LeducHoldem, LeducState};

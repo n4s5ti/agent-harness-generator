@@ -12,7 +12,7 @@ use poker_darwin::cfr::{CfrVariant, Solver, SolverConfig};
 use poker_darwin::darwin::{evolve, DarwinConfig};
 use poker_darwin::exploit::{exploitability, profile_value};
 use poker_darwin::game::Game;
-use poker_darwin::games::{KuhnPoker, LeducHoldem};
+use poker_darwin::games::{AbstractHoldem, HoldemConfig, KuhnPoker, LeducHoldem};
 use std::collections::HashMap;
 
 fn main() {
@@ -78,6 +78,20 @@ fn parse_flags(args: &[String]) -> Flags {
     Flags(m)
 }
 
+/// Build the abstracted-Hold'em config from CLI flags (`--streets`, `--buckets`,
+/// `--stack`). Defaults: 2 streets (pre-flop + flop), 6 buckets.
+fn holdem_config(flags: &Flags) -> HoldemConfig {
+    let d = HoldemConfig::default();
+    HoldemConfig {
+        streets: flags.usize_or("streets", d.streets).clamp(1, 2),
+        buckets: flags.usize_or("buckets", d.buckets).max(2),
+        stack: flags
+            .get("stack")
+            .and_then(|v| v.parse::<f64>().ok())
+            .unwrap_or(d.stack),
+    }
+}
+
 fn parse_variant(s: &str) -> CfrVariant {
     match s {
         "vanilla" => CfrVariant::Vanilla,
@@ -99,6 +113,12 @@ fn cmd_solve(flags: &Flags) {
     let variant = parse_variant(flags.str_or("variant", "cfr+"));
     match flags.str_or("game", "kuhn") {
         "leduc" => solve_curve(LeducHoldem::new(), variant, iters, every),
+        "holdem" => solve_curve(
+            AbstractHoldem::with_config(holdem_config(flags)),
+            variant,
+            iters,
+            every,
+        ),
         _ => solve_curve(KuhnPoker::new(), variant, iters, every),
     }
 }
@@ -132,6 +152,20 @@ fn cmd_exploit(flags: &Flags) {
     let variant = parse_variant(flags.str_or("variant", "cfr+"));
     match flags.str_or("game", "kuhn") {
         "leduc" => report_final(LeducHoldem::new(), variant, iters),
+        "holdem" => {
+            let cfg = holdem_config(flags);
+            println!(
+                "== ABSTRACTED HU NLHE (NOT full NLHE) — {} street(s), {} buckets/street, {:.0}bb stack ==",
+                cfg.streets, cfg.buckets, cfg.stack
+            );
+            println!(
+                "   abstraction: card buckets x discrete bets {{fold,call,pot,allin}} x limited streets."
+            );
+            println!(
+                "   exploitability below is the equilibrium of THIS abstraction, not full NLHE.\n"
+            );
+            report_final(AbstractHoldem::with_config(cfg), variant, iters);
+        }
         _ => report_final(KuhnPoker::new(), variant, iters),
     }
 }
@@ -145,6 +179,7 @@ fn report_final<G: Game>(game: G, variant: CfrVariant, iters: u64) {
         solver.game().name(),
         variant.tag()
     );
+    println!("infosets = {}", solver.num_infosets());
     println!(
         "exploitability = {:.6}",
         exploitability(solver.game(), &avg)
@@ -161,13 +196,16 @@ fn cmd_info(flags: &Flags) {
     match flags.str_or("game", "kuhn") {
         "leduc" => print_info(LeducHoldem::new()),
         "kuhn" => print_info(KuhnPoker::new()),
+        "holdem" => print_info(AbstractHoldem::with_config(holdem_config(flags))),
         "all" => {
             print_info(KuhnPoker::new());
             println!();
             print_info(LeducHoldem::new());
+            println!();
+            print_info(AbstractHoldem::new());
         }
         other => {
-            eprintln!("unknown game: {other} (use kuhn|leduc|all)");
+            eprintln!("unknown game: {other} (use kuhn|leduc|holdem|all)");
             std::process::exit(2);
         }
     }
@@ -200,6 +238,7 @@ fn cmd_evolve(flags: &Flags) {
     };
     match flags.str_or("game", "kuhn") {
         "leduc" => run_evolve(LeducHoldem::new(), cfg),
+        "holdem" => run_evolve(AbstractHoldem::with_config(holdem_config(flags)), cfg),
         _ => run_evolve(KuhnPoker::new(), cfg),
     }
 }
@@ -331,13 +370,17 @@ fn cmd_neural(_flags: &Flags) {
 fn print_help() {
     println!(
         "poker-darwin — CFR poker solver + Darwin self-learning\n\n\
+         GAMES: kuhn, leduc, holdem (ABSTRACTED heads-up NLHE — card buckets x\n\
+         discrete bets {{fold,call,pot,allin}} x pre-flop+flop only; NOT full NLHE).\n\n\
          USAGE:\n\
-         \x20 poker-darwin info     --game <kuhn|leduc|all>                     (environment / tree size)\n\
-         \x20 poker-darwin solve    --game <kuhn|leduc> --iters N [--variant cfr+|vanilla|linear|dcfr] [--every K]\n\
-         \x20 poker-darwin exploit  --game <kuhn|leduc> --iters N [--variant ...]\n\
-         \x20 poker-darwin evolve   --game <kuhn|leduc> [--generations G --population P --eval-iters N --seed S]\n\
+         \x20 poker-darwin info     --game <kuhn|leduc|holdem|all> [--streets 1|2 --buckets B]   (tree size)\n\
+         \x20 poker-darwin solve    --game <kuhn|leduc|holdem> --iters N [--variant cfr+|vanilla|linear|dcfr] [--every K] [--streets 1|2 --buckets B]\n\
+         \x20 poker-darwin exploit  --game <kuhn|leduc|holdem> --iters N [--variant ...] [--streets 1|2 --buckets B]\n\
+         \x20 poker-darwin evolve   --game <kuhn|leduc|holdem> [--generations G --population P --eval-iters N --seed S]\n\
          \x20 poker-darwin equity   <hand1> <hand2> [--iters N]            (needs --features realgames)\n\
          \x20 poker-darwin abstract --game <kuhn|leduc> [--buckets B]      (needs --features ruvector)\n\
-         \x20 poker-darwin neural   [--epochs E]                           (needs --features neural)\n"
+         \x20 poker-darwin neural   [--epochs E]                           (needs --features neural)\n\n\
+         NOTE: holdem exploitability is the equilibrium of the ABSTRACTION (buckets/bets/\n\
+         streets), measured exactly within it — it is NOT a claim about full No-Limit Hold'em.\n"
     );
 }

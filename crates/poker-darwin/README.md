@@ -28,12 +28,38 @@ A poker **trainer/solver** built on three pillars:
 |------|-----------|-----|
 | Kuhn Poker | 12 | Known closed-form Nash; game value −1/18. Correctness proof. |
 | Leduc Hold'em | 288 | Two betting rounds, a public card, raises. Real convergence test. |
+| Abstracted HU NLHE (`holdem`) | 1,116 (2-street, 6-bucket) | Real-poker structure — private hands, position, pot-odds, NLHE bet sizing — small enough for exact CFR. **An abstraction, not full NLHE** (see below). |
+
+### `holdem` — abstracted heads-up No-Limit Hold'em (honest scope)
+
+`holdem` is **not** full NLHE (which has ~10^160 states and is intractable for
+any exact solver). It is an *abstraction* along three axes, and the
+exploitability we report is the equilibrium **of that abstraction**, measured
+exactly within it — never a claim about a real table:
+
+- **Streets:** pre-flop + flop only (2 streets, a config knob `--streets 1|2`).
+  No turn/river.
+- **Cards:** each hand is collapsed into a small number of *strength buckets*
+  per street (default 6) — standard card abstraction; throws away card-removal,
+  suit texture, and intra-bucket strength.
+- **Bets:** the continuous NLHE sizing space is reduced to `{fold, check/call,
+  pot-bet, all-in}`.
+
+The deal is a fully-specified chance measure over bucket pairs (pre-flop
+marginals × an explicit flop transition matrix), so `exploit.rs` integrates over
+it exactly. CFR converges on it cleanly (1,116 infosets; CFR+ exploitability
+~0.0155 → ~0.0038 over 1k → 10k iters). What is **not** captured vs full NLHE:
+turn/river, finer/lossless card buckets, and full continuous bet-sizing.
 
 ## Quick start
 
 ```bash
 # Solve Kuhn/Leduc and print the exploitability convergence curve (eval harness):
 cargo run -p poker-darwin -- solve --game leduc --iters 1000
+
+# Solve the ABSTRACTED HU NLHE tree (not full NLHE) and watch it converge:
+cargo run -p poker-darwin -- solve --game holdem --iters 10000 --every 1000
+cargo run -p poker-darwin -- info  --game holdem            # tree size / infosets
 
 # Run Darwin self-learning: evolve the solver policy, show the learning curve:
 cargo run -p poker-darwin -- evolve --game leduc --generations 8

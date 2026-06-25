@@ -21,4 +21,4 @@ pub use cfr::{CfrVariant, Solver, SolverConfig};
 pub use darwin::{DarwinConfig, DarwinReport, Genome};
 pub use exploit::{best_response_value, exploitability, profile_value};
 pub use game::Game;
-pub use games::{KuhnPoker, LeducHoldem};
+pub use games::{AbstractHoldem, HoldemConfig, KuhnPoker, LeducHoldem};
