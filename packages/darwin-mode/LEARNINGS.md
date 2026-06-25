@@ -578,3 +578,22 @@ clean SOTA confirm is not achievable right now.
    plausible-looking 38.3%. Always cross-check the per-arm pred counts (preds-x0 vs preds-x1) before trusting an xbo
    n=300 number — equal counts are required for a true best-of-2.
 3. The cost guard *did* protect the budget (the shot cost ~$22, not ~$150) — good hygiene, wrong outcome for the goal.
+
+## 35. xcascade (FUGU) n=300 = 49.0% — the 2-model base does NOT beat the simple cascade; n=25 56% was noise
+
+Clean n=300 (GCP solve+escalate, GCP eval wedged → salvaged preds-merged + local gold-eval): xcascade
+(V3.2+GLM xbo base → discriminator → escalate empties to Opus) = **147/300 = 49.0%** Wilson [43.4, 54.6].
+
+**The fancier structure does not pay off.** Compare at n=300:
+- GLM→Opus **cascade = 51.3%** (ecascade 50.7%, §28/§35b) — single cheap model → escalate empties.
+- xcascade **= 49.0%** — TWO-model xbo base + discriminator → escalate empties.
+
+xcascade is statistically tied-but-marginally-below the cascade (CIs overlap heavily), AND it costs more (2 base models +
+a discriminator pass before the same Opus escalation). So **the cascade DOMINATES xcascade** — simpler, cheaper, ≥ resolve.
+The n=25 xcascade reading (56%, §30) was small-sample optimism; at n=300 it regresses to ~49%, below the cascade. This
+mirrors §36's lesson (n=25 over-promises): **the GLM→Opus empty-patch cascade (51.3%) is the confirmed cost-Pareto
+Performance-tier winner; adding cross-model diversity to the *base* of an escalation cascade buys nothing at scale.**
+
+### Confirmed n=300 frontier (SWE-bench Lite, conformant) — arc closed
+ds-v4 single 34% · GLM 37% · ds-v4 bo3+judge 39.7% · xcascade 49.0% · **GLM→Opus cascade 51.3% (winner)**.
+Verified: ds-v4 46.4% (n=500). opus+GLM xbo 72% is n=25-only (no clean n=300 — cost-blocked, §36).

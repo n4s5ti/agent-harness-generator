@@ -480,15 +480,15 @@
           "name": "Darwin · V3.2+Opus-4.8 xcascade",
           "scaffold": "xcascade",
           "model": "V3.2+Opus-4.8",
-          "resolve": 56,
+          "resolve": 49,
           "ci": [
-            37.1,
-            73.3
+            43.4,
+            54.6
           ],
           "cost": 0.5,
           "kind": "meas",
           "costEst": false,
-          "note": "14/25 n=25 GCP fleet, gold, conformant (directional — n=300 confirms)"
+          "note": "147/300 n=300 conformant (salvaged preds + local gold-eval). The n=25 56% was noise; at n=300 ties-below the GLM→Opus cascade (51.3%) AND costs more → dominated by the simpler cascade."
         },
         {
           "name": "Darwin · DeepSeek-V4 bo3",
