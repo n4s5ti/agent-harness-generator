@@ -41,7 +41,7 @@ const key = () => readFileSync('/tmp/.orkey', 'utf8').trim();
 // self-running startup script: install deps, fetch the fixed runner from main, solve+eval, leave results.
 const STARTUP = `#!/bin/bash
 M(){ curl -sf -H 'Metadata-Flavor: Google' "http://metadata/computeMetadata/v1/instance/attributes/$1" 2>/dev/null || true; } # -f: missing attr → empty, NOT the 404 HTML (which broke SAMPLE on non-sample runs)
-export ORKEY=$(M orkey) BENCH=$(M bench) MODE=$(M mode) MODEL=$(M model) ESCALATE=$(M escalate) SAMPLE=$(M sample) XMODELS=$(M xmodels) CONCURRENCY=4
+export ORKEY=$(M orkey) BENCH=$(M bench) MODE=$(M mode) MODEL=$(M model) ESCALATE=$(M escalate) SAMPLE=$(M sample) XMODELS=$(M xmodels) MAXCOST=$(M maxcost) ESCCOST=$(M esccost) CONCURRENCY=4
 export DEBIAN_FRONTEND=noninteractive
 apt-get update -y >/dev/null 2>&1; apt-get install -y python3-venv python3-pip git >/dev/null 2>&1
 mkdir -p /opt
@@ -225,13 +225,13 @@ async function supervise() {
   }
 }
 
-const [cmd, a, b, c] = process.argv.slice(2);
+const [cmd, a, b, c, d] = process.argv.slice(2);
 if (cmd === 'up') provision({ board: a, model: b, tag: c || b.split('/').pop().replace(/[.:]/g, '-') });
 else if (cmd === 'matrix') { for (const [board, model, tag] of MATRIX) try { provision({ board, model, tag }); } catch (e) { console.error(e.message); } }
 else if (cmd === 'prove') prove(a);
 else if (cmd === 'proveone') provision({ board: 'lite', model: a, mode: b || 'single', sample: c || '25', machine: 'e2-standard-4', tag: 'x-' + a.split('/').pop().replace(/[.:]/g, '-') + '-' + (b || 'single') });
 else if (cmd === 'provexbo') provision({ board: 'lite', model: 'xbo', mode: 'xbo', xmodels: a, sample: b || '25', machine: 'e2-standard-4', tag: 'xbo-' + a.split(',').map((m) => m.split('/').pop().slice(0, 6)).join('-').replace(/[.:]/g, '-').slice(0, 34) });
-else if (cmd === 'ecascade') provision({ board: 'lite', model: a, mode: 'ecascade', escalate: b, sample: c || '', machine: MACHINE, tag: ('ec-' + a.split('/').pop().slice(0, 8) + '-' + b.split('/').pop().slice(0, 8)).replace(/[.:]/g, '-') }); // empty-patch cascade: a=cheap, b=escalate(opus)
+else if (cmd === 'ecascade') provision({ board: d || 'lite', model: a, mode: 'ecascade', escalate: b, sample: c || '', machine: MACHINE, tag: ((d ? d.slice(0, 4) + '-' : '') + 'ec-' + a.split('/').pop().slice(0, 8) + '-' + b.split('/').pop().slice(0, 8)).replace(/[.:]/g, '-') }); // empty-patch cascade: a=cheap, b=escalate(opus), d=board(default lite)
 else if (cmd === 'xcascade') provision({ board: 'lite', model: 'xcascade', mode: 'xcascade', xmodels: a, escalate: b, sample: c || '25', machine: MACHINE, tag: ('xc-' + a.split(',').map((m) => m.split('/').pop().slice(0, 5)).join('-') + '-' + b.split('/').pop().slice(0, 6)).replace(/[.:]/g, '-').slice(0, 50) }); // FUGU: a=xbo csv base, b=escalate(opus)
 else if (cmd === 'evolve') {  // auto-tune: evolve on REAL Firestore data → dispatch unmeasured genomes as prove jobs
   const w = +(a || 0.7);
