@@ -70,7 +70,7 @@ CASCADE_FLAG=""; [ "$MODE" = cascade ] && [ -n "$ESCALATE" ] && CASCADE_FLAG="--
 solve() { # temp out
   OPENROUTER_API_KEY="$ORKEY" node --experimental-strip-types --no-warnings solve-agentic.mjs \
     --manifest "$MANIFEST" --no-test-oracle --model "$MODEL" $CASCADE_FLAG \
-    --temperature "$1" --max-steps 15 --concurrency "$CONC" --max-cost "${MAXCOST:-20}" \
+    --temperature "$1" --max-steps "${MAXSTEPS:-15}" --concurrency "$CONC" --max-cost "${MAXCOST:-20}" \
     --out "$OUT/$2" --report "$OUT/${2%.jsonl}-report.json"
 }
 if [ "$MODE" = bo3 ]; then

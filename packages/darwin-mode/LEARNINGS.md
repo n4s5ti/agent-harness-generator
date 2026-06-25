@@ -618,3 +618,21 @@ SSH-unresponsive post-eval so I could NOT verify how many of the 8 enterprise im
 FLOOR, possibly understated by eval-infra. **What IS validated: the Pro pipeline now runs end-to-end** (polyglot
 solve → Opus escalate → real Scale `swe_bench_pro_eval` → self-report) — that plumbing is the deliverable; the resolve
 number is directional and Pro is confirmed genuinely hard for this approach.
+
+## 40. SWE-bench Pro needs a mid-tier base above the capability cliff + a long turn budget (research → ADR-192 impl)
+
+Deep-research (10 sources, SWE-bench Pro paper arXiv:2509.16941 + Scale SEAL board) on why our cascade gave 4% (§39) and
+what actually works on Pro:
+- **Pro has a capability cliff at ~Sonnet-class.** Below it (GLM 9.7%, DeepSeek-V3.2 15.6%) models produce >90% empty/
+  malformed patches on enterprise multi-file repos (avg 107 lines / 4.1 files changed, Go/JS/TS) — matching our GLM 23/25
+  empty. **Cheap-base+empty-patch-cascade is structurally dead on Pro** (the empty cheap attempt gives the escalation
+  target zero signal — you pay twice for nothing).
+- **Biggest lever is `--max-steps`, not the model.** SEAL board: same Kimi K2 = 27.7% at 50 turns vs 58.6% at 250 turns
+  (+31pt). Our default 15-20 steps is far too low for Pro's 4.1-file tasks.
+- **The real cost-Pareto play = cheapest model ABOVE the cliff:** Kimi K2.6 (~58.6% vendor, $0.66/$3.41) is the
+  resolve-per-dollar champion; then Haiku 4.5 (39.5%, ~$0.4), Gemini 3 Flash (34.6%), Sonnet 4.5 (43.6%). NOT GLM/DeepSeek.
+
+**Implementation (this commit):** made runner `--max-steps` env-configurable (MAXSTEPS, default 15); threaded MAXSTEPS via
+gcp-cluster metadata. **Config A test dispatched: Kimi K2.6 single, max-steps 60, Pro n=25.** Expected ~20-35% (vs our 4%
+cascade) at ~$1/inst — a real cost-Pareto point above the cliff if it lands. Honest: this is mid-tier, not cheap-tier;
+there is NO sub-$0.30 cost-Pareto play on Pro (the cliff forbids it).
