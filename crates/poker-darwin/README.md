@@ -48,7 +48,7 @@ exactly within it — never a claim about a real table:
 The deal is a fully-specified chance measure over bucket pairs (pre-flop
 marginals × an explicit flop transition matrix), so `exploit.rs` integrates over
 it exactly. CFR converges on it cleanly (1,116 infosets; CFR+ exploitability
-~0.0155 → ~0.0038 over 1k → 10k iters). What is **not** captured vs full NLHE:
+~0.0155 → ~0.0038 → ~0.0022 over 1k → 10k → 25k iters). What is **not** captured vs full NLHE:
 turn/river, finer/lossless card buckets, and full continuous bet-sizing.
 
 ## Quick start

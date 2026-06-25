@@ -695,6 +695,7 @@ terminals, ~94k total histories, depth 8 — comfortably under the < ~100k exact
 | 2,000 | 0.010006 | 0.194233 |
 | 5,000 | 0.005610 | 0.196170 |
 | 10,000 | 0.003769 | 0.197241 |
+| 25,000 | 0.002215 | 0.198108 |
 
 Monotone-decreasing, exactly like Kuhn/Leduc did — proof the tree, chance weighting, and showdown logic are sound.
 The 1-street tree drives to < 0.01 in 5k iters. **Darwin Mode also plugs in unchanged**: on holdem (pop 6, gen 3,
@@ -708,3 +709,10 @@ full continuous bet-sizing. "Exploitability → 0 here" means "Nash of this buck
 "unexploitable at a real table". The exact-exploitability oracle is the runtime bottleneck (each call walks the full
 ~94k-history tree twice), so the largest comfortably-exact size is the 2-street/6-bucket default; pushing buckets or
 adding the turn grows the tree super-linearly and would need MCCFR sampling rather than exact CFR.
+
+**Measured runtime / largest tractable size:** the bottleneck is the exact best-response pass, not the CFR train.
+A full 25,000-iter CFR+ train **plus** the final exact two-sided best-response over the ~94k-history tree took **608 s
+(~10 min)** wall on ruvultra; 100k therefore runs ~40+ min and was killed as impractical for the doc loop (no value
+beyond the already-monotone curve). **So the largest comfortably-exact configuration is the 2-street / 6-bucket
+default (1,116 infosets).** Beyond it — more buckets, the turn/river — exact CFR is too slow and the crate would need
+the MCCFR sampling path; the exact oracle stays the gold standard only at this abstraction size.
