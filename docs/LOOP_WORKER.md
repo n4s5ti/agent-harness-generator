@@ -4,7 +4,7 @@ Versioned source of truth for the cron/`/loop` worker. **Cadence: self-paced, un
 
 ## ▶ CURRENT DIRECTIVE (2026-06-24): TimesFM completion arc — SWE-bench freeze still on
 
-**🧊 SWE-BENCH SPEND FREEZE STILL IN EFFECT.** Spend ~$590/$800. **NO new paid OpenRouter SWE-bench runs** (no GCP
+**🧊 SWE-BENCH SPEND FREEZE STILL IN EFFECT.** Spend ~$590/$1000 (raised 2026-06-24 for TimesFM testing). **NO new paid OpenRouter SWE-bench runs** (no GCP
 provisions for cascade/xbo, no new Opus solver runs). The freeze is on **paid OpenRouter solver spend only**.
 Empirical only — n=300 is the only SWE-bench verdict; n=25 is directional scouting, never a claim.
 
@@ -37,7 +37,7 @@ chunked-synthesis harness here. **Remaining phases (drive in order, gate each ho
 ### Other free local levers (lower priority than the TimesFM mandate)
 - ADR-189 Chebyshev temp: DONE — +1/25 weak positive (§37), entropy-gate version deferred (needs paid n=25).
 - ADR-190 mincut: **declined** — §38 measured localization is NOT our bottleneck (ReAct self-localizes 7/7).
-- **Guards**: OpenRouter spend>$800 → hard abort. `down all` only on a crash. Never kill xcascade-300.
+- **Guards**: OpenRouter spend>$1000 → hard abort. `down all` only on a crash. Never kill xcascade-300.
 
 Each loop tick: HEALTH (prune, kill >12min hangs) → check `rank` + fleet → advance the current phase → commit
 artifacts → report. The fleet is self-managing (AUTOSTOP + controller auto-delete); never leave VMs billing idle.
