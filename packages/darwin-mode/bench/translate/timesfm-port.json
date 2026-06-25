@@ -1,0 +1,48 @@
+{
+  "name": "timesfm-ruvector-port",
+  "adr": "ADR-191",
+  "target": "ruvnet/RuVector crates/timesfm (candle)",
+  "source": "google-research/timesfm",
+  "chunks": [
+    {
+      "id": "timesfm-p1-scaffold",
+      "module": "config + module traits + structs (no tensor math)",
+      "tier": "economy",
+      "sourceFiles": ["src/timesfm/timesfm_base.py", "src/timesfm/configs.py"],
+      "targetPath": "crates/timesfm/src/config.rs",
+      "contextDocs": ["docs/notes/candle-module-trait.md"],
+      "testCmd": "cargo test -p timesfm config_defaults"
+    },
+    {
+      "id": "timesfm-p2-weights",
+      "module": "weight-conversion script (HF safetensors keys → Rust param hierarchy)",
+      "tier": "economy",
+      "sourceFiles": ["src/timesfm/pytorch_patched_decoder.py"],
+      "targetPath": "crates/timesfm/scripts/convert_weights.py",
+      "contextDocs": ["docs/notes/safetensors-key-map.md"],
+      "testCmd": "cargo test -p timesfm weight_key_map"
+    },
+    {
+      "id": "timesfm-p3-tensormath",
+      "module": "core tensor math (input patch embedding, MHA, decoder forward, output projection)",
+      "tier": "performance",
+      "sourceFiles": ["src/timesfm/pytorch_patched_decoder.py", "src/timesfm/timesfm_base.py"],
+      "targetPath": "crates/timesfm/src/decoder.rs",
+      "contextDocs": [
+        "docs/notes/candle-ops-broadcasting.md",
+        "docs/notes/candle-ops-attention.md",
+        "docs/notes/candle-reshape-narrow-transpose.md"
+      ],
+      "testCmd": "cargo test -p timesfm attention_shapes"
+    },
+    {
+      "id": "timesfm-p4-adapter",
+      "module": "ruvector integration adapter (candle pooled hidden states → HNSW dense vectors + autoregressive head)",
+      "tier": "balanced",
+      "sourceFiles": ["src/timesfm/timesfm_base.py"],
+      "targetPath": "crates/timesfm/src/ruvector_adapter.rs",
+      "contextDocs": ["docs/notes/ruvector-ingest-api.md"],
+      "testCmd": "cargo test -p timesfm adapter_embeds"
+    }
+  ]
+}
