@@ -653,3 +653,16 @@ make the Pro eval reliable** — pre-pull/cache all 8 images with Docker Hub aut
 per-instance scoring is real (not infra-False), and confirm the VM survives the eval. Until then: Pro solver comparisons
 are blocked; do NOT read the 4% as "Kimi failed" or "cheap cascade = Kimi." The Lite/Verified eval path (princeton
 swebench harness, cached images on ruvultra) is reliable; only the Scale-Pro path is suspect.
+
+## 42. ✅ Pro eval FIXED + validated — the 4% was a confirmed eval-infra artifact (not the solver)
+
+Resolved §41. Built + validated a working Pro eval: **gold patches → 5/5 (100%) resolved, empty → 0/5** (negative
+control) on real Pro images. Root cause of the 4% floor CONFIRMED: Scale's `swe_bench_pro_eval.py` `eval_with_docker`
+returns None on Docker-pull failure → `main()` maps None→False *silently*, and it pulls multi-GB images INSIDE each
+worker thread → `--num_workers>1` fires concurrent anonymous pulls → Docker Hub rate-limit → silent-False on ~24/25 →
+the 1/25 floor. Sequential pulls hit zero rate-limit. **Both Pro 4% results (cascade §39, Kimi §41) were eval artifacts,
+NOT solver verdicts** — vindicating the refusal to record them as solver conclusions.
+**Fix (978e1da/1384e86):** `pro-prepull-images.sh` (sequential pre-pull, retry/backoff, optional Docker Hub auth,
+rate-limit-vs-not-found discrimination) + runner pre-pulls & verifies every image present before scoring → a missing
+image is now a HARD ERROR, never a silent False. The real Darwin Pro resolve is now MEASURABLE; re-running Kimi K2.6
+(§40 Config A) with the fixed eval to get the first trustworthy Pro number.
