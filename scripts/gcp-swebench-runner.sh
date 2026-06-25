@@ -22,6 +22,7 @@ ORKEY="${ORKEY:-$(curl -s -H 'Metadata-Flavor: Google' 'http://metadata/computeM
 case "$BENCH" in
   verified) DS=princeton-nlp/SWE-bench_Verified; MANIFEST=verified-500.json ;;
   lite)     DS=princeton-nlp/SWE-bench_Lite;     MANIFEST=full-300.json ;;
+  pro)      DS=ScaleAI/SWE-bench_Pro;            MANIFEST=pro-25.json ;;   # SWE-bench Pro: committed pro-25 manifest + standalone Docker eval (NOT princeton's run_evaluation)
   *) echo "unknown BENCH=$BENCH"; exit 1 ;;
 esac
 
@@ -121,14 +122,50 @@ else
   solve 0 "preds-single.jsonl"; PREDS="$OUT/preds-single.jsonl"   # MODE=single or cascade
 fi
 
-echo "=== [5/5] GOLD EVAL (official harness) ==="
-cd /tmp
-/opt/sweb-venv/bin/python -m swebench.harness.run_evaluation \
-  --dataset_name "$DS" --predictions_path "$PREDS" \
-  --run_id "darwin-$BENCH-$SLUG-$MODE" --max_workers "$CONC" --cache_level env --timeout 1200 || true
-  # cache_level=env (NOT instance): keeps shared base/env images, removes the 300 per-instance images after each —
-  # `instance` filled the 200GB disk on full-300 (300×~1GB) → most instances failed to build → artifactual ~14%.
-cp -f /tmp/*darwin-$BENCH-$SLUG-$MODE*.json "$OUT/" 2>/dev/null || true
+if [ "$BENCH" = pro ]; then
+  echo "=== [5/5] GOLD EVAL (SWE-bench Pro standalone Docker harness) ==="
+  # Pro is NOT scored by princeton's run_evaluation. Its eval is a separate vendored harness
+  # (scaleapi/SWE-bench_Pro-os) that pulls jefzda/sweap-images:{dockerhub_tag} per instance and
+  # runs fail_to_pass/pass_to_pass inside. gather_patches.py remaps our predictions.jsonl
+  # ({instance_id, model_patch}) → patches.json ({instance_id, patch, prefix}) (a model_patch→patch
+  # rename + constant prefix). Requires: Docker Hub egress + ~GB/image disk + the run_scripts/ + the
+  # raw sample export (before_repo_set_cmd, selected_test_files_to_run, fail_to_pass, pass_to_pass,
+  # dockerhub_tag) — those Pro columns are in $DS. See notes: this path is plumbed but the upstream
+  # Pro eval scripts (Python, per CLAUDE.md policy exception for vendored upstream) must be present.
+  cd /tmp
+  [ -d SWE-bench_Pro-os ] || git clone --depth 1 https://github.com/scaleapi/SWE-bench_Pro-os.git || true
+  if [ -d SWE-bench_Pro-os ]; then
+    /opt/sweb-venv/bin/pip install -q pandas docker 2>/dev/null || true
+    # export the raw Pro sample columns the eval needs, from the HF dataset, to a CSV the harness reads
+    /opt/sweb-venv/bin/python -c "
+import json
+from datasets import load_dataset
+d=load_dataset('$DS', split='test')
+ids=set(i['instance_id'] for i in json.load(open('/opt/darwin/agent-harness-generator/packages/darwin-mode/bench/swebench/pro-25.json'))['instances'])
+rows=[{k:r[k] for k in ('instance_id','repo','base_commit','fail_to_pass','pass_to_pass','before_repo_set_cmd','selected_test_files_to_run','dockerhub_tag')} for r in d if r['instance_id'] in ids]
+json.dump(rows, open('/tmp/pro-sample.json','w')); print('pro sample rows:', len(rows))
+" || true
+    cd SWE-bench_Pro-os
+    # remap predictions → Pro patch format, then run the Pro Docker eval (public images; --dockerhub_username=jefzda)
+    [ -f gather_patches.py ] && /opt/sweb-venv/bin/python gather_patches.py --predictions_path "$PREDS" --output /tmp/patches.json 2>/dev/null || \
+      node -e 'const fs=require("fs");const P=fs.readFileSync(process.argv[1],"utf8").split("\n").filter(Boolean).map(l=>JSON.parse(l));const out=P.map(p=>({instance_id:p.instance_id,patch:p.model_patch||"",prefix:""}));fs.writeFileSync("/tmp/patches.json",JSON.stringify(out));console.error("fallback gather: "+out.length+" patches")' "$PREDS"
+    [ -f swe_bench_pro_eval.py ] && /opt/sweb-venv/bin/python swe_bench_pro_eval.py \
+      --patches /tmp/patches.json --sample /tmp/pro-sample.json --dockerhub_username jefzda \
+      --output_dir "$OUT" --max_workers "$CONC" 2>&1 || echo "Pro eval script not found / failed — predictions are in $PREDS (re-score offline with scaleapi/SWE-bench_Pro-os)"
+    cp -f "$OUT"/*report*.json /tmp/ 2>/dev/null || true
+  else
+    echo "Pro eval repo unavailable — predictions in $PREDS; score offline with scaleapi/SWE-bench_Pro-os"
+  fi
+else
+  echo "=== [5/5] GOLD EVAL (official harness) ==="
+  cd /tmp
+  /opt/sweb-venv/bin/python -m swebench.harness.run_evaluation \
+    --dataset_name "$DS" --predictions_path "$PREDS" \
+    --run_id "darwin-$BENCH-$SLUG-$MODE" --max_workers "$CONC" --cache_level env --timeout 1200 || true
+    # cache_level=env (NOT instance): keeps shared base/env images, removes the 300 per-instance images after each —
+    # `instance` filled the 200GB disk on full-300 (300×~1GB) → most instances failed to build → artifactual ~14%.
+  cp -f /tmp/*darwin-$BENCH-$SLUG-$MODE*.json "$OUT/" 2>/dev/null || true
+fi
 
 echo "=== [6/6] self-report to Firestore (via VM service-account token) ==="
 REPORT=$(ls "$OUT"/*darwin-$BENCH-$SLUG-$MODE*.json 2>/dev/null | head -1)
@@ -136,7 +173,7 @@ if [ -n "$REPORT" ]; then
   TOKEN=$(curl -s -H 'Metadata-Flavor: Google' 'http://metadata/computeMetadata/v1/instance/service-accounts/default/token' | node -pe 'JSON.parse(require("fs").readFileSync(0)).access_token' 2>/dev/null)
   PROJECT_ID=$(curl -s -H 'Metadata-Flavor: Google' 'http://metadata/computeMetadata/v1/project/project-id')
   RESOLVED=$(node -pe "(JSON.parse(require('fs').readFileSync('$REPORT')).resolved_ids||[]).length" 2>/dev/null || echo 0)
-  if [ -n "$SAMPLE" ]; then TOTAL=$SAMPLE; else case "$BENCH" in verified) TOTAL=500;; multilingual) TOTAL=300;; *) TOTAL=300;; esac; fi  # denom = actual instances run (SAMPLE-aware)
+  if [ -n "$SAMPLE" ]; then TOTAL=$SAMPLE; else case "$BENCH" in verified) TOTAL=500;; multilingual) TOTAL=300;; pro) TOTAL=25;; *) TOTAL=300;; esac; fi  # denom = actual instances run (SAMPLE-aware)
   PCT=$(node -pe "($RESOLVED/$TOTAL*100).toFixed(1)")
   curl -s -X POST "https://firestore.googleapis.com/v1/projects/$PROJECT_ID/databases/(default)/documents/darwin_runs" \
     -H "Authorization: Bearer $TOKEN" -H 'Content-Type: application/json' \

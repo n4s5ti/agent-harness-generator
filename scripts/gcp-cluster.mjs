@@ -26,7 +26,7 @@ const CPU_QUOTA = 32, SSD_QUOTA = 500; // us-central1 limits (pd-standard avoids
 const RUNNER_URL = 'https://raw.githubusercontent.com/ruvnet/agent-harness-generator/main/scripts/gcp-swebench-runner.sh';
 const PREFIX = 'darwin-';
 
-const BOARDS = { lite: 'SWE-bench Lite', verified: 'SWE-bench Verified', multilingual: 'SWE-bench Multilingual' };
+const BOARDS = { lite: 'SWE-bench Lite', verified: 'SWE-bench Verified', multilingual: 'SWE-bench Multilingual', pro: 'SWE-bench Pro' };
 // default matrix: cheap models × boards (model slug : short tag)
 const MATRIX = [
   ['lite', 'z-ai/glm-5.2', 'glm'],
@@ -185,7 +185,7 @@ function pushFirestore(rec) {
   const url = `https://firestore.googleapis.com/v1/projects/${PROJECT}/databases/(default)/documents/darwin_runs`;
   try { sh(`curl -s -X POST '${url}' -H 'Authorization: Bearer ${fsToken()}' -H 'Content-Type: application/json' -d '${JSON.stringify({ fields }).replace(/'/g, "'\\''")}'`); return true; } catch { return false; }
 }
-const DENOM = { lite: 300, verified: 500, multilingual: 300 };
+const DENOM = { lite: 300, verified: 500, multilingual: 300, pro: 25 }; // pro = the committed pro-25 cascade manifest
 function collect(name) {
   const dir = `./fleet-out/${name}`; mkdirSync(dir, { recursive: true });
   try { gq(['compute', 'scp', '--recurse', `${name}:/opt/darwin/out`, dir, `--project=${PROJECT}`, `--zone=${ZONE}`]); }
