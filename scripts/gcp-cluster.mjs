@@ -67,7 +67,8 @@ function provision(o) {
   const name = `${PREFIX}${board}-${tag}`.replace(/-+$/, '').slice(0, 62).replace(/-+$/, ''); // GCP names must end alphanumeric
   if (vmExists(name)) { console.error(`SKIP ${tag}: ${name} already exists`); return false; }
   const tmp = `/tmp/startup-${name}.sh`; writeFileSync(tmp, STARTUP);
-  const meta = `orkey=${key()},bench=${board},mode=${mode},model=${model}` + (escalate ? `,escalate=${escalate}` : '') + (sample ? `,sample=${sample}` : '');
+  const maxcost = process.env.MAXCOST || '', esccost = process.env.ESCCOST || ''; // §36: avoid silent $20 base truncation on big/full runs
+  const meta = `orkey=${key()},bench=${board},mode=${mode},model=${model}` + (escalate ? `,escalate=${escalate}` : '') + (sample ? `,sample=${sample}` : '') + (maxcost ? `,maxcost=${maxcost}` : '') + (esccost ? `,esccost=${esccost}` : '');
   let mff = `startup-script=${tmp}`;
   if (xmodels) { const xf = `/tmp/xmodels-${name}.txt`; writeFileSync(xf, xmodels); mff += `,xmodels=${xf}`; } // commas break --metadata; use a file
   console.error(`provisioning ${name}  (${model}${xmodels ? `=[${xmodels}]` : ''} · ${mode}${sample ? ` · n=${sample}` : ''} · ${BOARDS[board]})`);
