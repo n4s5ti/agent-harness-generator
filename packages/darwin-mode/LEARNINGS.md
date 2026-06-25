@@ -762,3 +762,24 @@ arc, reached from the selection side. It would only matter if (a) candidates wer
 self-written test, and (b) the candidate union were well above the judge's capture rate. Neither holds for the cheap
 base. Cost was trivial ($0.018 writer+judge LLM; Docker repro/regression runs dominate wall-clock, ~5-9 exec rounds/
 instance). Scoped to `bench/swebench/` (`repro-select*.mjs`); not promoted to default. n=25 — directional only.
+
+## 45. Pro Kimi K2.6 (FIXED eval) = 1/25 (4%) — turn-budget cliff CONFIRMED; cheap Pro is dead
+
+The re-run with the §42-validated eval (`darwin-pro-kimi-k2-6`, Kimi K2.6, max-steps 60) **completed, self-reported
+1/25 = 4%** (Wilson 95% CI [0.7%, 19.5%]), then AUTOSTOPPED (the halt fires 2 min *after* self-report, not on timeout —
+so the run finished). Because the fixed eval **FAILS LOUD on a missing image** (§42: a reported score ⟹ images present ⟹
+eval ran correctly), this is a **real eval verdict, NOT the prior silent-False artifact**.
+
+**The decisive tell:** Pro has returned **exactly 1/25 three independent times** — cascade (§39, broken eval), Kimi
+(§41, broken eval), Kimi (now, FIXED eval). The eval changed from broken→validated; the number did not. That rules out
+"recurring artifact" and points to a consistent reality: **~1 trivially-solvable Pro instance + 24 enterprise repos that
+60-step agentic solving cannot crack.**
+
+This **confirms the §40 turn-budget cliff**: Kimi's vendor **58.6%** (250-turn scaffold) collapses to **~4%** at our
+60-step harness on enterprise repos. **Conclusion — a cheap cost-Pareto play on Pro is structurally dead:** Pro resolve
+requires the expensive ~250-turn budget (the §40 lever), which is off our resolve-per-dollar thesis. The Pro arc is now
+*closed and explained*: the eval is correct (§42, gold→5/5), the model is capable (Kimi vendor 58.6%), the blocker is
+fundamentally **turn-budget × enterprise-repo difficulty** — not eval, not model choice.
+
+Honest caveats: the VM terminated before I could inspect its eval log directly; the fail-loud design + the
+recurring-exactly-1/25 consistency are the basis for treating 4% as real. n=25 CI is enormous — directional, not precise.

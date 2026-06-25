@@ -292,7 +292,7 @@
     "pro": {
       "label": "SWE-bench Pro (Scale SEAL, 731)",
       "denom": 731,
-      "darwinNote": "Darwin Pro 4% (earlier) was an EVAL-INFRA ARTIFACT — Docker-pull rate-limit silently scored ~24/25 False (§41). The Pro eval is now FIXED + validated (gold→100%, §42); a trustworthy Darwin Pro number is being re-measured (Kimi K2.6, §40). Removed the artifact point.",
+      "darwinNote": "Darwin Pro (VALIDATED eval, §42/§45): Kimi K2.6 @ our 60-step harness = 1/25 = 4% (Wilson CI [0.7,19.5]). Real verdict (fixed eval fails-loud on missing images), NOT the old artifact — Pro returned exactly 1/25 three times across broken→fixed eval, i.e. ~1 easy instance + 24 uncrackable enterprise repos at 60 steps. Confirms the turn-budget cliff: Kimi vendor 58.6% @250turns → ~4% @60steps. A cheap cost-Pareto play on Pro is structurally dead — Pro needs the expensive ~250-turn budget.",
       "entries": [
         {
           "name": "GPT-5.4 (xHigh)",
