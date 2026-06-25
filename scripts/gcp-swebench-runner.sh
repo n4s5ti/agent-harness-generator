@@ -125,34 +125,53 @@ fi
 if [ "$BENCH" = pro ]; then
   echo "=== [5/5] GOLD EVAL (SWE-bench Pro standalone Docker harness) ==="
   # Pro is NOT scored by princeton's run_evaluation. Its eval is a separate vendored harness
-  # (scaleapi/SWE-bench_Pro-os) that pulls jefzda/sweap-images:{dockerhub_tag} per instance and
-  # runs fail_to_pass/pass_to_pass inside. gather_patches.py remaps our predictions.jsonl
-  # ({instance_id, model_patch}) → patches.json ({instance_id, patch, prefix}) (a model_patch→patch
-  # rename + constant prefix). Requires: Docker Hub egress + ~GB/image disk + the run_scripts/ + the
-  # raw sample export (before_repo_set_cmd, selected_test_files_to_run, fail_to_pass, pass_to_pass,
-  # dockerhub_tag) — those Pro columns are in $DS. See notes: this path is plumbed but the upstream
-  # Pro eval scripts (Python, per CLAUDE.md policy exception for vendored upstream) must be present.
+  # (scaleapi/SWE-bench_Pro-os, root script swe_bench_pro_eval.py) that pulls the image
+  # jefzda/sweap-images:<repo_base.repo_name-hash> per instance (tag is DERIVED from instance_id+repo
+  # by helper_code/image_uri.get_dockerhub_image_uri — there is NO dockerhub_tag arg/column) and runs
+  # fail_to_pass/pass_to_pass inside. We remap our predictions.jsonl ({instance_id, model_patch}) →
+  # patches.json (a JSON ARRAY of {instance_id, patch, prefix}; model_patch→patch rename + non-empty
+  # prefix used for per-instance output filenames). Upstream's helper_code/gather_patches.py instead
+  # globs a --directory of pred files by --prefix, so we do the remap inline (our predictions are a
+  # single jsonl, not a dir). Requires: Docker Hub egress + ~GB/image disk + the repo's run_scripts/
+  # (passed via --scripts_dir, REQUIRED) + a raw-sample CSV (--raw_sample_path) with the columns the
+  # script reads: instance_id, repo, base_commit, fail_to_pass, pass_to_pass, before_repo_set_cmd,
+  # selected_test_files_to_run. fail_to_pass/pass_to_pass are eval'd as Python sets from the CSV cell.
+  # Image caching is env-level: pulled jefzda/sweap-images layers stay in the local Docker store and
+  # are reused across instances (the run container uses --rm, the images don't) — equivalent to the
+  # princeton path's cache_level=env. A missing image does NOT wedge the run: eval_with_docker pulls,
+  # falls back to a locally-present image, and on neither returns None → that instance scores False and
+  # the harness proceeds (per-future exceptions are also caught). We `docker logout` first so the
+  # public images pull anonymously even if a stale/private login is cached on the VM.
   cd /tmp
   [ -d SWE-bench_Pro-os ] || git clone --depth 1 https://github.com/scaleapi/SWE-bench_Pro-os.git || true
   if [ -d SWE-bench_Pro-os ]; then
     /opt/sweb-venv/bin/pip install -q pandas docker 2>/dev/null || true
-    # export the raw Pro sample columns the eval needs, from the HF dataset, to a CSV the harness reads
+    # export the raw Pro sample columns the eval reads, from the HF dataset, to the CSV the harness wants
     /opt/sweb-venv/bin/python -c "
-import json
+import json, pandas as pd
 from datasets import load_dataset
 d=load_dataset('$DS', split='test')
 ids=set(i['instance_id'] for i in json.load(open('/opt/darwin/agent-harness-generator/packages/darwin-mode/bench/swebench/pro-25.json'))['instances'])
-rows=[{k:r[k] for k in ('instance_id','repo','base_commit','fail_to_pass','pass_to_pass','before_repo_set_cmd','selected_test_files_to_run','dockerhub_tag')} for r in d if r['instance_id'] in ids]
-json.dump(rows, open('/tmp/pro-sample.json','w')); print('pro sample rows:', len(rows))
+cols=('instance_id','repo','base_commit','fail_to_pass','pass_to_pass','before_repo_set_cmd','selected_test_files_to_run')
+rows=[{k:r[k] for k in cols} for r in d if r['instance_id'] in ids]
+pd.DataFrame(rows).to_csv('/tmp/pro-sample.csv', index=False); print('pro sample rows:', len(rows))
 " || true
     cd SWE-bench_Pro-os
-    # remap predictions → Pro patch format, then run the Pro Docker eval (public images; --dockerhub_username=jefzda)
-    [ -f gather_patches.py ] && /opt/sweb-venv/bin/python gather_patches.py --predictions_path "$PREDS" --output /tmp/patches.json 2>/dev/null || \
-      node -e 'const fs=require("fs");const P=fs.readFileSync(process.argv[1],"utf8").split("\n").filter(Boolean).map(l=>JSON.parse(l));const out=P.map(p=>({instance_id:p.instance_id,patch:p.model_patch||"",prefix:""}));fs.writeFileSync("/tmp/patches.json",JSON.stringify(out));console.error("fallback gather: "+out.length+" patches")' "$PREDS"
+    # remap predictions jsonl → Pro patch-array format (array of {instance_id, patch, prefix})
+    node -e 'const fs=require("fs");const P=fs.readFileSync(process.argv[1],"utf8").split("\n").filter(Boolean).map(l=>JSON.parse(l));const out=P.map(p=>({instance_id:p.instance_id,patch:p.model_patch||"",prefix:"darwin"}));fs.writeFileSync("/tmp/patches.json",JSON.stringify(out));console.error("gather: "+out.length+" patches")' "$PREDS"
+    # ensure ANONYMOUS Docker Hub pulls of the public jefzda/sweap-images (drop any stale/private login on the VM).
+    docker logout >/dev/null 2>&1 || true
+    # run the Pro Docker eval (public images; --dockerhub_username=jefzda); --scripts_dir is REQUIRED;
+    # parallelism flag is --num_workers (NOT --max_workers); --use_local_docker runs on the VM's Docker
+    # (not Modal); writes $OUT/eval_results.json {id: bool}. A missing/un-pullable image is skipped
+    # (scored False) per-instance by eval_with_docker — it does NOT wedge the whole run.
     [ -f swe_bench_pro_eval.py ] && /opt/sweb-venv/bin/python swe_bench_pro_eval.py \
-      --patches /tmp/patches.json --sample /tmp/pro-sample.json --dockerhub_username jefzda \
-      --output_dir "$OUT" --max_workers "$CONC" 2>&1 || echo "Pro eval script not found / failed — predictions are in $PREDS (re-score offline with scaleapi/SWE-bench_Pro-os)"
-    cp -f "$OUT"/*report*.json /tmp/ 2>/dev/null || true
+      --patch_path /tmp/patches.json --raw_sample_path /tmp/pro-sample.csv \
+      --scripts_dir run_scripts --dockerhub_username jefzda --use_local_docker \
+      --output_dir "$OUT" --num_workers "$CONC" 2>&1 || echo "Pro eval script not found / failed — predictions are in $PREDS (re-score offline with scaleapi/SWE-bench_Pro-os)"
+    # normalize Pro's flat {instance_id: bool} eval_results.json into a {resolved_ids:[...]} report
+    # so the [6/6] Firestore self-report (which reads .resolved_ids) works for Pro too.
+    [ -f "$OUT/eval_results.json" ] && node -e 'const fs=require("fs");const m=JSON.parse(fs.readFileSync(process.argv[1],"utf8"));const resolved_ids=Object.keys(m).filter(k=>m[k]===true);fs.writeFileSync(process.argv[2],JSON.stringify({resolved_ids,total_instances:Object.keys(m).length}));console.error("pro report: "+resolved_ids.length+"/"+Object.keys(m).length+" resolved")' "$OUT/eval_results.json" "$OUT/darwin-$BENCH-$SLUG-$MODE.report.json"
   else
     echo "Pro eval repo unavailable — predictions in $PREDS; score offline with scaleapi/SWE-bench_Pro-os"
   fi
