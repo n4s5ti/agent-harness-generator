@@ -912,3 +912,18 @@ n=25 Lite, same 25 instances, GLM-5.2 base cascade with varied escalation model 
 
 **Verdict: M2 falsified at n=25 — no cheaper escalation tier matches Opus**, so nothing to confirm at n=300 (only winners escalate). Opus remains the escalation model for the empty-patch cascade. **Notably contrasts §46b (LiveCodeBench), where deepseek-r1 cracked the hard tail (+8):** competitive-programming rewards raw reasoning, but SWE-bench repo repair rewards **agentic/tool-use** capability on the hard tail — Opus's edge — which cheaper reasoning models don't substitute for. The right escalation model is **task-dependent** (r1 for self-contained codegen, Opus for agentic repo repair).
 Honest caveat: the r1 VM ran very slowly (hours of reasoning), so part of its 0-net-rescue may be timeout/malformed-output suppression rather than pure capability; but kimi (fast) also landed 11/25, so "Opus is meaningfully the best escalation tier" holds. n=25 is directional (the escalation only touches ~8-14 empties). Real measured numbers; no n=300 spent on a non-winner.
+
+## 49. Turn-budget lever (maxsteps 15→30) = null on Lite — the cheap frontier is fully mapped
+
+n=25 Lite, GLM→Opus cascade, base solve at maxsteps=30 vs the maxsteps=15 control (same instances):
+- **maxsteps=15: 16/25** (control)
+- **maxsteps=30: 14/25** — no lift (within n=25 noise; if anything marginally lower).
+
+Doubling the base turn budget does NOT improve the cheap cascade on SWE-bench Lite — the GLM base **saturates by ~15 steps** on Lite's focused single-bug repos. **Contrasts SWE-bench Pro** (§40/§45), where turn budget was the *biggest* lever (50→250 turns = +31pt): Pro's large enterprise repos need navigation depth, Lite's don't. So turn budget helps only where the task needs depth, not where the model saturates — consistent + task-dependent, like the escalation-model finding (§48).
+
+**Conclusion — the cheap-conformant cost-Pareto frontier is FULLY MAPPED.** Every cheap candidate-generation lever is now explored and null/inferior:
+- Selection/localization: exhausted (§35/§38/§44)
+- Cheaper escalation tiers (r1, kimi): don't match Opus (§48)
+- Turn budget: no lift on Lite (§49, this)
+
+**GLM→Opus empty-patch cascade @ maxsteps=15 is the optimum** for this approach: **51.3% Lite / 55.6% Verified**, conformant, ~56× cheaper than frontier-only. Further resolve requires either more spend (frontier base — off the resolve-per-dollar thesis) or a fundamentally different generator (ADR-153 agentic-loop architecture — out of this budget). Per the loop stop-condition: no cheap resolve-rate lever remains → stop new paid runs, idle on health+upkeep.
