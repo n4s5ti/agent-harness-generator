@@ -132,6 +132,10 @@ const isTestPath = (r) => PY_PROFILE.testPathRegex(r);
 // the end as an automated leakage guard.
 const NO_ORACLE = args.includes('--no-test-oracle');
 let usedOracleDuringSolve = false;
+
+// (The worktree-a29099 probe's standalone `--localize-seed`/loadSeedBlock path was superseded by
+// ADR-195's localizeHint mechanism in solveTier; the probe tool ruvector-localize.mjs + LEARNINGS §52
+// keep the empirical n=5 A/B that motivated it.)
 // ADR-173 L0.5/L0.6 — conformant in-loop signal: run the EXISTING tests in the
 // changed file's package, inside the instance Docker image (deps present), with
 // the agent's SOURCE patch applied but NEVER the gold test patch. Robust rule:
@@ -252,6 +256,8 @@ async function solveTier(inst, llmFn, opts = {}) {
   const system = buildAgenticSystem(prof.exampleExt, defGlob);
   // ADR-195: assemble the problem surface — localization hint first (where to look), then the issue,
   // then any extra capability context (self-written repro / reviewer critique). All empty by default.
+  // (Supersedes the worktree-a29099 probe's loadSeedBlock --localize-seed path; the standalone probe
+  // tool ruvector-localize.mjs + LEARNINGS §52 record the empirical n=5 A/B that motivated this.)
   const problem = [opts.localizeHint, inst.problem_statement, opts.extraContext].filter(Boolean).join('\n\n');
   const res = await agenticSolve({ problem, io, llm: llmFn, maxSteps: MAX_STEPS, system, tempSchedule: CHEB_TEMP ? ((s, n) => chebTemp(s, n, CHEB_HI)) : undefined });
   return { res, work, prof };
