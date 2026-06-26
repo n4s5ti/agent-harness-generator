@@ -86,6 +86,21 @@ export const MODES = ['single', 'cascade', 'ecascade', 'xbo', 'xcascade', 'bo3']
 export const STEPS = [12, 15, 20];
 export const TEMPS = [0, 0.2, 0.5];
 
+// ADR-195 Phase-2 capability GENES — solver-code capabilities exposed as boolean toggles so
+// per-instance evolution can measure their coverage lift. ALL DEFAULT OFF (backward-compatible: a
+// genome without any of these is byte-identical, by key, to a pre-Phase-2 genome). Maps to
+// solve-agentic flags: localize→--localize, reproGate→--repro-gate, reviewer→--reviewer.
+export const PHASE2_CAPS = ['localize', 'reproGate', 'reviewer'];
+// solve-agentic CLI flag for each capability gene.
+export const CAP_FLAGS = { localize: '--localize', reproGate: '--repro-gate', reviewer: '--reviewer' };
+// short key fragment for the gkey/readbackKey (only appended when the gene is ON, so keys are stable).
+const CAP_KEYTAG = { localize: 'loc', reproGate: 'repro', reviewer: 'rev' };
+// stable, sorted "+cap" suffix for a genome's capability set (empty string when none on).
+export function capSuffix(g) {
+  const on = PHASE2_CAPS.filter((c) => g && g[c]).map((c) => CAP_KEYTAG[c]).sort();
+  return on.length ? '+' + on.join('+') : '';
+}
+
 export const mkRng = (s) => () => { s = (s * 1103515245 + 12345) & 0x7fffffff; return s / 0x7fffffff; };
 const pick = (rng, a) => a[Math.floor(rng() * a.length)];
 function pickModels(rng, k, pool = CHEAP_MODELS) { const p = [...pool]; const out = []; for (let i = 0; i < k && p.length; i++) out.push(p.splice(Math.floor(rng() * p.length), 1)[0]); return out; }
@@ -103,13 +118,16 @@ export function fsModelString(g) {
 // Order-independent identity key (xbo/xcascade are set-based; mode disambiguates).
 export function gkey(g) {
   const setKey = (ms) => ms.map((m) => m.split('/').pop()).sort().join('+');
+  // ADR-195: capability suffix is appended ONLY when a Phase-2 gene is on, so pre-Phase-2 genomes
+  // keep byte-identical keys (backward-compatible Firestore readback).
+  const cap = capSuffix(g);
   switch (g.mode) {
-    case 'ecascade': return `ecascade|${g.baseModel.split('/').pop()}>${g.escalateModel.split('/').pop()}|s${g.maxSteps}`;
-    case 'xcascade': return `xcascade|${setKey(g.xmodels)}>${g.escalateModel.split('/').pop()}|s${g.maxSteps}`;
-    case 'xbo': return `xbo|${setKey(g.xmodels)}|s${g.maxSteps}`;
-    case 'cascade': return `cascade|${g.baseModel.split('/').pop()}>${(g.escalateModel || '').split('/').pop()}|s${g.maxSteps}`;
-    case 'bo3': return `bo3|${g.baseModel.split('/').pop()}|s${g.maxSteps}`;
-    default: return `single|${g.baseModel.split('/').pop()}|s${g.maxSteps}`;
+    case 'ecascade': return `ecascade|${g.baseModel.split('/').pop()}>${g.escalateModel.split('/').pop()}|s${g.maxSteps}${cap}`;
+    case 'xcascade': return `xcascade|${setKey(g.xmodels)}>${g.escalateModel.split('/').pop()}|s${g.maxSteps}${cap}`;
+    case 'xbo': return `xbo|${setKey(g.xmodels)}|s${g.maxSteps}${cap}`;
+    case 'cascade': return `cascade|${g.baseModel.split('/').pop()}>${(g.escalateModel || '').split('/').pop()}|s${g.maxSteps}${cap}`;
+    case 'bo3': return `bo3|${g.baseModel.split('/').pop()}|s${g.maxSteps}${cap}`;
+    default: return `single|${g.baseModel.split('/').pop()}|s${g.maxSteps}${cap}`;
   }
 }
 // short human label
@@ -136,7 +154,9 @@ export function costPrior(g) {
 const isFrontier = (m) => FRONTIER_MODELS.includes(m);
 export function normalizeGenome(g) {
   const h = { mode: g.mode, baseModel: g.baseModel || null, escalateModel: g.escalateModel || null,
-    xmodels: g.xmodels ? [...new Set(g.xmodels)] : null, maxSteps: g.maxSteps || 15, temp: g.temp ?? 0 };
+    xmodels: g.xmodels ? [...new Set(g.xmodels)] : null, maxSteps: g.maxSteps || 15, temp: g.temp ?? 0,
+    // ADR-195 Phase-2 genes (default off — coerced to plain booleans so absent === false).
+    localize: !!g.localize, reproGate: !!g.reproGate, reviewer: !!g.reviewer };
   if (h.mode === 'xbo' || h.mode === 'xcascade') { if (!h.xmodels || h.xmodels.length < 2) h.xmodels = CHEAP_MODELS.slice(0, 2); h.baseModel = null; }
   else { h.xmodels = null; if (!h.baseModel) h.baseModel = CHEAP_MODELS[0]; }
   if (h.mode === 'cascade' || h.mode === 'ecascade' || h.mode === 'xcascade') {
@@ -162,13 +182,22 @@ export function randomGenome(rng) {
 
 export function mutate(rng, g) {
   const h = normalizeGenome(g);
-  const fields = ['mode', 'base', 'escalate', 'steps'];
+  // ADR-195: include the Phase-2 capability genes in the mutable field set so evolution can toggle
+  // them. Pre-Phase-2 behaviour is preserved when a cap mutation lands on an already-off/on flip.
+  const fields = ['mode', 'base', 'escalate', 'steps', 'cap'];
   const f = pick(rng, fields);
-  if (f === 'mode') { const n = remodel(rng, { ...h, mode: pick(rng, MODES) }); return normalizeGenome(n); }
+  if (f === 'mode') { const n = remodel(rng, { ...h, mode: pick(rng, MODES) }); n.localize = h.localize; n.reproGate = h.reproGate; n.reviewer = h.reviewer; return normalizeGenome(n); }
+  if (f === 'cap') { const c = pick(rng, PHASE2_CAPS); h[c] = !h[c]; return normalizeGenome(h); }
   if (f === 'base') { if (h.mode === 'xbo' || h.mode === 'xcascade') h.xmodels = pickModels(rng, 2 + Math.floor(rng() * 2)); else h.baseModel = pick(rng, CHEAP_MODELS); }
   else if (f === 'escalate') { if (h.escalateModel) h.escalateModel = pick(rng, ESCALATE_MODELS); else h.maxSteps = pick(rng, STEPS); }
   else h.maxSteps = pick(rng, STEPS);
   return normalizeGenome(h);
+}
+
+// ADR-195 — map a genome's Phase-2 capability genes to solve-agentic CLI flags (the dispatch path
+// that the per-instance runner forwards when a capability gene is on). Empty array when none on.
+export function capFlags(g) {
+  return PHASE2_CAPS.filter((c) => g && g[c]).map((c) => CAP_FLAGS[c]);
 }
 // re-fill mode-dependent fields after a mode change
 function remodel(rng, h) {
@@ -194,6 +223,8 @@ export function crossover(rng, a, b) {
     h.baseModel = rng() < 0.5 ? baseFrom(a) : baseFrom(b);
   }
   if (mode === 'cascade' || mode === 'ecascade' || mode === 'xcascade') h.escalateModel = rng() < 0.5 ? escFrom(a) : escFrom(b);
+  // ADR-195: inherit each Phase-2 capability gene independently from either parent (uniform crossover).
+  for (const c of PHASE2_CAPS) h[c] = (rng() < 0.5 ? a[c] : b[c]) || false;
   return normalizeGenome(h);
 }
 
@@ -234,13 +265,16 @@ export function canonModelString(model, mode) {
 // can't read back, so we treat a genome's fitness as keyed on model+mode, accepting steps-aliasing as noise).
 export function readbackKey(g) {
   const setKey = (ms) => ms.map((m) => m.split('/').pop()).sort().join('+');
+  // ADR-195: same capability suffix as gkey (appended only when a gene is on) so a Phase-2 genome
+  // reads back its own measured fitness, while pre-Phase-2 keys are unchanged.
+  const cap = capSuffix(g);
   switch (g.mode) {
-    case 'ecascade': return `ecascade|${g.baseModel.split('/').pop()}>${g.escalateModel.split('/').pop()}`;
-    case 'xcascade': return `xcascade|${setKey(g.xmodels)}>${g.escalateModel.split('/').pop()}`;
-    case 'xbo': return `xbo|${setKey(g.xmodels)}`;
-    case 'cascade': return `cascade|${g.baseModel.split('/').pop()}`;
-    case 'bo3': return `bo3|${g.baseModel.split('/').pop()}`;
-    default: return `single|${g.baseModel.split('/').pop()}`;
+    case 'ecascade': return `ecascade|${g.baseModel.split('/').pop()}>${g.escalateModel.split('/').pop()}${cap}`;
+    case 'xcascade': return `xcascade|${setKey(g.xmodels)}>${g.escalateModel.split('/').pop()}${cap}`;
+    case 'xbo': return `xbo|${setKey(g.xmodels)}${cap}`;
+    case 'cascade': return `cascade|${g.baseModel.split('/').pop()}${cap}`;
+    case 'bo3': return `bo3|${g.baseModel.split('/').pop()}${cap}`;
+    default: return `single|${g.baseModel.split('/').pop()}${cap}`;
   }
 }
 export const fitnessOf = (g, lookup) => { const r = lookup[readbackKey(g)]; return r == null ? null : r / 25; };
@@ -285,6 +319,11 @@ export function seedPopulation() {
     normalizeGenome({ mode: 'xbo', xmodels: ['anthropic/claude-opus-4.8', 'openai/gpt-5.5'], maxSteps: 15 }),                    // two-frontier xbo (orthogonal frontier failures)
     normalizeGenome({ mode: 'ecascade', baseModel: 'deepseek/deepseek-v3.2', escalateModel: 'anthropic/claude-opus-4.8', maxSteps: 15 }), // different cheap base → opus
     normalizeGenome({ mode: 'xcascade', xmodels: ['anthropic/claude-opus-4.8', 'z-ai/glm-5.2'], escalateModel: 'openai/gpt-5.5', maxSteps: 15 }), // strong base xbo → 2nd frontier escalation
+    // ADR-195 Phase-2 capability probes — each adds ONE new-code capability to a known anchor so
+    // per-instance evolution can measure its coverage lift on the hard tail (validation pending budget).
+    normalizeGenome({ mode: 'single', baseModel: 'anthropic/claude-opus-4.8', maxSteps: 15, localize: true }),        // localization seed (the §1 blocker prior)
+    normalizeGenome({ mode: 'single', baseModel: 'anthropic/claude-opus-4.8', maxSteps: 15, reproGate: true }),       // reproduction-first gate
+    normalizeGenome({ mode: 'single', baseModel: 'anthropic/claude-opus-4.8', maxSteps: 15, reviewer: true }),        // critic + revise loop
   ];
 }
 

@@ -937,3 +937,33 @@ GLM-5.2 base cascade, escalation tier varied, same 25 instances:
 **No cheaper escalation tier matches Opus** — not a cheaper Claude (Sonnet/Haiku), not a frontier GPT, not a reasoning model. Opus-4.8 has a unique agentic-repo-repair edge on the hard tail. The cost-Pareto-cheaper-escalation question (M2) is now FULLY closed: Opus stays.
 
 **The ONLY config that beats single-Opus is test-time compute:** `xbo:opus+glm = 18/25` (Best-of-N + conformant judge) > Opus-cascade 16/25. So the SOTA-breaking lever is **BoN/ensemble, not model choice** — which is exactly what the Darwin config-evolution (§51, in flight) is now searching: the best frontier-combination BoN on the hard tail. Conformant throughout (Best@k judge, no gold tests). n=25 directional; winner → n=300 validate.
+
+## 51. ADR-195 Phase-2 capability stack — BUILT (validation pending budget)
+
+The structural blockers no Phase-1 config toggle can fix (the Opus-give-up tail) get NEW solver code,
+each exposed as a Phase-2 genome gene (off by default) so per-instance evolution can measure coverage
+lift LATER. Shipped build-only ($0 — zero paid GCP/OpenRouter runs):
+
+- **`localize.mjs`** (`--localize`) — RuVector-HNSW retrieval-seeded localization. Chunk repo source at
+  function/class granularity → embed (code-capable model) → ruvector `VectorDB` HNSW index → retrieve
+  top-k → optional `--gnn-rerank` score-diffusion → ranked file/symbol seed injected as the agent's
+  turn-1 file surface. Built FIRST (strong prior for the hard tail; RuVector-ready). Pure core wired to
+  the native `ruvector` npm addon (`VectorDB`, Cosine) + OpenRouter embeddings; 10/10 unit tests offline
+  (stub embedder + in-memory cosine index — no network, no native dep). RuVector path = the production
+  version of the worktree-a29099 probe (`ruvector-localize.mjs`).
+- **`repro-gate.mjs`** (`--repro-gate`) — reproduction-first iterate loop (conformant TDR analog,
+  stronger than §44's weak gate). Reuses `test-critic.buildReproTest` (a VALID repro FAILS on the buggy
+  code), then iterates the patch in bounded rounds until the self-written repro passes (the only signal;
+  never the gold test). 5/5 unit tests.
+- **`reviewer.mjs`** (`--reviewer`) — critic sub-agent + bounded revise loop (ADR-176 review role).
+  Reviews correctness/regressions/scope, drives a bounded revise loop on REJECT. 8/8 unit tests.
+
+Genome wiring (`evolve-config.mjs`): `localize`/`reproGate`/`reviewer` boolean genes, all default OFF.
+`gkey`/`readbackKey` append a stable sorted `+loc/+repro/+rev` suffix ONLY when a gene is on, so
+pre-Phase-2 genome keys are byte-identical (backward-compatible Firestore readback). `mutate` can flip a
+gene; `crossover` inherits each independently; three capability probes added to the seed population.
+8/8 Phase-2 genome tests + all existing genome tests still green.
+
+**Status: implemented (build), validation pending budget.** Validate each later via per-instance
+evolution with the new gene (`evolve-perinstance.mjs`), e.g. a HARD-25 single-instance probe with the
+capability flag forwarded to `solve-agentic.mjs --no-test-oracle <flag>`. NO paid runs were made.

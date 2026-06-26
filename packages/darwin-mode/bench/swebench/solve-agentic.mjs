@@ -9,7 +9,7 @@
 // Run: OPENROUTER_API_KEY=$(cat /tmp/.orkey) node --experimental-strip-types --no-warnings \
 //   bench/swebench/solve-agentic.mjs --manifest full-300.json --max-steps 20 --concurrency 2 \
 //   --model deepseek/deepseek-chat --out predictions-agentic-300.jsonl
-import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, readdirSync, existsSync, appendFileSync, rmSync } from 'node:fs';
+import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, readdirSync, existsSync, appendFileSync, rmSync, statSync } from 'node:fs';
 import { execSync } from 'node:child_process';
 import { tmpdir } from 'node:os';
 import { join, dirname, isAbsolute } from 'node:path';
@@ -17,6 +17,11 @@ import { fileURLToPath } from 'node:url';
 import { agenticSolve, chebTemp, buildAgenticSystem } from './agentic-loop.mjs';
 import { runConformantTests } from './conformant-tests.mjs';
 import { langProfile } from './lang-profile.mjs';
+// ADR-195 Phase-2 capability stack (all opt-in; off by default — backward-compatible).
+import { localizeSeed, formatSeedForAgent } from './localize.mjs';
+import { reproGateSolve, reproFeedbackBlock } from './repro-gate.mjs';
+import { reviewerSolve, parseReview, buildReviewPrompt, reviseFeedbackBlock, REVIEW_SYSTEM } from './reviewer.mjs';
+import { buildReproTest, REPRO_PATH } from './test-critic.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const args = process.argv.slice(2);
@@ -39,6 +44,15 @@ const MAX_COST = +argv('--max-cost', Infinity);
 const TEMP = +argv('--temperature', 0); // Best-of-N diversity: run N trajectories at temp>0 to vary them
 const CHEB_TEMP = process.argv.includes('--cheb-temp'); // PR#49/ADR-188: Chebyshev step-depth temp (hot→greedy)
 const CHEB_HI = +argv('--cheb-hi', 0.8);                 // hot-end temperature for the schedule
+// ── ADR-195 Phase-2 capability flags (all opt-in; absent === pre-Phase-2 behaviour) ──
+const LOCALIZE = args.includes('--localize');            // RuVector-HNSW retrieval-seeded localization
+const REPRO_GATE = args.includes('--repro-gate');        // reproduction-first iterate loop
+const REVIEWER = args.includes('--reviewer');            // critic sub-agent + bounded revise loop
+const EMBED_MODEL = argv('--embed-model', 'openai/text-embedding-3-small');
+const LOCALIZE_K = +argv('--localize-k', 12);
+const GNN_RERANK = args.includes('--gnn-rerank');        // optional ruvector-gnn-rerank diffusion
+const REPRO_ROUNDS = +argv('--repro-rounds', 3);
+const REVIEW_REVISIONS = +argv('--review-revisions', 2);
 
 let manifest = JSON.parse(readFileSync(rel(argv('--manifest', 'pilot-sample-25.json')), 'utf8')).instances;
 if (onlyInstance) manifest = manifest.filter((i) => i.instance_id === onlyInstance);
@@ -143,9 +157,76 @@ function runRepoTests(instanceId, diff, prof = PY_PROFILE) {
   return { resolved: r.ran && r.passed, logTail: (r.ran ? '' : '[tests could not run] ') + r.logTail };
 }
 
+// ════════════════════════════════════════════════════════════════════════════════════════════════
+// ADR-195 Phase-2 wiring — the REAL injected dependencies for the pure capability cores. Each is only
+// constructed when its flag is on, so a default run never touches ruvector / the embeddings API.
+// ════════════════════════════════════════════════════════════════════════════════════════════════
+import { createRequire } from 'node:module';
+import { relative } from 'node:path';
+const _require = createRequire(import.meta.url);
+const RUVECTOR_PATH = process.env.RUVECTOR_PATH || '/home/ruvultra/projects/ruvector/node_modules/ruvector';
+
+// Batched OpenRouter embeddings (code-capable model). Returns number[][].
+async function embedBatchRemote(inputs, model = EMBED_MODEL) {
+  for (let attempt = 0; attempt < 5; attempt++) {
+    if (attempt) await new Promise((r) => setTimeout(r, 1500 * 2 ** (attempt - 1)));
+    try {
+      const res = await fetch(`${BASE_URL}/embeddings`, { method: 'POST', headers: { Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ model, input: inputs }) });
+      if (!res.ok && (res.status === 429 || res.status >= 500)) continue;
+      const j = await res.json();
+      if (!j.data) continue;
+      totalCost += (j.usage?.total_tokens || 0) / 1e6 * 0.02; // text-embedding-3-small price
+      return j.data.sort((a, b) => a.index - b.index).map((d) => d.embedding);
+    } catch { /* retry */ }
+  }
+  throw new Error('embed failed');
+}
+async function embedAll(texts, batchSize = 64) {
+  const out = [];
+  for (let i = 0; i < texts.length; i += batchSize) out.push(...await embedBatchRemote(texts.slice(i, i + batchSize).map((t) => t.slice(0, 8000))));
+  return out;
+}
+// RuVector native HNSW factory matching localizeSeed's makeIndex contract.
+function makeRuvectorIndex({ dimensions }) {
+  const rv = _require(RUVECTOR_PATH);
+  const VectorDB = rv.VectorDB || rv.VectorDb || rv.default;
+  return new VectorDB({ dimensions, distanceMetric: 'Cosine' });
+}
+// Read the repo source into the {relPath->text} map the pure chunkRepo expects.
+function readRepoFiles(work, maxFiles = 6000) {
+  const out = {};
+  const rec = (dir) => {
+    let ents; try { ents = readdirSync(dir, { withFileTypes: true }); } catch { return; }
+    for (const e of ents) {
+      if (Object.keys(out).length >= maxFiles) return;
+      const p = join(dir, e.name);
+      if (e.isDirectory()) { if (!e.name.startsWith('.')) rec(p); }
+      else { try { if (statSync(p).size < 400_000) out[relative(work, p)] = readFileSync(p, 'utf8'); } catch { /**/ } }
+    }
+  };
+  rec(work);
+  return out;
+}
+// Build the localization seed text for an instance. Clones a scratch tree, indexes it via ruvector,
+// returns the agent hint string. Empty string on any failure — localization never blocks the solve.
+async function buildLocalizeHint(inst) {
+  let work;
+  try {
+    work = fetchRepo(inst.repo, inst.base_commit);
+    const files = readRepoFiles(work);
+    const seed = await localizeSeed({ files, problem: inst.problem_statement, embed: (t) => embedAll(t), makeIndex: makeRuvectorIndex, k: LOCALIZE_K, gnn: GNN_RERANK });
+    return formatSeedForAgent(seed);
+  } catch (e) { console.error(`[localize] ${inst.instance_id} skipped: ${String(e.message || e).slice(0, 120)}`); return ''; }
+  finally { if (work) try { rmSync(work, { recursive: true, force: true }); } catch { /**/ } }
+}
+
 writeFileSync(OUT, ''); const report = []; let totalCost = 0;
 // One agentic attempt in a FRESH work tree (cold). Returns {res, work}; caller cleans up.
-async function solveTier(inst, llmFn) {
+// ADR-195: `opts.localizeHint` (string) is prepended to the problem surface; `opts.extraContext`
+// (string) is appended as additional turn-1 context (repro test / review critique). Both default
+// empty so the call is identical to the pre-Phase-2 path when no capability is on. `opts.keepWork`
+// returns the tree without the caller having cleaned it (the repro/reviewer loops re-run tests on it).
+async function solveTier(inst, llmFn, opts = {}) {
   const work = fetchRepo(inst.repo, inst.base_commit); let evalCount = 0;
   // ADR-192: resolve the per-instance language profile once (explicit inst.lang wins; else detect
   // from repo root). It drives the grep default glob, the test-path guard, the conformant test
@@ -169,30 +250,92 @@ async function solveTier(inst, llmFn) {
     MAX_OUT: 4000,
   };
   const system = buildAgenticSystem(prof.exampleExt, defGlob);
-  const res = await agenticSolve({ problem: inst.problem_statement, io, llm: llmFn, maxSteps: MAX_STEPS, system, tempSchedule: CHEB_TEMP ? ((s, n) => chebTemp(s, n, CHEB_HI)) : undefined });
-  return { res, work };
+  // ADR-195: assemble the problem surface — localization hint first (where to look), then the issue,
+  // then any extra capability context (self-written repro / reviewer critique). All empty by default.
+  const problem = [opts.localizeHint, inst.problem_statement, opts.extraContext].filter(Boolean).join('\n\n');
+  const res = await agenticSolve({ problem, io, llm: llmFn, maxSteps: MAX_STEPS, system, tempSchedule: CHEB_TEMP ? ((s, n) => chebTemp(s, n, CHEB_HI)) : undefined });
+  return { res, work, prof };
 }
 // Cascade tie-break: neither tier passed the repo gate — judge picks the likelier fix (cheap, conformant).
 async function judgePick(inst, pA, pB) {
   if (!pA.trim()) return pB; if (!pB.trim()) return pA;
   try { const { raw, cost } = await llm(`A GitHub issue and TWO candidate patches, neither verified by tests. Pick the one more likely to correctly fix it.\n\nISSUE:\n${String(inst.problem_statement).slice(0, 4000)}\n\nPATCH A:\n${pA.slice(0, 5000)}\n\nPATCH B:\n${pB.slice(0, 5000)}\n\nReply ONLY 'A' or 'B'.`); totalCost += cost; return /^\s*B/i.test(raw) ? pB : pA; } catch { return pA; }
 }
+// ── ADR-195 Phase-2 #2: reproduction-first gate (wires the pure reproGateSolve to the real repro
+// writer + COLD agentic rounds + the conformant repro runner). Returns the reproGateSolve result. ──
+async function runReproGate(inst, llmFn, localizeHint) {
+  let repro = ''; // captured from writeRepro, read by solveRound's feedback block
+  const r = await reproGateSolve({
+    writeRepro: async () => { const rb = await buildReproTest(inst.instance_id, inst.problem_statement, llmFn, { maxAttempts: 2 }); repro = rb.repro || ''; return rb; },
+    solveRound: async ({ reproTrace }) => {
+      const extra = reproFeedbackBlock(repro, reproTrace);
+      const { res, work } = await solveTier(inst, llmFn, { localizeHint, extraContext: extra });
+      try { rmSync(work, { recursive: true, force: true }); } catch { /**/ }
+      return { patch: res.patch, cost: res.cost, resolvedInLoop: res.resolvedInLoop };
+    },
+    runRepro: ({ patch, repro: rp }) => {
+      const rr = runConformantTests(inst.instance_id, patch, `python ${REPRO_PATH}`, { extraFiles: { [REPRO_PATH]: rp }, timeoutMs: 300000 });
+      return { ran: rr.ran, passed: rr.passed, logTail: rr.logTail };
+    },
+    maxRounds: REPRO_ROUNDS,
+  });
+  totalCost += r.cost;
+  return r;
+}
+
+// ── ADR-195 Phase-2 #3: reviewer + bounded revise loop (wires reviewerSolve to the review LLM + a
+// COLD revise round). Takes the chosen patch and refines it; returns {patch,approved,...}. ──
+async function runReviewer(inst, basePatch, llmFn, localizeHint) {
+  const reviewLlm = async ({ patch, testTrace }) => {
+    try { const { raw, cost } = await llm(buildReviewPrompt(inst.problem_statement, patch, testTrace), REVIEW_SYSTEM); const v = parseReview(raw); return { approved: v.approved, reason: v.reason, cost }; }
+    catch { return { approved: true, reason: 'review-error (default approve)', cost: 0 }; } // never block on a review error
+  };
+  const r = await reviewerSolve({
+    review: reviewLlm,
+    reviseRound: async ({ reason }) => {
+      const { res, work } = await solveTier(inst, llmFn, { localizeHint, extraContext: reviseFeedbackBlock(reason) });
+      try { rmSync(work, { recursive: true, force: true }); } catch { /**/ }
+      return { patch: res.patch, cost: res.cost, resolvedInLoop: res.resolvedInLoop };
+    },
+    patch: basePatch,
+    maxRevisions: REVIEW_REVISIONS,
+  });
+  totalCost += r.cost;
+  return r;
+}
+
 async function runInstance(inst) {
   const t0 = Date.now(); const row = { instance_id: inst.instance_id, repo: inst.repo, tier: 'T1', resolved: false };
   let patch = '';
   try {
-    const { res, work } = await solveTier(inst, llm);
-    patch = res.patch; totalCost += res.cost; row.steps = res.steps; row.submitted = res.submitted; row.resolvedInLoop = res.resolvedInLoop;
-    try { rmSync(work, { recursive: true, force: true }); } catch { /**/ }
-    if (ESCALATE && !res.resolvedInLoop) {                       // escalate ONLY the hard tail
-      row.escalated = true;
-      const { res: r2, work: w2 } = await solveTier(inst, llmEsc); // COLD tier-2
-      totalCost += r2.cost; row.steps2 = r2.steps; row.resolvedInLoop2 = r2.resolvedInLoop;
-      try { rmSync(w2, { recursive: true, force: true }); } catch { /**/ }
-      if (r2.resolvedInLoop) { patch = r2.patch; row.tier = 'T2'; }
-      else { patch = await judgePick(inst, res.patch, r2.patch); row.tier = 'judge'; }
-      row.resolved = !!(res.resolvedInLoop || r2.resolvedInLoop);
-    } else row.resolved = !!res.resolvedInLoop;
+    // ADR-195 #1: compute the localization hint once (off → empty string → identical to before).
+    const localizeHint = LOCALIZE ? await buildLocalizeHint(inst) : '';
+    if (LOCALIZE) row.localized = !!localizeHint;
+
+    if (REPRO_GATE) {
+      // ADR-195 #2: reproduction-first path replaces the base solve (it owns the iterate loop).
+      const rg = await runReproGate(inst, llm, localizeHint);
+      patch = rg.patch; row.tier = 'repro'; row.reproValid = rg.reproValid; row.reproPassed = rg.reproPassed; row.reproRounds = rg.rounds; row.resolved = !!rg.reproPassed;
+    } else {
+      const { res, work } = await solveTier(inst, llm, { localizeHint });
+      patch = res.patch; totalCost += res.cost; row.steps = res.steps; row.submitted = res.submitted; row.resolvedInLoop = res.resolvedInLoop;
+      try { rmSync(work, { recursive: true, force: true }); } catch { /**/ }
+      if (ESCALATE && !res.resolvedInLoop) {                       // escalate ONLY the hard tail
+        row.escalated = true;
+        const { res: r2, work: w2 } = await solveTier(inst, llmEsc, { localizeHint }); // COLD tier-2
+        totalCost += r2.cost; row.steps2 = r2.steps; row.resolvedInLoop2 = r2.resolvedInLoop;
+        try { rmSync(w2, { recursive: true, force: true }); } catch { /**/ }
+        if (r2.resolvedInLoop) { patch = r2.patch; row.tier = 'T2'; }
+        else { patch = await judgePick(inst, res.patch, r2.patch); row.tier = 'judge'; }
+        row.resolved = !!(res.resolvedInLoop || r2.resolvedInLoop);
+      } else row.resolved = !!res.resolvedInLoop;
+    }
+
+    // ADR-195 #3: reviewer refines the chosen patch (post-solve; off → no-op).
+    if (REVIEWER && patch.trim()) {
+      const rv = await runReviewer(inst, patch, ESCALATE ? llmEsc : llm, localizeHint);
+      patch = rv.patch; row.reviewed = true; row.reviewApproved = rv.approved; row.reviewRevisions = rv.revisions;
+    }
   } catch (e) { row.error = String(e).split('\n')[0].slice(0, 200); }
   appendFileSync(OUT, JSON.stringify({ instance_id: inst.instance_id, model_name_or_path: 'darwin-agentic', model_patch: patch }) + '\n');
   row.sec = Math.round((Date.now() - t0) / 1000); report.push(row);
@@ -215,5 +358,8 @@ const byTier = report.reduce((h, r) => { h[r.tier] = (h[r.tier] || 0) + 1; retur
 // ADR-173 leakage guard: in conformant mode the gold harness must NEVER have run during solving.
 const conformant = NO_ORACLE && !usedOracleDuringSolve;
 if (NO_ORACLE && usedOracleDuringSolve) console.error('⚠️ LEAKAGE: gold harness was called during solve despite --no-test-oracle — run is NON-conformant.');
-writeFileSync(REPORT, JSON.stringify({ model: MODEL, escalateModel: ESCALATE, cascade: !!ESCALATE, maxSteps: MAX_STEPS, n: report.length, resolvedInLoop: inloop, escalated, byTier, noTestOracle: NO_ORACLE, leaderboardConformant: conformant, cappedAtInstance: cappedAt, maxCost: MAX_COST===Infinity?null:MAX_COST, totalCost_usd: Math.round(totalCost * 10000) / 10000, blendedCostPerInst_usd: report.length ? Math.round(totalCost / report.length * 1e5) / 1e5 : 0, instances: report }, null, 2));
+writeFileSync(REPORT, JSON.stringify({ model: MODEL, escalateModel: ESCALATE, cascade: !!ESCALATE, maxSteps: MAX_STEPS, n: report.length, resolvedInLoop: inloop, escalated, byTier, noTestOracle: NO_ORACLE, leaderboardConformant: conformant,
+  // ADR-195 Phase-2 capability flags active for this run (all false → pre-Phase-2 behaviour).
+  phase2: { localize: LOCALIZE, gnnRerank: GNN_RERANK, reproGate: REPRO_GATE, reviewer: REVIEWER },
+  cappedAtInstance: cappedAt, maxCost: MAX_COST===Infinity?null:MAX_COST, totalCost_usd: Math.round(totalCost * 10000) / 10000, blendedCostPerInst_usd: report.length ? Math.round(totalCost / report.length * 1e5) / 1e5 : 0, instances: report }, null, 2));
 console.error(`\nDONE ${report.length} | in-loop ${inloop}/${report.length} | cascade=${!!ESCALATE} escalated=${escalated} tiers=${JSON.stringify(byTier)} | $${Math.round(totalCost * 10000) / 10000} (${report.length?(totalCost/report.length).toFixed(4):0}/inst) | preds → ${OUT}`);
