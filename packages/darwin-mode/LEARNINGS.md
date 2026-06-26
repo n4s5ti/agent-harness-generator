@@ -927,3 +927,13 @@ Doubling the base turn budget does NOT improve the cheap cascade on SWE-bench Li
 - Turn budget: no lift on Lite (§49, this)
 
 **GLM→Opus empty-patch cascade @ maxsteps=15 is the optimum** for this approach: **51.3% Lite / 55.6% Verified**, conformant, ~56× cheaper than frontier-only. Further resolve requires either more spend (frontier base — off the resolve-per-dollar thesis) or a fundamentally different generator (ADR-153 agentic-loop architecture — out of this budget). Per the loop stop-condition: no cheap resolve-rate lever remains → stop new paid runs, idle on health+upkeep.
+
+## 50. Escalation-tier sweep COMPLETE (n=25) — Opus uniquely best; only BoN beats it
+
+GLM-5.2 base cascade, escalation tier varied, same 25 instances:
+- **Opus-4.8: 16/25** (best single tier)
+- GPT-5.5: 12 · Haiku-4.5: 12 · deepseek-r1: 11 · kimi-k2.6: 11 · **Sonnet-4.6: 11**
+
+**No cheaper escalation tier matches Opus** — not a cheaper Claude (Sonnet/Haiku), not a frontier GPT, not a reasoning model. Opus-4.8 has a unique agentic-repo-repair edge on the hard tail. The cost-Pareto-cheaper-escalation question (M2) is now FULLY closed: Opus stays.
+
+**The ONLY config that beats single-Opus is test-time compute:** `xbo:opus+glm = 18/25` (Best-of-N + conformant judge) > Opus-cascade 16/25. So the SOTA-breaking lever is **BoN/ensemble, not model choice** — which is exactly what the Darwin config-evolution (§51, in flight) is now searching: the best frontier-combination BoN on the hard tail. Conformant throughout (Best@k judge, no gold tests). n=25 directional; winner → n=300 validate.
