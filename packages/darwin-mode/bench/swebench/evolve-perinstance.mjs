@@ -249,6 +249,9 @@ export function dispatchProbe(instanceId, g, { dry = false, runnerUrl = RUNNER_U
     orkey: key(), instance: instanceId, gkey: gkey(g), mode: g.mode,
     model: g.baseModel || '', escalate: g.escalateModel || '', xmodels: (g.xmodels || []).join(','),
     ksamp: String(g.__k || 2), maxsteps: String(g.maxSteps), temp: String(g.temp ?? 0),
+    // MEASUREMENT INTEGRITY: per-arm cost cap high enough that no HARD+frontier probe is cost-starved
+    // (a starved solve → artifactual 0 → wrongly bucketed "uncracked"). Override via ARMCOST env.
+    armcost: String(process.env.ARMCOST || 150),
     branch: process.env.BRANCH || 'claude/darwin-mode-evolve-polyglot',
   };
   if (dry) { console.log(`  [dry] ${name}  (${capabilityOf(g)} · ${fsModelString(g)} · k=${meta.ksamp} · steps=${g.maxSteps})`); return true; }

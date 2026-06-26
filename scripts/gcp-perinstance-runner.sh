@@ -37,6 +37,11 @@ TEMP="${TEMP:-$(M temp)}"; BRANCH="${BRANCH:-$(M branch)}"
 MODE="${MODE:-single}"; KSAMP="${KSAMP:-2}"; MAXSTEPS="${MAXSTEPS:-15}"; TEMP="${TEMP:-0}"
 BRANCH="${BRANCH:-claude/darwin-mode-evolve-polyglot}"
 DS=princeton-nlp/SWE-bench_Lite
+# MEASUREMENT INTEGRITY: per-arm LLM cost cap. MUST be high enough that a HARD instance + a frontier model
+# is NEVER cost-starved (a starved solve truncates mid-trajectory → an artifactual 0 that would be wrongly
+# bucketed "uncracked"). Default 150 (~30-75x a typical single-Opus hard-instance solve of $0.5-2; the real
+# governor is --max-steps + the orchestrator's cumulative --cost-cap, NOT this per-arm cap). Override: ARMCOST.
+ARMCOST="${ARMCOST:-$(M armcost)}"; ARMCOST="${ARMCOST:-150}"
 [ -n "$ORKEY" ] || { echo "FATAL: ORKEY not set"; exit 1; }
 [ -n "$INSTANCE" ] || { echo "FATAL: instance not set"; exit 1; }
 
@@ -106,7 +111,7 @@ solve_one() { # outpreds tempval tag
       for m in "${MS[@]}"; do
         node --experimental-strip-types --no-warnings solve-agentic.mjs \
           --manifest /tmp/one.json --instance "$INSTANCE" --no-test-oracle --model "$m" \
-          --temperature "$T" --max-steps "$MAXSTEPS" --concurrency 1 --max-cost 30 \
+          --temperature "$T" --max-steps "$MAXSTEPS" --concurrency 1 --max-cost "$ARMCOST" \
           --out "$OUT/pi-$TAG-x$i.jsonl" --report "$OUT/pi-$TAG-x$i-rep.json" >/dev/null 2>&1 || true
         PLIST="$PLIST,$OUT/pi-$TAG-x$i.jsonl"; i=$((i+1))
       done
@@ -117,9 +122,9 @@ solve_one() { # outpreds tempval tag
       ;;
     bo3)
       # Best-of-N width on ONE model: 3 trajectories at jittered temps, judge-pick.
-      node --experimental-strip-types --no-warnings solve-agentic.mjs --manifest /tmp/one.json --instance "$INSTANCE" --no-test-oracle --model "$MODEL" --temperature 0   --max-steps "$MAXSTEPS" --concurrency 1 --max-cost 30 --out "$OUT/pi-$TAG-a.jsonl" --report "$OUT/pi-$TAG-a-rep.json" >/dev/null 2>&1 || true
-      node --experimental-strip-types --no-warnings solve-agentic.mjs --manifest /tmp/one.json --instance "$INSTANCE" --no-test-oracle --model "$MODEL" --temperature 0.3 --max-steps "$MAXSTEPS" --concurrency 1 --max-cost 30 --out "$OUT/pi-$TAG-b.jsonl" --report "$OUT/pi-$TAG-b-rep.json" >/dev/null 2>&1 || true
-      node --experimental-strip-types --no-warnings solve-agentic.mjs --manifest /tmp/one.json --instance "$INSTANCE" --no-test-oracle --model "$MODEL" --temperature 0.5 --max-steps "$MAXSTEPS" --concurrency 1 --max-cost 30 --out "$OUT/pi-$TAG-c.jsonl" --report "$OUT/pi-$TAG-c-rep.json" >/dev/null 2>&1 || true
+      node --experimental-strip-types --no-warnings solve-agentic.mjs --manifest /tmp/one.json --instance "$INSTANCE" --no-test-oracle --model "$MODEL" --temperature 0   --max-steps "$MAXSTEPS" --concurrency 1 --max-cost "$ARMCOST" --out "$OUT/pi-$TAG-a.jsonl" --report "$OUT/pi-$TAG-a-rep.json" >/dev/null 2>&1 || true
+      node --experimental-strip-types --no-warnings solve-agentic.mjs --manifest /tmp/one.json --instance "$INSTANCE" --no-test-oracle --model "$MODEL" --temperature 0.3 --max-steps "$MAXSTEPS" --concurrency 1 --max-cost "$ARMCOST" --out "$OUT/pi-$TAG-b.jsonl" --report "$OUT/pi-$TAG-b-rep.json" >/dev/null 2>&1 || true
+      node --experimental-strip-types --no-warnings solve-agentic.mjs --manifest /tmp/one.json --instance "$INSTANCE" --no-test-oracle --model "$MODEL" --temperature 0.5 --max-steps "$MAXSTEPS" --concurrency 1 --max-cost "$ARMCOST" --out "$OUT/pi-$TAG-c.jsonl" --report "$OUT/pi-$TAG-c-rep.json" >/dev/null 2>&1 || true
       node --experimental-strip-types --no-warnings discriminator.mjs \
         --manifest /tmp/one.json --preds "$OUT/pi-$TAG-a.jsonl,$OUT/pi-$TAG-b.jsonl,$OUT/pi-$TAG-c.jsonl" \
         --judge-model deepseek/deepseek-v4-flash --no-env-filter --out "$PREDS" --report "$OUT/pi-$TAG-disc.json" >/dev/null 2>&1 || true
@@ -129,14 +134,14 @@ solve_one() { # outpreds tempval tag
       local CASC=""; [ -n "$ESCALATE" ] && CASC="--cascade $ESCALATE"
       node --experimental-strip-types --no-warnings solve-agentic.mjs \
         --manifest /tmp/one.json --instance "$INSTANCE" --no-test-oracle --model "$MODEL" $CASC \
-        --temperature "$T" --max-steps "$MAXSTEPS" --concurrency 1 --max-cost 60 \
+        --temperature "$T" --max-steps "$MAXSTEPS" --concurrency 1 --max-cost "$ARMCOST" \
         --out "$PREDS" --report "$OUT/pi-$TAG-rep.json" >/dev/null 2>&1 || true
       ;;
     *)
       # single: one cold trajectory.
       node --experimental-strip-types --no-warnings solve-agentic.mjs \
         --manifest /tmp/one.json --instance "$INSTANCE" --no-test-oracle --model "$MODEL" \
-        --temperature "$T" --max-steps "$MAXSTEPS" --concurrency 1 --max-cost 40 \
+        --temperature "$T" --max-steps "$MAXSTEPS" --concurrency 1 --max-cost "$ARMCOST" \
         --out "$PREDS" --report "$OUT/pi-$TAG-rep.json" >/dev/null 2>&1 || true
       ;;
   esac
