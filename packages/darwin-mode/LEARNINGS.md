@@ -902,3 +902,13 @@ construction, but the deepseek snapshot's exact cutoff is unpinned. n=100 is **d
 than the old 64% — still NOT 1:1 (different window + sampling). Budget: both arms together $1.31 (A $0.16 + B $1.14),
 well under the $12 cap. Files: `solve-lcb.mjs` (robust extractor + `--cascade`), `lcb-v5-n100.json`,
 `lcb-single-n100*.json`, `lcb-cascade-n100*.json`. Board `livecodebench` tab updated to the n=100 points.
+
+## 48. Escalation-tier probe (M2) — Opus stays best; cheaper reasoning tiers don't substitute on SWE-bench
+
+n=25 Lite, same 25 instances, GLM-5.2 base cascade with varied escalation model (the candidate-generation lever, §44):
+- **GLM→Opus-4.8: 16/25** (control — the current 51.3%-cascade tier)
+- GLM→deepseek-r1-0528: **11/25** (−5)
+- GLM→kimi-k2.6: **11/25** (−5)
+
+**Verdict: M2 falsified at n=25 — no cheaper escalation tier matches Opus**, so nothing to confirm at n=300 (only winners escalate). Opus remains the escalation model for the empty-patch cascade. **Notably contrasts §46b (LiveCodeBench), where deepseek-r1 cracked the hard tail (+8):** competitive-programming rewards raw reasoning, but SWE-bench repo repair rewards **agentic/tool-use** capability on the hard tail — Opus's edge — which cheaper reasoning models don't substitute for. The right escalation model is **task-dependent** (r1 for self-contained codegen, Opus for agentic repo repair).
+Honest caveat: the r1 VM ran very slowly (hours of reasoning), so part of its 0-net-rescue may be timeout/malformed-output suppression rather than pure capability; but kimi (fast) also landed 11/25, so "Opus is meaningfully the best escalation tier" holds. n=25 is directional (the escalation only touches ~8-14 empties). Real measured numbers; no n=300 spent on a non-winner.
