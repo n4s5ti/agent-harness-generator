@@ -15,7 +15,7 @@ console.log('evolve-config Phase-2 gene tests:');
 
 t('Phase-2 genes default OFF — keys byte-identical to pre-Phase-2', () => {
   const g = normalizeGenome({ mode: 'single', baseModel: 'z-ai/glm-5.2', maxSteps: 15 });
-  assert(g.localize === false && g.reproGate === false && g.reviewer === false, 'all default false');
+  assert(g.localize === false && g.reproGate === false && g.reviewer === false && g.traceLocalize === false, 'all default false');
   assert(capSuffix(g) === '', 'no cap suffix when all off');
   assert(gkey(g) === 'single|glm-5.2|s15', `gkey unchanged, got ${gkey(g)}`);
   assert(readbackKey(g) === 'single|glm-5.2', `readbackKey unchanged, got ${readbackKey(g)}`);
@@ -25,6 +25,8 @@ t('capSuffix is stable + sorted regardless of which genes are on', () => {
   assert(capSuffix(normalizeGenome({ mode: 'single', baseModel: 'z-ai/glm-5.2', localize: true })) === '+loc');
   assert(capSuffix(normalizeGenome({ mode: 'single', baseModel: 'z-ai/glm-5.2', reproGate: true })) === '+repro');
   assert(capSuffix(normalizeGenome({ mode: 'single', baseModel: 'z-ai/glm-5.2', reviewer: true })) === '+rev');
+  // ADR-196: execution-trace localization gene
+  assert(capSuffix(normalizeGenome({ mode: 'single', baseModel: 'z-ai/glm-5.2', traceLocalize: true })) === '+trace');
   // sorted: loc < repro < rev — order of the input flags must not matter
   const a = normalizeGenome({ mode: 'single', baseModel: 'z-ai/glm-5.2', reviewer: true, localize: true });
   const b = normalizeGenome({ mode: 'single', baseModel: 'z-ai/glm-5.2', localize: true, reviewer: true });
@@ -42,8 +44,9 @@ t('a Phase-2 genome gets a DISTINCT, readback-consistent key', () => {
 t('capFlags maps on-genes to solve-agentic CLI flags', () => {
   assert.deepEqual(capFlags(normalizeGenome({ mode: 'single', baseModel: 'z-ai/glm-5.2' })), [], 'none on → no flags');
   assert.deepEqual(capFlags(normalizeGenome({ mode: 'single', baseModel: 'z-ai/glm-5.2', localize: true })), ['--localize']);
-  const all = capFlags(normalizeGenome({ mode: 'single', baseModel: 'z-ai/glm-5.2', localize: true, reproGate: true, reviewer: true }));
-  assert.deepEqual(all, ['--localize', '--repro-gate', '--reviewer'], `all flags, got ${JSON.stringify(all)}`);
+  assert.deepEqual(capFlags(normalizeGenome({ mode: 'single', baseModel: 'z-ai/glm-5.2', traceLocalize: true })), ['--trace-localize']);
+  const all = capFlags(normalizeGenome({ mode: 'single', baseModel: 'z-ai/glm-5.2', localize: true, reproGate: true, reviewer: true, traceLocalize: true }));
+  assert.deepEqual(all, ['--localize', '--repro-gate', '--reviewer', '--trace-localize'], `all flags, got ${JSON.stringify(all)}`);
   // CAP_FLAGS covers every declared capability
   for (const c of PHASE2_CAPS) assert(CAP_FLAGS[c], `flag declared for ${c}`);
 });
@@ -54,8 +57,8 @@ t('mutate can toggle a Phase-2 gene and always normalizes', () => {
   const base = normalizeGenome({ mode: 'single', baseModel: 'z-ai/glm-5.2', maxSteps: 15 });
   for (let i = 0; i < 500; i++) {
     const m = mutate(rng, base);
-    assert(typeof m.localize === 'boolean' && typeof m.reproGate === 'boolean' && typeof m.reviewer === 'boolean', 'genes are booleans');
-    if (m.localize || m.reproGate || m.reviewer) togglesSeen = true;
+    assert(typeof m.localize === 'boolean' && typeof m.reproGate === 'boolean' && typeof m.reviewer === 'boolean' && typeof m.traceLocalize === 'boolean', 'genes are booleans');
+    if (m.localize || m.reproGate || m.reviewer || m.traceLocalize) togglesSeen = true;
   }
   assert(togglesSeen, 'over 500 mutations, the cap mutation eventually turns a gene on');
 });
@@ -63,13 +66,14 @@ t('mutate can toggle a Phase-2 gene and always normalizes', () => {
 t('crossover inherits each gene independently from a parent', () => {
   const rng = mkRng(13);
   const a = normalizeGenome({ mode: 'single', baseModel: 'z-ai/glm-5.2', localize: true, reviewer: true });
-  const b = normalizeGenome({ mode: 'single', baseModel: 'deepseek/deepseek-v3.2', reproGate: true });
+  const b = normalizeGenome({ mode: 'single', baseModel: 'deepseek/deepseek-v3.2', reproGate: true, traceLocalize: true });
   for (let i = 0; i < 300; i++) {
     const c = crossover(rng, a, b);
     // every inherited gene value must have come from one of the parents (true only where a/b had it)
     if (c.localize) assert(a.localize || b.localize, 'localize only from a parent that had it');
     if (c.reproGate) assert(a.reproGate || b.reproGate, 'reproGate only from a parent that had it');
     if (c.reviewer) assert(a.reviewer || b.reviewer, 'reviewer only from a parent that had it');
+    if (c.traceLocalize) assert(a.traceLocalize || b.traceLocalize, 'traceLocalize only from a parent that had it');
   }
 });
 
@@ -78,6 +82,7 @@ t('seed population includes the three Phase-2 capability probes', () => {
   assert(keys.some((k) => k.endsWith('+loc')), 'localize probe seeded');
   assert(keys.some((k) => k.endsWith('+repro')), 'reproGate probe seeded');
   assert(keys.some((k) => k.endsWith('+rev')), 'reviewer probe seeded');
+  assert(keys.some((k) => k.endsWith('+trace')), 'traceLocalize probe seeded');
   // and the pre-Phase-2 anchors are still present unchanged
   assert(keys.some((k) => k === 'single|claude-opus-4.8|s15'), 'plain full-Opus anchor intact');
 });
@@ -86,7 +91,7 @@ t('randomGenome always carries boolean Phase-2 genes', () => {
   const rng = mkRng(99);
   for (let i = 0; i < 1000; i++) {
     const g = randomGenome(rng);
-    assert(typeof g.localize === 'boolean' && typeof g.reproGate === 'boolean' && typeof g.reviewer === 'boolean');
+    assert(typeof g.localize === 'boolean' && typeof g.reproGate === 'boolean' && typeof g.reviewer === 'boolean' && typeof g.traceLocalize === 'boolean');
   }
 });
 

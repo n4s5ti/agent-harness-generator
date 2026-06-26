@@ -89,12 +89,14 @@ export const TEMPS = [0, 0.2, 0.5];
 // ADR-195 Phase-2 capability GENES — solver-code capabilities exposed as boolean toggles so
 // per-instance evolution can measure their coverage lift. ALL DEFAULT OFF (backward-compatible: a
 // genome without any of these is byte-identical, by key, to a pre-Phase-2 genome). Maps to
-// solve-agentic flags: localize→--localize, reproGate→--repro-gate, reviewer→--reviewer.
-export const PHASE2_CAPS = ['localize', 'reproGate', 'reviewer'];
+// solve-agentic flags: localize→--localize, reproGate→--repro-gate, reviewer→--reviewer,
+// traceLocalize→--trace-localize (ADR-196 execution-trace localization, the §53 dynamic alternative
+// to the naive semantic localize that failed §52).
+export const PHASE2_CAPS = ['localize', 'reproGate', 'reviewer', 'traceLocalize'];
 // solve-agentic CLI flag for each capability gene.
-export const CAP_FLAGS = { localize: '--localize', reproGate: '--repro-gate', reviewer: '--reviewer' };
+export const CAP_FLAGS = { localize: '--localize', reproGate: '--repro-gate', reviewer: '--reviewer', traceLocalize: '--trace-localize' };
 // short key fragment for the gkey/readbackKey (only appended when the gene is ON, so keys are stable).
-const CAP_KEYTAG = { localize: 'loc', reproGate: 'repro', reviewer: 'rev' };
+const CAP_KEYTAG = { localize: 'loc', reproGate: 'repro', reviewer: 'rev', traceLocalize: 'trace' };
 // stable, sorted "+cap" suffix for a genome's capability set (empty string when none on).
 export function capSuffix(g) {
   const on = PHASE2_CAPS.filter((c) => g && g[c]).map((c) => CAP_KEYTAG[c]).sort();
@@ -156,7 +158,8 @@ export function normalizeGenome(g) {
   const h = { mode: g.mode, baseModel: g.baseModel || null, escalateModel: g.escalateModel || null,
     xmodels: g.xmodels ? [...new Set(g.xmodels)] : null, maxSteps: g.maxSteps || 15, temp: g.temp ?? 0,
     // ADR-195 Phase-2 genes (default off — coerced to plain booleans so absent === false).
-    localize: !!g.localize, reproGate: !!g.reproGate, reviewer: !!g.reviewer };
+    // ADR-196 adds traceLocalize (execution-trace localization).
+    localize: !!g.localize, reproGate: !!g.reproGate, reviewer: !!g.reviewer, traceLocalize: !!g.traceLocalize };
   if (h.mode === 'xbo' || h.mode === 'xcascade') { if (!h.xmodels || h.xmodels.length < 2) h.xmodels = CHEAP_MODELS.slice(0, 2); h.baseModel = null; }
   else { h.xmodels = null; if (!h.baseModel) h.baseModel = CHEAP_MODELS[0]; }
   if (h.mode === 'cascade' || h.mode === 'ecascade' || h.mode === 'xcascade') {
@@ -186,7 +189,7 @@ export function mutate(rng, g) {
   // them. Pre-Phase-2 behaviour is preserved when a cap mutation lands on an already-off/on flip.
   const fields = ['mode', 'base', 'escalate', 'steps', 'cap'];
   const f = pick(rng, fields);
-  if (f === 'mode') { const n = remodel(rng, { ...h, mode: pick(rng, MODES) }); n.localize = h.localize; n.reproGate = h.reproGate; n.reviewer = h.reviewer; return normalizeGenome(n); }
+  if (f === 'mode') { const n = remodel(rng, { ...h, mode: pick(rng, MODES) }); for (const c of PHASE2_CAPS) n[c] = h[c]; return normalizeGenome(n); }
   if (f === 'cap') { const c = pick(rng, PHASE2_CAPS); h[c] = !h[c]; return normalizeGenome(h); }
   if (f === 'base') { if (h.mode === 'xbo' || h.mode === 'xcascade') h.xmodels = pickModels(rng, 2 + Math.floor(rng() * 2)); else h.baseModel = pick(rng, CHEAP_MODELS); }
   else if (f === 'escalate') { if (h.escalateModel) h.escalateModel = pick(rng, ESCALATE_MODELS); else h.maxSteps = pick(rng, STEPS); }
@@ -324,6 +327,10 @@ export function seedPopulation() {
     normalizeGenome({ mode: 'single', baseModel: 'anthropic/claude-opus-4.8', maxSteps: 15, localize: true }),        // localization seed (the §1 blocker prior)
     normalizeGenome({ mode: 'single', baseModel: 'anthropic/claude-opus-4.8', maxSteps: 15, reproGate: true }),       // reproduction-first gate
     normalizeGenome({ mode: 'single', baseModel: 'anthropic/claude-opus-4.8', maxSteps: 15, reviewer: true }),        // critic + revise loop
+    // ADR-196: execution-trace localization — the §53 dynamic-localization lever (repro→run→trace→seed).
+    // Distinct from `localize` (the naive semantic seed that failed §52); seeds the agent with what the
+    // failing reproduction actually executed (fix-site is in the trace, not in symptom-similar text).
+    normalizeGenome({ mode: 'single', baseModel: 'anthropic/claude-opus-4.8', maxSteps: 15, traceLocalize: true }),  // execution-trace localization
   ];
 }
 

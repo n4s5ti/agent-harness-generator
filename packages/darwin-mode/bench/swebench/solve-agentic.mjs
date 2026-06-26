@@ -22,6 +22,8 @@ import { localizeSeed, formatSeedForAgent } from './localize.mjs';
 import { reproGateSolve, reproFeedbackBlock } from './repro-gate.mjs';
 import { reviewerSolve, parseReview, buildReviewPrompt, reviseFeedbackBlock, REVIEW_SYSTEM } from './reviewer.mjs';
 import { buildReproTest, REPRO_PATH } from './test-critic.mjs';
+// ADR-196 — execution-trace localization (the §53 dynamic-localization lever; distinct from §52's naive semantic localize).
+import { traceLocalize, formatTraceSeedForAgent, buildPyTracer, TRACE_PATH } from './trace-localize.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const args = process.argv.slice(2);
@@ -48,6 +50,7 @@ const CHEB_HI = +argv('--cheb-hi', 0.8);                 // hot-end temperature 
 const LOCALIZE = args.includes('--localize');            // RuVector-HNSW retrieval-seeded localization
 const REPRO_GATE = args.includes('--repro-gate');        // reproduction-first iterate loop
 const REVIEWER = args.includes('--reviewer');            // critic sub-agent + bounded revise loop
+const TRACE_LOCALIZE = args.includes('--trace-localize'); // ADR-196: repro→run-under-tracer→trace→evidence-seed
 const EMBED_MODEL = argv('--embed-model', 'openai/text-embedding-3-small');
 const LOCALIZE_K = +argv('--localize-k', 12);
 const GNN_RERANK = args.includes('--gnn-rerank');        // optional ruvector-gnn-rerank diffusion
@@ -289,6 +292,31 @@ async function runReproGate(inst, llmFn, localizeHint) {
   return r;
 }
 
+// ── ADR-196 Phase-2 #4: execution-trace localization. Reuses the repro WRITE (test-critic.buildReproTest,
+// same as the repro-gate), then RUNS that repro under a stdlib `sys.settrace` tracer in the conformant
+// base env (deps present, gold test_patch NEVER applied), parses the captured (file,func,line) frames +
+// failure traceback, and seeds the agent with that EVIDENCE (not an authoritative hint — §52 lesson).
+// Returns the agent-facing hint string ('' on any miss → identical to no-trace-localize). ──
+async function buildTraceHint(inst, llmFn) {
+  let repro = '';
+  const r = await traceLocalize({
+    writeRepro: async () => { const rb = await buildReproTest(inst.instance_id, inst.problem_statement, llmFn, { maxAttempts: 2 }); repro = rb.repro || ''; return rb; },
+    runTrace: ({ repro: rp }) => {
+      // Stage the tracer + the repro into /testbed; run the tracer (it imports+runs the repro under
+      // sys.settrace and prints the trace block between sentinels). Conformant: no patch, no gold test.
+      const tracer = buildPyTracer('/testbed', REPRO_PATH);
+      const rr = runConformantTests(inst.instance_id, '', `python ${TRACE_PATH}`, {
+        extraFiles: { [REPRO_PATH]: rp, [TRACE_PATH]: tracer }, timeoutMs: 300000,
+      });
+      return { ran: rr.ran, logTail: rr.logTail };
+    },
+    k: LOCALIZE_K,
+  });
+  totalCost += r.cost;
+  if (!r.seed) { console.error(`[trace-localize] ${inst.instance_id} no seed (${r.stats?.note || 'miss'})`); return ''; }
+  return formatTraceSeedForAgent(r.seed);
+}
+
 // ── ADR-195 Phase-2 #3: reviewer + bounded revise loop (wires reviewerSolve to the review LLM + a
 // COLD revise round). Takes the chosen patch and refines it; returns {patch,approved,...}. ──
 async function runReviewer(inst, basePatch, llmFn, localizeHint) {
@@ -315,8 +343,13 @@ async function runInstance(inst) {
   let patch = '';
   try {
     // ADR-195 #1: compute the localization hint once (off → empty string → identical to before).
-    const localizeHint = LOCALIZE ? await buildLocalizeHint(inst) : '';
-    if (LOCALIZE) row.localized = !!localizeHint;
+    const semanticHint = LOCALIZE ? await buildLocalizeHint(inst) : '';
+    if (LOCALIZE) row.localized = !!semanticHint;
+    // ADR-196 #4: execution-trace localization hint (dynamic; composes with the semantic seed). Off →
+    // empty. Trace evidence leads (it's observed-execution, the stronger signal) when both are on.
+    const traceHint = TRACE_LOCALIZE ? await buildTraceHint(inst, ESCALATE ? llmEsc : llm) : '';
+    if (TRACE_LOCALIZE) row.traceLocalized = !!traceHint;
+    const localizeHint = [traceHint, semanticHint].filter(Boolean).join('\n\n');
 
     if (REPRO_GATE) {
       // ADR-195 #2: reproduction-first path replaces the base solve (it owns the iterate loop).
@@ -366,6 +399,6 @@ const conformant = NO_ORACLE && !usedOracleDuringSolve;
 if (NO_ORACLE && usedOracleDuringSolve) console.error('⚠️ LEAKAGE: gold harness was called during solve despite --no-test-oracle — run is NON-conformant.');
 writeFileSync(REPORT, JSON.stringify({ model: MODEL, escalateModel: ESCALATE, cascade: !!ESCALATE, maxSteps: MAX_STEPS, n: report.length, resolvedInLoop: inloop, escalated, byTier, noTestOracle: NO_ORACLE, leaderboardConformant: conformant,
   // ADR-195 Phase-2 capability flags active for this run (all false → pre-Phase-2 behaviour).
-  phase2: { localize: LOCALIZE, gnnRerank: GNN_RERANK, reproGate: REPRO_GATE, reviewer: REVIEWER },
+  phase2: { localize: LOCALIZE, gnnRerank: GNN_RERANK, reproGate: REPRO_GATE, reviewer: REVIEWER, traceLocalize: TRACE_LOCALIZE },
   cappedAtInstance: cappedAt, maxCost: MAX_COST===Infinity?null:MAX_COST, totalCost_usd: Math.round(totalCost * 10000) / 10000, blendedCostPerInst_usd: report.length ? Math.round(totalCost / report.length * 1e5) / 1e5 : 0, instances: report }, null, 2));
 console.error(`\nDONE ${report.length} | in-loop ${inloop}/${report.length} | cascade=${!!ESCALATE} escalated=${escalated} tiers=${JSON.stringify(byTier)} | $${Math.round(totalCost * 10000) / 10000} (${report.length?(totalCost/report.length).toFixed(4):0}/inst) | preds → ${OUT}`);
