@@ -93,3 +93,23 @@ not run (cost discipline); the per-family live validation above proves the wirin
 ## Validation
 
 Package + 49 tests (+1 skipped live) committed under `packages/redblue/`. `npm test -w @metaharness/redblue` green. Safety boundary enforced in `src/config/safety.ts` and exercised by `__tests__/config.test.ts` (live-host rejection, dangerous-flag rejection, credential-guard, redaction). Realistic-target discrimination proven offline (`__tests__/pipeline.test.ts`) and against the live model judge (`__tests__/live-judge.test.ts`, `REDBLUE_LIVE=1`).
+
+## HackerOne integration — CWE/CVSS grounding + bounty-ready export (0.1.2)
+
+To make redblue's findings **industry-standard and disclosure-ready**, 0.1.2 adds a read-only HackerOne integration. It is additive and does **not** change the safety posture — read-only, submit hard-disabled.
+
+### What it adds
+- **`src/integrations/cwe-cvss.ts`** — every `AttackFamily` is mapped (compiler-enforced exhaustive) to **CWE + OWASP-LLM class + a CVSS 3.1 vector/score**, with honest, non-inflated band→CVSS bands (`Info→None` … `Critical→9.1`). The raw 0–1 redblue severity is preserved alongside.
+- **`src/integrations/hackerone.ts`** — a read-only client over the HackerOne **weakness taxonomy** (1631 CWE/CAPEC entries), with a built-in **static CWE fallback** so offline/CI works with no key.
+- **`src/reports/hackerone.ts`** — `toHackerOneReport()` / `renderHackerOneMarkdown()` produce a **draft** report (`draft:true`, `auto_submit:false`); evidence is `redact()`-scrubbed; repro steps come only from the safe taxonomy.
+- CLI: `redblue run --format hackerone` (draft export) and `redblue hackerone weaknesses` (live or static CWE list). `redblue hackerone submit` is **a deliberate no-op even when fully flagged** (`--submit --program --confirm`).
+
+### The auth (documented so it is not re-litigated)
+This HackerOne token is a **single API token with no username/identifier**. The working scheme — found empirically — is the **GraphQL API**: `POST https://hackerone.com/graphql` with header **`X-Auth-Token: <token>`**. The v1 REST `Basic identifier:token` scheme returns **401** for this token (no identifier exists), and `Authorization: Bearer` also **401**s. `weaknesses()` uses `query{weaknesses(first:N){edges{node{name external_id}}}}` (normalizing `cwe-79`→`CWE-79`); `authSmoke()` uses `query{me{username}}` and surfaces only `{ok,status}`, never the body. (Note: this token's scope is limited — `me` fields read null and `hacktivity` is not exposed; the reliably-available surface is the weakness taxonomy.)
+
+### Secrets & safety
+- The token is read at **runtime** from env or the gitignored `.env` (`HACKERONE_API_KEY`) — never hardcoded, logged, committed, or printed. No username var is needed.
+- HackerOne is used **read-only**; **no auto-submit to live programs** (the submit path is a hard-gated no-op by design — submitting to a live bounty program is an outward action the operator performs deliberately, outside this tool).
+
+### Validation
+Live read-only smoke **PASS** (`authSmoke → {ok:true,status:200}`, `weaknesses(100) → 100 entries`); offline suite **72 passed, 2 skipped** (the original 49 stay green; HackerOne unit tests mock the GraphQL POST + assert the `X-Auth-Token` header, `cwe-NN` normalization, and graceful degradation to the static fallback on API error). Published as **`@metaharness/redblue@0.1.2`**.
