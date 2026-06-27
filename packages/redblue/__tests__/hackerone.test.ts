@@ -159,6 +159,7 @@ describe('HackerOne client — mocked GraphQL API ($0)', () => {
   it('sends X-Auth-Token and normalizes cwe-NN → CWE-NN', async () => {
     const client = new HackerOneClient({
       credentials: { apiKey: 'tok' },
+      cache: false,
       fetchImpl: mockGraphql,
     });
     expect(client.isLive()).toBe(true);
@@ -169,6 +170,7 @@ describe('HackerOne client — mocked GraphQL API ($0)', () => {
   it('authSmoke returns only ok/status (never the response body)', async () => {
     const client = new HackerOneClient({
       credentials: { apiKey: 'tok' },
+      cache: false,
       fetchImpl: mockGraphql,
     });
     const r = await client.authSmoke();
@@ -184,7 +186,7 @@ describe('HackerOne client — mocked GraphQL API ($0)', () => {
       status: 200,
       json: async () => ({ errors: [{ message: 'Unauthenticated' }] }),
     });
-    const client = new HackerOneClient({ credentials: { apiKey: 'tok' }, fetchImpl: erroring });
+    const client = new HackerOneClient({ credentials: { apiKey: 'tok' }, fetchImpl: erroring, cache: false });
     const r = await client.authSmoke();
     expect(r.ok).toBe(false);
     expect(r.live).toBe(true);
@@ -196,7 +198,7 @@ describe('HackerOne client — mocked GraphQL API ($0)', () => {
       status: 200,
       json: async () => ({ errors: [{ message: 'boom' }] }),
     });
-    const client = new HackerOneClient({ credentials: { apiKey: 'tok' }, fetchImpl: erroring });
+    const client = new HackerOneClient({ credentials: { apiKey: 'tok' }, fetchImpl: erroring, cache: false });
     const ws = await client.weaknesses();
     expect(ws.length).toBe(staticWeaknessFallback().length);
   });
@@ -205,6 +207,7 @@ describe('HackerOne client — mocked GraphQL API ($0)', () => {
     const failing: FetchLike = async () => ({ ok: false, status: 401, json: async () => ({}) });
     const client = new HackerOneClient({
       credentials: { apiKey: 'tok' },
+      cache: false,
       fetchImpl: failing,
     });
     const ws = await client.weaknesses();

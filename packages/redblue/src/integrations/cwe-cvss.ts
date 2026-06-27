@@ -41,26 +41,32 @@ export interface FamilyTaxonomy {
  * compiler enforces completeness — add a family to the union and this fails to
  * type until it's mapped.
  *
- * CWE choices:
- *  - prompt injection      → CWE-77 (Command/argument injection class) +
- *                            CWE-1427 (Improper Neutralization of Input Used
- *                            for LLM Prompting — the LLM-specific weakness).
+ * CWE choices (TUNED against the LIVE HackerOne weakness taxonomy — 1631 entries,
+ * 973 unique CWE — fetched 2026-06-27; see ADR-197). Every CWE id below was
+ * verified present in that live set, and every `name` matches the exact string
+ * HackerOne shows a triager (so a drafted report uses the label they expect):
+ *  - prompt injection      → CWE-1427 (Improper Neutralization of Input Used for
+ *                            LLM Prompting — the most precise CWE H1 lists for
+ *                            this class) + CWE-77 (Command Injection - Generic).
  *  - tool overreach        → CWE-250 (Execution with Unnecessary Privileges) +
  *                            CWE-862 (Missing Authorization); OWASP-LLM06
  *                            Excessive Agency.
- *  - data exfiltration     → CWE-200 (Exposure of Sensitive Information) +
- *                            CWE-201 (Insertion of Sensitive Info into Sent Data).
+ *  - data exfiltration     → CWE-200 (Information Disclosure) +
+ *                            CWE-201 (Information Exposure Through Sent Data).
  *  - role confusion        → CWE-269 (Improper Privilege Management) +
- *                            CWE-1427 (LLM prompt-input neutralization).
+ *                            CWE-1427 (LLM prompt-input neutralization) +
+ *                            CWE-1426 (Improper Validation of Generative AI
+ *                            Output — the precise insecure-output-handling CWE).
  *  - cost amplification    → CWE-770 (Allocation of Resources Without Limits) +
- *                            CWE-400 (Uncontrolled Resource Consumption).
+ *                            CWE-400 (Uncontrolled Resource Consumption) +
+ *                            CWE-799 (Improper Control of Interaction Frequency).
  */
 export const FAMILY_TAXONOMY: Record<AttackFamily, FamilyTaxonomy> = {
   direct_prompt_injection: {
     family: 'direct_prompt_injection',
     cwe: [
       { id: 'CWE-1427', name: 'Improper Neutralization of Input Used for LLM Prompting' },
-      { id: 'CWE-77', name: 'Improper Neutralization of Special Elements used in a Command (Injection)' },
+      { id: 'CWE-77', name: 'Command Injection - Generic' },
     ],
     owaspLlm: 'LLM01 Prompt Injection',
     // Network attack, low complexity, no privileges, integrity impact dominant.
@@ -83,8 +89,8 @@ export const FAMILY_TAXONOMY: Record<AttackFamily, FamilyTaxonomy> = {
   data_exfiltration_attempt: {
     family: 'data_exfiltration_attempt',
     cwe: [
-      { id: 'CWE-200', name: 'Exposure of Sensitive Information to an Unauthorized Actor' },
-      { id: 'CWE-201', name: 'Insertion of Sensitive Information Into Sent Data' },
+      { id: 'CWE-200', name: 'Information Disclosure' },
+      { id: 'CWE-201', name: 'Information Exposure Through Sent Data' },
     ],
     owaspLlm: 'LLM06 Sensitive Information Disclosure',
     // Confidentiality is the dominant impact.
@@ -97,6 +103,7 @@ export const FAMILY_TAXONOMY: Record<AttackFamily, FamilyTaxonomy> = {
     cwe: [
       { id: 'CWE-269', name: 'Improper Privilege Management' },
       { id: 'CWE-1427', name: 'Improper Neutralization of Input Used for LLM Prompting' },
+      { id: 'CWE-1426', name: 'Improper Validation of Generative AI Output' },
     ],
     owaspLlm: 'LLM01 Prompt Injection / Insecure Output Handling',
     cvssVector: 'CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:C/C:L/I:H/A:N',
@@ -108,6 +115,7 @@ export const FAMILY_TAXONOMY: Record<AttackFamily, FamilyTaxonomy> = {
     cwe: [
       { id: 'CWE-770', name: 'Allocation of Resources Without Limits or Throttling' },
       { id: 'CWE-400', name: 'Uncontrolled Resource Consumption' },
+      { id: 'CWE-799', name: 'Improper Control of Interaction Frequency' },
     ],
     owaspLlm: 'LLM06 Excessive Agency (denial-of-wallet)',
     // Availability/cost is the dominant impact (denial-of-wallet).

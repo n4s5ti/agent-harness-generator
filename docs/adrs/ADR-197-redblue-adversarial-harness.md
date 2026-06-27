@@ -113,3 +113,45 @@ This HackerOne token is a **single API token with no username/identifier**. The 
 
 ### Validation
 Live read-only smoke **PASS** (`authSmoke → {ok:true,status:200}`, `weaknesses(100) → 100 entries`); offline suite **72 passed, 2 skipped** (the original 49 stay green; HackerOne unit tests mock the GraphQL POST + assert the `X-Auth-Token` header, `cwe-NN` normalization, and graceful degradation to the static fallback on API error). Published as **`@metaharness/redblue@0.1.2`**.
+
+## HackerOne integration — test/tune/optimize pass (0.1.3)
+
+0.1.3 hardens the read-only HackerOne integration without changing the safety posture (still read-only; submit still a hard-disabled no-op). The work is TEST (map the real surface), TUNE (ground the mapping in the live taxonomy), and OPTIMIZE (cache + pagination + rate-limit discipline).
+
+### TEST — the token's real read surface (empirically probed, read-only)
+
+A handful of targeted GraphQL probes (no blind field-guessing, no rate-limit burn) mapped exactly what this limited-scope token can read:
+
+| Field | Result | Note |
+| --- | --- | --- |
+| `weaknesses` | **data** | 1631 entries; `total_count`, `pageInfo{hasNextPage endCursor}`, per-edge `cursor`, node has `id/name/external_id/description` |
+| `team(handle:)` | **data** | `handle`, `id`, `state` (e.g. `public_mode`) |
+| `clusters` | **data** | `Cluster{ id name }` connection |
+| `me` | null | `me{username}` resolves to null for this token |
+| `external_program` | error | `ExternalProgram does not exist` |
+| `structured_scopes` | error | not a `Query` field for this token |
+| `cwe` | error | not a `Query` field — CWE data comes from `weaknesses` |
+
+Because `me` is null, `authSmoke()` now uses the `weaknesses` query as the auth probe (valid token → data; invalid → 401/auth error), still surfacing only `{ok,status,live}` — never a body. A new `redblue hackerone capabilities` command + `probeCapabilities()` expose this matrix on demand (read-only, values never surfaced).
+
+### TUNE — mapping grounded in the live taxonomy
+
+The full taxonomy was fetched (1631 entries, 973 unique CWE, 613 CAPEC, 42 no-extid) and **every** redblue `AttackFamily → CWE` mapping was validated against it. All 9 previously-mapped CWE ids exist live. Fixes/additions:
+
+- CWE **names** aligned to the exact strings HackerOne shows a triager: CWE-200 `Information Disclosure` (was the MITRE long form), CWE-201 `Information Exposure Through Sent Data`, CWE-77 `Command Injection - Generic`.
+- Precise CWEs added where HackerOne lists a better fit: `role_confusion` += **CWE-1426** (Improper Validation of Generative AI Output — insecure output handling); `cost_amplification` += **CWE-799** (Improper Control of Interaction Frequency).
+- CVSS bands left conservative (unchanged, no inflation); raw 0–1 redblue severity still preserved in the draft.
+- The **static fallback** CWE table was refreshed from the live fetch (curated LLM/web slice with real H1 names), so offline mode resembles reality rather than a 9-entry skeleton — while still guaranteeing every mapped CWE is present.
+
+### OPTIMIZE — cache, pagination, rate-limit discipline
+
+- **`src/integrations/h1-cache.ts`** — persists one taxonomy fetch to `~/.claude/redblue/h1-weaknesses.json` (versioned envelope, **7-day TTL**). `weaknessesFull()` is cache-first: fresh cache → live paginated fetch → static, with a stale cache preferred over static on live failure. A successful live fetch refreshes the cache. Stores only the public taxonomy — never the token or account data.
+- **Cursor pagination** — `pageInfo.endCursor` / `after:` at concurrency 1 (no N-round-trip fan-out); stops at `hasNextPage:false` with a 50-page safety cap.
+- **HackerOne API policy compliance** — read-only, low-volume (600 reads/min budget); a small min-interval between requests; **429 backoff** honoring `Retry-After` (numeric or HTTP-date) with exponential fallback, capped retries, 60s ceiling, then degrade (never hammer). HTTPS only; token in `X-Auth-Token` per request, never logged. The cache is itself the primary compliance lever (minimizes request volume).
+
+### Submit: still a hard-disabled no-op (unchanged, by user directive)
+
+Per the explicit project directive, `redblue hackerone submit` remains a deliberate no-op even when fully flagged (`--submit --program --confirm`). 0.1.3 does **not** add any path that can write/POST a report to a live HackerOne program. Drafts only; the human submits manually in HackerOne's UI.
+
+### Validation
+Offline suite **91 passed, 3 skipped** (was 72/2 — adds `__tests__/hackerone-tune.test.ts`: mapping-validity, cursor pagination, cache hit/miss/TTL/degradation order, `retryAfterMs` + 429-retry-then-succeed + give-up-after-maxRetries, capability probe). All prior tests stay green; `tsc --noEmit` clean. Test isolation: mocked clients use `cache:false` and an in-memory cache fs; the live test uses an OS-temp cache path — a test run never mutates the user's real cache. Live read-only smoke **PASS**: auth ok, full taxonomy paginated (>1000 entries, totalCount>1000, multi-request), every mapped CWE validated against the live set, cache written + second fetch served 0-request from cache, capability probe confirmed (`weaknesses`=data, `me`=null) — counts only, **no secret/body printed, no report ever submitted**. Published as **`@metaharness/redblue@0.1.3`**.

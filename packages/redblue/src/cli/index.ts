@@ -270,36 +270,75 @@ async function cmdReport(argv: string[]): Promise<CliResult> {
 }
 
 /**
- * `redblue hackerone <weaknesses|submit>`.
+ * `redblue hackerone <weaknesses|capabilities|submit>`.
  *
- * `weaknesses` is READ-ONLY: lists the CWE taxonomy from the live API if a key
- * is present, else the built-in static fallback (offline/CI safe, $0).
+ * `weaknesses` is READ-ONLY: lists the CWE taxonomy cache-first (fresh disk
+ * cache → live API → static fallback). Reports the source + count so the
+ * operator can see whether the API was hit. Offline/CI safe, $0.
  *
- * `submit` is HARD-GATED and DEFAULT-OFF: it requires --submit --program <h>
- * --confirm AND is intentionally not implemented as a live POST in this build.
- * Submitting to a live bounty program is an outward action the user triggers
- * deliberately; this CLI only ever produces drafts.
+ * `capabilities` is READ-ONLY: probes the token's real read surface and prints
+ * an honest capability matrix (data / null / error per field). No-key → static
+ * note.
+ *
+ * `submit` is HARD-DISABLED by design — it is intentionally a no-op that never
+ * performs a live POST. This CLI only ever produces drafts; submitting to a
+ * live program is a manual action the human takes in HackerOne's own UI.
  */
 async function cmdHackerOne(argv: string[]): Promise<CliResult> {
   const action = argv[0] ?? 'weaknesses';
   if (action === 'weaknesses') {
+    const force = argv.includes('--refresh') || argv.includes('--force');
     const client = new HackerOneClient();
-    const live = client.isLive();
-    const weaknesses = await client.weaknesses();
+    const { weaknesses, source, totalCount, requests } = await client.weaknessesFull({ force });
+    const sourceLabel =
+      source === 'live'
+        ? `live API (read-only, ${requests} request${requests === 1 ? '' : 's'})`
+        : source === 'cache'
+          ? 'local cache (no API request)'
+          : 'static fallback (no key)';
     const lines = [
-      `# HackerOne weakness taxonomy (CWE) — source: ${live ? 'live API (read-only)' : 'static fallback (no key)'}`,
+      `# HackerOne weakness taxonomy (CWE) — source: ${sourceLabel}`,
+      `# entries: ${weaknesses.length}${totalCount ? ` (taxonomy total_count: ${totalCount})` : ''}`,
       '',
     ];
     for (const w of weaknesses) {
       lines.push(`- ${w.externalId ?? w.id} — ${w.name}`);
     }
-    if (!live) {
+    if (source === 'static') {
       lines.push('');
       lines.push(
         '_No HACKERONE_API_KEY in env — showing the built-in static CWE map. ' +
-          'Set HACKERONE_API_KEY at runtime (GraphQL X-Auth-Token) for the live taxonomy._',
+          'Set HACKERONE_API_KEY at runtime (GraphQL X-Auth-Token) for the live taxonomy ' +
+          '(cached locally after the first fetch to respect API rate limits)._',
       );
     }
+    return { code: 0, lines };
+  }
+  if (action === 'capabilities') {
+    const client = new HackerOneClient();
+    if (!client.isLive()) {
+      return {
+        code: 0,
+        lines: [
+          '# HackerOne token capability matrix',
+          '',
+          '_No HACKERONE_API_KEY in env — cannot probe the live read surface._',
+          'Set HACKERONE_API_KEY at runtime to probe what this token can read.',
+        ],
+      };
+    }
+    const probes = await client.probeCapabilities();
+    const lines = [
+      '# HackerOne token capability matrix (read-only probe)',
+      '',
+      '| Field | Result | Note |',
+      '| --- | --- | --- |',
+    ];
+    for (const p of probes) {
+      lines.push(`| \`${p.field}\` | ${p.status} | ${p.note ?? ''} |`);
+    }
+    lines.push('');
+    lines.push('_Probe is read-only; only field presence + schema errors are shown (never account data)._');
     return { code: 0, lines };
   }
   if (action === 'submit') {
@@ -319,7 +358,7 @@ async function cmdHackerOne(argv: string[]): Promise<CliResult> {
       ],
     };
   }
-  return { code: 1, lines: ['redblue hackerone <weaknesses|submit>'] };
+  return { code: 1, lines: ['redblue hackerone <weaknesses|capabilities|submit>'] };
 }
 
 function usage(): CliResult {
@@ -336,13 +375,16 @@ Usage:
   redblue patch  [--config redblue.yaml] [--mock-judge]   # baseline -> patch -> retest delta
   redblue retest [--config redblue.yaml] [--mock-judge]
   redblue report --in report.json
-  redblue hackerone weaknesses          # read-only CWE taxonomy (live API or static fallback)
-  redblue hackerone submit ...          # DISABLED — drafts only, never auto-submits
+  redblue hackerone weaknesses [--refresh]   # read-only CWE taxonomy (cache→live→static)
+  redblue hackerone capabilities             # read-only probe of the token's read surface
+  redblue hackerone submit ...               # DISABLED — drafts only, never auto-submits
 
 HackerOne: --format hackerone exports bounty-report DRAFTS (CWE + CVSS, redacted
 evidence). Auth is a single API token (GraphQL X-Auth-Token) from HACKERONE_API_KEY
-read at runtime; with no key, the static CWE fallback keeps it offline/$0. The tool
-NEVER auto-submits to a live program.
+read at runtime; with no key, the static CWE fallback keeps it offline/$0. The full
+taxonomy (~1631 entries) is fetched cache-first and persisted to
+~/.claude/redblue/h1-weaknesses.json (7-day TTL) to respect HackerOne's read rate
+limit. The tool NEVER auto-submits to a live program.
 
 The REAL judge is a model and requires OPENROUTER_API_KEY (the default/product
 path). --mock-judge selects a $0 TEST-ONLY marker fixture — NOT the product judge.

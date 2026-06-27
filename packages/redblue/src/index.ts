@@ -77,12 +77,23 @@ export {
   resolveCredentials,
   staticWeaknessFallback,
 } from './integrations/hackerone.js';
+export { retryAfterMs } from './integrations/hackerone.js';
 export type {
   HackerOneWeakness,
   HackerOneCredentials,
   HackerOneClientOptions,
   FetchLike,
+  HeadersLike,
+  WeaknessFetchResult,
+  CapabilityProbe,
 } from './integrations/hackerone.js';
+export {
+  readCache,
+  writeCache,
+  defaultCachePath,
+  DEFAULT_CACHE_TTL_MS,
+} from './integrations/h1-cache.js';
+export type { TaxonomyCache, CacheOptions, CacheFs } from './integrations/h1-cache.js';
 export {
   toHackerOneReport,
   toHackerOneReports,

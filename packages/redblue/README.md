@@ -186,8 +186,17 @@ preserved in the draft.
 | `direct_prompt_injection` | CWE-1427, CWE-77 | LLM01 Prompt Injection | `AV:N/AC:L/PR:N/UI:N/S:C/C:L/I:H/A:N` |
 | `tool_overreach` | CWE-250, CWE-862 | LLM06 Excessive Agency | `AV:N/AC:L/PR:L/UI:N/S:C/C:L/I:H/A:H` |
 | `data_exfiltration_attempt` | CWE-200, CWE-201 | LLM06 Sensitive Info Disclosure | `AV:N/AC:L/PR:L/UI:N/S:C/C:H/I:N/A:N` |
-| `role_confusion` | CWE-269, CWE-1427 | LLM01 / Insecure Output Handling | `AV:N/AC:L/PR:N/UI:N/S:C/C:L/I:H/A:N` |
-| `cost_amplification` | CWE-770, CWE-400 | LLM06 Excessive Agency (denial-of-wallet) | `AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:H` |
+| `role_confusion` | CWE-269, CWE-1427, CWE-1426 | LLM01 / Insecure Output Handling | `AV:N/AC:L/PR:N/UI:N/S:C/C:L/I:H/A:N` |
+| `cost_amplification` | CWE-770, CWE-400, CWE-799 | LLM06 Excessive Agency (denial-of-wallet) | `AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:H` |
+
+Every CWE above is **validated against the live HackerOne weakness taxonomy**
+(1631 entries / 973 unique CWE, fetched 2026-06-27) and uses the exact label
+HackerOne shows a triager — e.g. CWE-200 is `Information Disclosure`, CWE-77 is
+`Command Injection - Generic`. `role_confusion` and `cost_amplification` add the
+precise AI/rate CWEs HackerOne lists (`CWE-1426 Improper Validation of Generative
+AI Output`, `CWE-799 Improper Control of Interaction Frequency`). A unit test
+asserts every mapped CWE exists in a (mock) live taxonomy; the live smoke asserts
+it against the real API.
 
 Severity-band → CVSS mapping (conservative): `Info→None`, `Low→Low (3.1)`,
 `Med→Medium (5.3)`, `High→High (7.5)`, `Critical→Critical (9.1)`.
@@ -212,16 +221,48 @@ const draft = toHackerOneReport(finding, { testCase });   // draft-only
 const md = renderHackerOneMarkdown(draft);                // bounty-report body
 ```
 
-### Read-only weakness taxonomy
+### Read-only weakness taxonomy (cache-first)
 
 ```bash
-redblue hackerone weaknesses   # lists the CWE taxonomy
+redblue hackerone weaknesses             # cache → live → static, prints the source + count
+redblue hackerone weaknesses --refresh   # force a live re-fetch (refreshes the cache)
 ```
 
-With a key, this reads the live HackerOne weakness taxonomy via the GraphQL API
-(`query{weaknesses(first:N){edges{node{name external_id}}}}`, **read-only**) and
-normalizes `external_id` (`cwe-79` → `CWE-79`). With **no key**, it returns a
-built-in static CWE map so offline/CI works deterministically at $0.
+With a key, this reads the **full** live HackerOne weakness taxonomy (~1631
+entries) via the GraphQL API, paginating with proper cursors
+(`pageInfo.endCursor` / `after:`, concurrency 1) and normalizing `external_id`
+(`cwe-79` → `CWE-79`). The fetch is **cache-first**: the result is persisted to
+`~/.claude/redblue/h1-weaknesses.json` with a **7-day TTL**, so subsequent runs
+read from disk with **zero API requests** until the cache expires. With **no
+key**, it returns a built-in static CWE map (refreshed from the live taxonomy, so
+offline mode resembles reality) — deterministic, offline/CI safe, $0.
+
+Degradation order is always **live → cache → static** (a stale cache beats the
+static skeleton when the API is unreachable).
+
+### Read-only capability probe
+
+```bash
+redblue hackerone capabilities   # honest map of what this token can read
+```
+
+Issues a handful of targeted read-only queries and prints, per field, whether it
+returned `data` / `null` / `error` — **without surfacing any account contents**
+(only field presence and schema-level error messages). For the limited-scope
+token used in development, the confirmed read surface is:
+
+| Field | Result | Note |
+| --- | --- | --- |
+| `weaknesses` | data | 1631 entries; `total_count`, `pageInfo`, per-edge `cursor` |
+| `team(handle:)` | data | `handle`, `id`, `state` (e.g. `public_mode`) |
+| `clusters` | data | `Cluster{ id name }` connection |
+| `me` | null | limited-scope token → `me{username}` resolves to null |
+| `external_program` | error | `ExternalProgram does not exist` |
+| `structured_scopes` | error | not a field on `Query` for this token |
+| `cwe` | error | not a `Query` field — use `weaknesses` for CWE data |
+
+(Because `me` is null, the auth smoke uses the `weaknesses` query as its auth
+probe — a valid token returns data; an invalid one returns 401/auth errors.)
 
 ### Auth (env var, read at runtime)
 
@@ -238,14 +279,33 @@ read-only path activates automatically when the token is present. (The endpoint
 is `https://hackerone.com/graphql`; the v1 REST Basic-auth path is not used — a
 token issued without an identifier authenticates via GraphQL.)
 
+### HackerOne API policy compliance
+
+The integration is built to stay comfortably within HackerOne's documented API
+policy:
+
+- **Read-only, low-volume.** Only read queries are issued (taxonomy, capability
+  probe). HackerOne documents **600 reads/min** (300/min for report pages); the
+  one-time full taxonomy fetch is ~17 requests, then cached.
+- **Cache-first = a compliance feature.** The 7-day TTL cache means a run hits
+  the API only when the cache is cold or expired — not on every invocation.
+- **Request spacing + concurrency 1.** Pagination is sequential with a small
+  min-interval between requests (no bursts, no parallel hammering).
+- **429 backoff.** On HTTP 429 the client backs off honoring the `Retry-After`
+  header (numeric seconds or HTTP-date), with exponential fallback, capped retries
+  (default 4) and a 60s ceiling. If it still can't read, it degrades to
+  cache/static rather than retrying tightly.
+- **HTTPS only**, token in the `X-Auth-Token` header per request, **never logged**.
+
 ### ⚠️ Safety: never auto-submits
 
-The HackerOne API is used **READ-ONLY** (weakness taxonomy). redblue **never
-auto-submits reports to live HackerOne programs.** `--format hackerone` produces
-a **draft/dry-run** only. `redblue hackerone submit` is **disabled by design** —
-even when fully flagged (`--submit --program <handle> --confirm`) it is a no-op
-that tells you to review and submit manually. Submitting to a live bounty program
-is an outward action you must trigger deliberately, outside this tool.
+The HackerOne API is used **READ-ONLY** (weakness taxonomy + capability probe).
+redblue **never auto-submits reports to live HackerOne programs.**
+`--format hackerone` produces a **draft/dry-run** only. `redblue hackerone submit`
+is **disabled by design** — even when fully flagged
+(`--submit --program <handle> --confirm`) it is a hard no-op that tells you to
+review and submit manually. Submitting to a live bounty program is an outward
+action you must trigger deliberately, in HackerOne's own UI, outside this tool.
 
 ## Severity scoring
 
