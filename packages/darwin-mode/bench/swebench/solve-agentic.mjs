@@ -307,6 +307,10 @@ async function buildTraceHint(inst, llmFn) {
       const tracer = buildPyTracer('/testbed', REPRO_PATH);
       const rr = runConformantTests(inst.instance_id, '', `python ${TRACE_PATH}`, {
         extraFiles: { [REPRO_PATH]: rp, [TRACE_PATH]: tracer }, timeoutMs: 300000,
+        // ADR-196 fix: the tracer emits a JSON block that routinely exceeds the default 2500-char
+        // tail; without a wider tail the TRACE_BEGIN sentinel is truncated and parseTrace silently
+        // returns ok:false (every trace seed becomes null → the lever is a no-op). 200 KB is ample.
+        tailBytes: 200_000,
       });
       return { ran: rr.ran, logTail: rr.logTail };
     },

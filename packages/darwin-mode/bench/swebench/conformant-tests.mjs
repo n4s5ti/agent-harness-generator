@@ -37,6 +37,11 @@ export function runConformantTests(instanceId, patch, testCmd, opts = {}) {
   const img = dockerImageFor(instanceId);
   const timeout = opts.timeoutMs ?? 600_000;
   const reuse = !!opts.containerId;
+  // ADR-196 fix: callers that need a large machine-readable block in the output (the execution
+  // tracer emits a JSON block that can exceed the default 2500-char tail; truncating it drops the
+  // TRACE_BEGIN sentinel and silently breaks parseTrace) can opt into a bigger tail. Default is
+  // unchanged (2500) so every other caller's behaviour is identical.
+  const TAIL = Math.max(2500, opts.tailBytes ?? 2500);
   // optional extraFiles (e.g. reproduce_bug.py) base64-staged into /testbed before the test.
   const extra = opts.extraFiles && typeof opts.extraFiles === 'object' ? opts.extraFiles : {};
   const writeExtra = Object.entries(extra).map(([p, c]) =>
@@ -62,7 +67,7 @@ export function runConformantTests(instanceId, patch, testCmd, opts = {}) {
   const run = () => execSync(cmd, { stdio: ['ignore', 'pipe', 'pipe'], timeout, maxBuffer: 1 << 27 });
   try {
     const out = run().toString();          // exit 0 → testCmd passed
-    return { ran: true, passed: true, logTail: out.slice(-2500) };
+    return { ran: true, passed: true, logTail: out.slice(-TAIL) };
   } catch (e) {
     const out = String(e.stdout || e.stderr || e.message || e);
     const code = e.status;
@@ -70,6 +75,6 @@ export function runConformantTests(instanceId, patch, testCmd, opts = {}) {
     // harness/env failure (image missing, docker error) = ran:false; anything else = the test
     // executed and exited non-zero (failed/raised) = ran:true, passed:false.
     const harness = /Unable to find image|docker: Error|no such image|Cannot connect to the Docker/i.test(out);
-    return { ran: !harness, passed: false, logTail: out.slice(-2500) };
+    return { ran: !harness, passed: false, logTail: out.slice(-TAIL) };
   }
 }
