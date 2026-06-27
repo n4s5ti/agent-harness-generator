@@ -10,9 +10,14 @@ import { execSync } from 'node:child_process';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
-/** instance_id → cached swebench eval image (the harness maps `__` → `_1776_`). */
+/** instance_id → cached eval image (the harness maps `__` → `_1776_`).
+ * ADR-197 (§63): the image NAMESPACE is overridable via SWE_IMAGE_NAMESPACE so the SAME conformant
+ * in-loop gate works on SWE-rebench (decontaminated; images under the `swerebench/` Docker Hub org,
+ * identical /testbed + /opt/miniconda3/bin/activate testbed internals). Default stays `swebench` so
+ * every SWE-bench Lite/Verified caller is byte-identical. */
+const IMAGE_NS = (process.env.SWE_IMAGE_NAMESPACE || 'swebench').replace(/\/$/, '');
 export function dockerImageFor(instanceId) {
-  return `swebench/sweb.eval.x86_64.${instanceId.replace(/__/g, '_1776_')}:latest`;
+  return `${IMAGE_NS}/sweb.eval.x86_64.${instanceId.replace(/__/g, '_1776_')}:latest`;
 }
 
 /**

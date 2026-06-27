@@ -1,0 +1,537 @@
+{
+  "model": "z-ai/glm-5.2",
+  "escalateModel": null,
+  "cascade": false,
+  "maxSteps": 20,
+  "n": 51,
+  "resolvedInLoop": 0,
+  "escalated": 0,
+  "byTier": {
+    "T1": 51
+  },
+  "noTestOracle": true,
+  "leaderboardConformant": true,
+  "phase2": {
+    "localize": false,
+    "gnnRerank": false,
+    "reproGate": false,
+    "reviewer": false,
+    "traceLocalize": false
+  },
+  "cappedAtInstance": null,
+  "maxCost": 9,
+  "totalCost_usd": 4.2482,
+  "blendedCostPerInst_usd": 0.0833,
+  "instances": [
+    {
+      "instance_id": "MAIF__meteole-33",
+      "repo": "MAIF/meteole",
+      "tier": "T1",
+      "resolved": false,
+      "steps": 20,
+      "submitted": false,
+      "resolvedInLoop": false,
+      "sec": 42
+    },
+    {
+      "instance_id": "instructlab__sdg-461",
+      "repo": "instructlab/sdg",
+      "tier": "T1",
+      "resolved": false,
+      "steps": 20,
+      "submitted": false,
+      "resolvedInLoop": false,
+      "sec": 83
+    },
+    {
+      "instance_id": "intel__code-base-investigator-178",
+      "repo": "intel/code-base-investigator",
+      "tier": "T1",
+      "resolved": false,
+      "steps": 20,
+      "submitted": false,
+      "resolvedInLoop": false,
+      "sec": 97
+    },
+    {
+      "instance_id": "ryanhiebert__django-cmd-19",
+      "repo": "ryanhiebert/django-cmd",
+      "tier": "T1",
+      "resolved": false,
+      "steps": 11,
+      "submitted": true,
+      "resolvedInLoop": false,
+      "sec": 26
+    },
+    {
+      "instance_id": "ua-parser__uap-python-255",
+      "repo": "ua-parser/uap-python",
+      "tier": "T1",
+      "resolved": false,
+      "steps": 20,
+      "submitted": false,
+      "resolvedInLoop": false,
+      "sec": 54
+    },
+    {
+      "instance_id": "zarr-developers__zarr-python-2661",
+      "repo": "zarr-developers/zarr-python",
+      "tier": "T1",
+      "resolved": false,
+      "steps": 20,
+      "submitted": false,
+      "resolvedInLoop": false,
+      "sec": 36
+    },
+    {
+      "instance_id": "canonical__charmcraft-2084",
+      "repo": "canonical/charmcraft",
+      "tier": "T1",
+      "resolved": false,
+      "steps": 20,
+      "submitted": false,
+      "resolvedInLoop": false,
+      "sec": 24
+    },
+    {
+      "instance_id": "aburrell__ocbpy-144",
+      "repo": "aburrell/ocbpy",
+      "tier": "T1",
+      "resolved": false,
+      "steps": 20,
+      "submitted": false,
+      "resolvedInLoop": false,
+      "sec": 121
+    },
+    {
+      "instance_id": "lmfit__lmfit-py-989",
+      "repo": "lmfit/lmfit-py",
+      "tier": "T1",
+      "resolved": false,
+      "steps": 20,
+      "submitted": false,
+      "resolvedInLoop": false,
+      "sec": 192
+    },
+    {
+      "instance_id": "fox-it__dissect.cstruct-120",
+      "repo": "fox-it/dissect.cstruct",
+      "tier": "T1",
+      "resolved": false,
+      "steps": 20,
+      "submitted": false,
+      "resolvedInLoop": false,
+      "sec": 78
+    },
+    {
+      "instance_id": "astropy__asdf-astropy-253",
+      "repo": "astropy/asdf-astropy",
+      "tier": "T1",
+      "resolved": false,
+      "steps": 20,
+      "submitted": false,
+      "resolvedInLoop": false,
+      "sec": 88
+    },
+    {
+      "instance_id": "dask__dask-11803",
+      "repo": "dask/dask",
+      "tier": "T1",
+      "resolved": false,
+      "steps": 20,
+      "submitted": false,
+      "resolvedInLoop": false,
+      "sec": 127
+    },
+    {
+      "instance_id": "rayokota__jsonata-python-14",
+      "repo": "rayokota/jsonata-python",
+      "tier": "T1",
+      "resolved": false,
+      "steps": 20,
+      "submitted": false,
+      "resolvedInLoop": false,
+      "sec": 190
+    },
+    {
+      "instance_id": "movingpandas__movingpandas-447",
+      "repo": "movingpandas/movingpandas",
+      "tier": "T1",
+      "resolved": false,
+      "steps": 20,
+      "submitted": false,
+      "resolvedInLoop": false,
+      "sec": 51
+    },
+    {
+      "instance_id": "carsdotcom__skelebot-280",
+      "repo": "carsdotcom/skelebot",
+      "tier": "T1",
+      "resolved": false,
+      "steps": 12,
+      "submitted": true,
+      "resolvedInLoop": false,
+      "sec": 48
+    },
+    {
+      "instance_id": "scikit-hep__cabinetry-506",
+      "repo": "scikit-hep/cabinetry",
+      "tier": "T1",
+      "resolved": false,
+      "steps": 20,
+      "submitted": false,
+      "resolvedInLoop": false,
+      "sec": 436
+    },
+    {
+      "instance_id": "PennLINC__xcp_d-1433",
+      "repo": "PennLINC/xcp_d",
+      "tier": "T1",
+      "resolved": false,
+      "steps": 20,
+      "submitted": false,
+      "resolvedInLoop": false,
+      "sec": 220
+    },
+    {
+      "instance_id": "ethereum__web3.py-3604",
+      "repo": "ethereum/web3.py",
+      "tier": "T1",
+      "resolved": false,
+      "steps": 20,
+      "submitted": false,
+      "resolvedInLoop": false,
+      "sec": 51
+    },
+    {
+      "instance_id": "bvanelli__actualpy-117",
+      "repo": "bvanelli/actualpy",
+      "tier": "T1",
+      "resolved": false,
+      "steps": 20,
+      "submitted": false,
+      "resolvedInLoop": false,
+      "sec": 49
+    },
+    {
+      "instance_id": "angr__claripy-603",
+      "repo": "angr/claripy",
+      "tier": "T1",
+      "resolved": false,
+      "steps": 20,
+      "submitted": false,
+      "resolvedInLoop": false,
+      "sec": 113
+    },
+    {
+      "instance_id": "reframe-hpc__reframe-3449",
+      "repo": "reframe-hpc/reframe",
+      "tier": "T1",
+      "resolved": false,
+      "steps": 20,
+      "submitted": false,
+      "resolvedInLoop": false,
+      "sec": 162
+    },
+    {
+      "instance_id": "boxed__mutmut-363",
+      "repo": "boxed/mutmut",
+      "tier": "T1",
+      "resolved": false,
+      "steps": 20,
+      "submitted": false,
+      "resolvedInLoop": false,
+      "sec": 423
+    },
+    {
+      "instance_id": "jpadilla__pyjwt-1040",
+      "repo": "jpadilla/pyjwt",
+      "tier": "T1",
+      "resolved": false,
+      "steps": 20,
+      "submitted": false,
+      "resolvedInLoop": false,
+      "sec": 89
+    },
+    {
+      "instance_id": "OpenFreeEnergy__openfe-1186",
+      "repo": "OpenFreeEnergy/openfe",
+      "tier": "T1",
+      "resolved": false,
+      "steps": 7,
+      "submitted": true,
+      "resolvedInLoop": false,
+      "sec": 12
+    },
+    {
+      "instance_id": "icloud-photos-downloader__icloud_photos_downloader-1060",
+      "repo": "icloud-photos-downloader/icloud_photos_downloader",
+      "tier": "T1",
+      "resolved": false,
+      "steps": 9,
+      "submitted": true,
+      "resolvedInLoop": false,
+      "sec": 30
+    },
+    {
+      "instance_id": "Toloka__crowd-kit-128",
+      "repo": "Toloka/crowd-kit",
+      "tier": "T1",
+      "resolved": false,
+      "steps": 20,
+      "submitted": false,
+      "resolvedInLoop": false,
+      "sec": 59
+    },
+    {
+      "instance_id": "All-Hands-AI__openhands-aci-55",
+      "repo": "All-Hands-AI/openhands-aci",
+      "tier": "T1",
+      "resolved": false,
+      "steps": 20,
+      "submitted": false,
+      "resolvedInLoop": false,
+      "sec": 50
+    },
+    {
+      "instance_id": "vyperlang__vyper-4462",
+      "repo": "vyperlang/vyper",
+      "tier": "T1",
+      "resolved": false,
+      "steps": 20,
+      "submitted": false,
+      "resolvedInLoop": false,
+      "sec": 95
+    },
+    {
+      "instance_id": "scipp__plopp-435",
+      "repo": "scipp/plopp",
+      "tier": "T1",
+      "resolved": false,
+      "steps": 20,
+      "submitted": false,
+      "resolvedInLoop": false,
+      "sec": 46
+    },
+    {
+      "instance_id": "scitokens__scitokens-202",
+      "repo": "scitokens/scitokens",
+      "tier": "T1",
+      "resolved": false,
+      "steps": 20,
+      "submitted": false,
+      "resolvedInLoop": false,
+      "sec": 70
+    },
+    {
+      "instance_id": "dag-hammarskjold-library__dlx-534",
+      "repo": "dag-hammarskjold-library/dlx",
+      "tier": "T1",
+      "resolved": false,
+      "steps": 15,
+      "submitted": true,
+      "resolvedInLoop": false,
+      "sec": 28
+    },
+    {
+      "instance_id": "Blaizzy__mlx-vlm-179",
+      "repo": "Blaizzy/mlx-vlm",
+      "tier": "T1",
+      "resolved": false,
+      "steps": 20,
+      "submitted": false,
+      "resolvedInLoop": false,
+      "sec": 81
+    },
+    {
+      "instance_id": "pasteurlabs__tesseract-core-67",
+      "repo": "pasteurlabs/tesseract-core",
+      "tier": "T1",
+      "resolved": false,
+      "steps": 20,
+      "submitted": false,
+      "resolvedInLoop": false,
+      "sec": 55
+    },
+    {
+      "instance_id": "GoogleCloudPlatform__cloud-sql-python-connector-1221",
+      "repo": "GoogleCloudPlatform/cloud-sql-python-connector",
+      "tier": "T1",
+      "resolved": false,
+      "steps": 20,
+      "submitted": false,
+      "resolvedInLoop": false,
+      "sec": 342
+    },
+    {
+      "instance_id": "marshmallow-code__marshmallow-sqlalchemy-640",
+      "repo": "marshmallow-code/marshmallow-sqlalchemy",
+      "tier": "T1",
+      "resolved": false,
+      "steps": 20,
+      "submitted": false,
+      "resolvedInLoop": false,
+      "sec": 148
+    },
+    {
+      "instance_id": "twisted__towncrier-687",
+      "repo": "twisted/towncrier",
+      "tier": "T1",
+      "resolved": false,
+      "steps": 20,
+      "submitted": false,
+      "resolvedInLoop": false,
+      "sec": 78
+    },
+    {
+      "instance_id": "beeware__briefcase-2114",
+      "repo": "beeware/briefcase",
+      "tier": "T1",
+      "resolved": false,
+      "steps": 20,
+      "submitted": false,
+      "resolvedInLoop": false,
+      "sec": 44
+    },
+    {
+      "instance_id": "run-llama__llama_deploy-438",
+      "repo": "run-llama/llama_deploy",
+      "tier": "T1",
+      "resolved": false,
+      "steps": 20,
+      "submitted": false,
+      "resolvedInLoop": false,
+      "sec": 366
+    },
+    {
+      "instance_id": "sphinx-doc__sphinx-13261",
+      "repo": "sphinx-doc/sphinx",
+      "tier": "T1",
+      "resolved": false,
+      "steps": 20,
+      "submitted": false,
+      "resolvedInLoop": false,
+      "sec": 199
+    },
+    {
+      "instance_id": "pgmpy__pgmpy-1906",
+      "repo": "pgmpy/pgmpy",
+      "tier": "T1",
+      "resolved": false,
+      "steps": 20,
+      "submitted": false,
+      "resolvedInLoop": false,
+      "sec": 123
+    },
+    {
+      "instance_id": "sympy__sympy-27559",
+      "repo": "sympy/sympy",
+      "tier": "T1",
+      "resolved": false,
+      "steps": 20,
+      "submitted": false,
+      "resolvedInLoop": false,
+      "sec": 250
+    },
+    {
+      "instance_id": "google__flax-4705",
+      "repo": "google/flax",
+      "tier": "T1",
+      "resolved": false,
+      "steps": 20,
+      "submitted": false,
+      "resolvedInLoop": false,
+      "sec": 82
+    },
+    {
+      "instance_id": "mesonbuild__meson-14291",
+      "repo": "mesonbuild/meson",
+      "tier": "T1",
+      "resolved": false,
+      "steps": 20,
+      "submitted": false,
+      "resolvedInLoop": false,
+      "sec": 57
+    },
+    {
+      "instance_id": "asottile__dead-204",
+      "repo": "asottile/dead",
+      "tier": "T1",
+      "resolved": false,
+      "steps": 20,
+      "submitted": false,
+      "resolvedInLoop": false,
+      "sec": 245
+    },
+    {
+      "instance_id": "googleapis__python-pubsub-1318",
+      "repo": "googleapis/python-pubsub",
+      "tier": "T1",
+      "resolved": false,
+      "steps": 20,
+      "submitted": false,
+      "resolvedInLoop": false,
+      "sec": 304
+    },
+    {
+      "instance_id": "oemof__tespy-653",
+      "repo": "oemof/tespy",
+      "tier": "T1",
+      "resolved": false,
+      "steps": 20,
+      "submitted": false,
+      "resolvedInLoop": false,
+      "sec": 185
+    },
+    {
+      "instance_id": "oemof__oemof-solph-1180",
+      "repo": "oemof/oemof-solph",
+      "tier": "T1",
+      "resolved": false,
+      "steps": 20,
+      "submitted": false,
+      "resolvedInLoop": false,
+      "sec": 52
+    },
+    {
+      "instance_id": "discos__srt-single-dish-tools-268",
+      "repo": "discos/srt-single-dish-tools",
+      "tier": "T1",
+      "resolved": false,
+      "steps": 19,
+      "submitted": true,
+      "resolvedInLoop": false,
+      "sec": 95
+    },
+    {
+      "instance_id": "pyvista__pyvista-7258",
+      "repo": "pyvista/pyvista",
+      "tier": "T1",
+      "resolved": false,
+      "steps": 20,
+      "submitted": false,
+      "resolvedInLoop": false,
+      "sec": 199
+    },
+    {
+      "instance_id": "MatterMiners__tardis-361",
+      "repo": "MatterMiners/tardis",
+      "tier": "T1",
+      "resolved": false,
+      "steps": 20,
+      "submitted": false,
+      "resolvedInLoop": false,
+      "sec": 277
+    },
+    {
+      "instance_id": "omni-us__jsonargparse-667",
+      "repo": "omni-us/jsonargparse",
+      "tier": "T1",
+      "resolved": false,
+      "steps": 20,
+      "submitted": false,
+      "resolvedInLoop": false,
+      "sec": 342
+    }
+  ]
+}

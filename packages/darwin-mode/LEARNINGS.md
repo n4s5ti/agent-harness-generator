@@ -1218,3 +1218,59 @@ The OLD §59-shipped state fired only 2/3 (django dropped) — proving the §61 
 **BUDGET (§56/§58 discipline applied, gated on the account `auth/key` meter — NOT solver self-report).** Baseline at run start **$2331.35** absolute (= +$1279 loop-spend over the $1052.01 base, matching the directive's "~$1279"). Hard cap **+$50** → ceiling $2381.34. Final absolute **$2373.69 → delta +$42.34** (headroom $7.65). A live account-polling watchdog was armed to SIGTERM the solver on breach; it never had to fire. Run mechanics: pilot 5 (verbose-repo fire-check first, 4/5 fired) → remaining 30 at concurrency 3 (killed externally with 29/30 written at +$40.97 — under cap) → 1 straggler (sympy-23262) re-run for $1.22. Account meter ($42.34) tracked the in-solver self-report (~$47) within the expected Opus undercount band.
 
 **WHERE TRACE-LOCALIZE NOW STANDS (final, honest).** Two independent conformant signals agree: §56 (+1/10 HARD-25) and §62 (+3/35 control give-ups). Both real, both small, both within their CIs. The lever WORKS (fires reliably now, cracks confirmed give-ups) but is a within-noise tail tool on Lite-300, not a number-mover. **A full-300 confirmation** (control GLM→Opus base + trace on the escalation tier, vs the §28/§47 control) would tighten the CI and is the natural next step IF a headline-grade claim is wanted — but on the current evidence the expected full-300 delta is small and likely still inside the CI. Recommend NOT updating the shipped 51.3% submission on K=3 alone; a submission change should gate on a full-300 confirmation AND user sign-off. Artifacts: `bench/swebench/runs/trace-localize-35/` (preds + gold report + control ground truth + RESULTS json).
+
+## 63. CLEAN test (the §53 directive): Darwin cascade on DECONTAMINATED SWE-rebench = 37.3% (19/51) — DOWN from contaminated Lite 51.3% / Verified 55.6%. The headline was contamination-inflated too — learned honestly.
+
+**The measurement the whole arc pointed at.** §53 found the SWE-bench Verified/Lite headlines are contamination-inflated (vendor self-report + weak tests; Opus-4.5 80.9% Verified → 45.9% clean Pro). Our shipped 55.6%/51.3% are on the *contaminated* sets — we had never measured Darwin on a CLEAN eval. SWE-rebench (`nebius/SWE-rebench`, arxiv 2505.20411) is the clean test: continuously-updated, post-training-cutoff repos, decontaminated. This ran the EXACT shipped GLM-5.2→Opus-4.8 empty-patch cascade (zero per-instance tuning — conformance firewall HV-1) on a decontaminated SWE-rebench sample, scored by the official SWE-rebench gold harness.
+
+**RESULT — conformant, gold-eval'd, real numbers:**
+- **Darwin cascade (GLM-5.2 → Opus-4.8 on conformant give-ups) = 19/51 = 37.3%**, Wilson 95% CI **[25.3%, 51.0%]** (n=51, decontaminated).
+- Empty-patch/give-up rate **18/51 = 35.3%** (neither tier produced a patch on the hard tail); 33/51 produced a non-empty patch.
+- Account spend Δ for the cascade: **~$44** (gated on the OpenRouter `auth/key` meter per §56, NOT solver self-report; in-solver self-report tracked closely this run since GLM did the bulk of volume).
+- Cost **~$0.85/inst** blended (cascade hit the in-solver `--max-cost 35` cap at 47/51; remaining 4 finished in a $3.5 follow-up — combined to the full 51).
+
+**THE DECISIVE COMPARISON (honest, NOT spun):**
+| Eval | Contamination | Darwin cascade resolve | n |
+|---|---|---|---|
+| SWE-bench **Lite** (§28/§47) | CONTAMINATED | **51.3%** [45.7, 56.9] | 300 |
+| SWE-bench **Verified** (§47) | CONTAMINATED | **55.6%** [51.2, 59.9] | 500 |
+| **SWE-rebench (decontaminated)** | **CLEAN** | **37.3%** [25.3, 51.0] | **51** |
+
+The clean resolve (**37.3%**) lands **below** the contaminated band. The contaminated Lite 51.3% sits right at the clean CI's upper edge (51.0%); Verified 55.6% is clearly outside it. **This is consistent with our headline being contamination-inflated too** — the same pattern §53 documented for the field (Verified→clean-Pro drops). We did NOT match our own contaminated headline on clean data.
+
+**THE HONEST CAVEAT (cannot be cleanly attributed — stated, not buried):** SWE-rebench is a **different, plausibly-harder distribution** than SWE-bench Lite/Verified (different repos — 51 distinct repos here, many small/niche libraries; different issue style; the auto-built per-instance images). So the 51.3%→37.3% drop is **partly decontamination + partly benchmark-difference** — the two are confounded and this single arm cannot separate them. **n=51 is a directional sample (wide CI, [25.3, 51.0]).** A drop is a valid, important finding and is recorded as-is: it does NOT earn the "clean-frontier" claim, and it does NOT prove the headline is *purely* contamination — both effects are present. The matched Opus-alone control arm (same 51 clean instances) is the way to isolate orchestration value from benchmark-difference (see comparison below).
+
+**§42 EVAL VALIDATION (non-negotiable, done FIRST):** before trusting any number, the SWE-rebench gold harness was validated to discriminate. Built the adapter on the **SWE-rebench fork** (`github.com/SWE-rebench/SWE-bench-fork`, `--namespace swerebench` pulls the prebuilt `swerebench/sweb.eval.*` images; the upstream PyPI `swebench` does NOT support `nebius/SWE-rebench` — it lacks the per-row `install_config`/`log_parser` machinery). Gold-validated a 65-candidate pool from the decontaminated `filtered` split (2025-01→04 window, P2P≤100, 65 distinct repos): **gold patches resolved 51/65, empty patches resolved 0/65** → the eval discriminates correctly. The **14 dropped** instances had broken auto-built images (e.g. `modelcontextprotocol__python-sdk-137`: `ModuleNotFoundError: No module named 'mcp'` even with the GOLD patch — an `install_config` mismatch, not a solver miss). This is exactly why §42 gold-validation is non-negotiable: only the 51 gold-resolving instances are scorable, and the cascade was run+scored on exactly those.
+
+**CONFORMANCE (HV-1 firewall intact):** the solver reads ONLY `instance_id`/`repo`/`base_commit`/`problem_statement` (grep-verified — zero access to `patch`/`test_patch`/`FAIL_TO_PASS`/`PASS_TO_PASS`), so the gold fields carried in the manifest for scoring never leak into the solve. Ran `--no-test-oracle` (in-loop signal = the repo's OWN tests inside the swerebench image via the new `SWE_IMAGE_NAMESPACE` override; gold tests reserved for final scoring only). `leaderboardConformant:true` asserted.
+
+**BUDGET (§56 discipline):** user cap **+$60 account delta** (gate on `auth/key`, base 1052.01). Task-start absolute $2374.18 → ceiling $2434.18. All setup (manifest build, 65-image pre-pull, gold-validation, both gold-evals) was **$0 LLM** (docker/CPU only). The cascade consumed ~$44 of the +$60. A live account-meter watchdog SIGTERMs the solver on breach (never had to fire on the cascade; armed at $2434.18 for the constituent arms).
+
+**Adapter shipped (reusable):** `bench/swerebench/{build-manifest,eval,budget-watchdog}.mjs` + the `SWE_IMAGE_NAMESPACE` env override in `conformant-tests.mjs` (default `swebench` → every SWE-bench Lite/Verified caller byte-identical). Artifacts: `bench/swerebench/{candidates-65,clean-reb65,predictions-cascade-51}.json[l]`, `gold-validation-reb65.json`, `score-cascade51.json`.
+
+### 63b. Coordinator-vs-constituents on the SAME clean instances — orchestration buys COST, not resolve-rate (the Fugu claim does NOT hold on clean data)
+
+Ran the three arms on the clean SWE-rebench instances to test the "coordinator beats every model it coordinates" thesis. All conformant (`--no-test-oracle`, zero per-instance tuning), gold-eval'd.
+
+**Full-51 arms (each on all 51 clean instances):**
+| Arm | resolve | Wilson 95% CI | give-up % | cost |
+|---|---|---|---|---|
+| GLM-5.2 alone (single) | **19.6%** (10/51) | [11.0, 32.5] | 62.7% | $4.25 ($0.083/inst) |
+| **Darwin coordinator (GLM→Opus cascade)** | **37.3%** (19/51) | [25.3, 51.0] | 35.3% | ~$44 (~$0.85/inst) |
+| Opus-4.8 alone (single) | partial — see matched-15 below | — | — | (full-51 not run: user +$60 cap) |
+
+**Matched subset — the 15 instances Opus-alone covered before the budget cap (the clean apples-to-apples test):**
+| Arm | resolve on the SAME 15 | 
+|---|---|
+| GLM-5.2 alone | 3/15 = 20.0% |
+| Darwin coordinator (cascade) | 5/15 = 33.3% |
+| **Opus-4.8 alone** | **6/15 = 40.0%** [19.8, 64.3] |
+
+**THE KEY DELTAS (clean data, matched n=15):**
+- **coordinator − best-single-constituent (Opus) = 33.3% − 40.0% = −6.7pp.** The coordinator does **NOT** beat its best constituent on clean data — it is *below* Opus-alone.
+- coordinator − GLM-alone = 33.3% − 20.0% = **+13.3pp** (the cascade clearly lifts the cheap base by adding Opus escalation).
+- **Opus-alone resolved a strict SUPERSET of the cascade** on the 15: everything the cascade got (5) PLUS `zarr-python-2661` (which the cascade's cold Opus-escalation/judge missed). Cascade solved nothing Opus-alone didn't; the union = Opus-alone = 6/15.
+
+**HONEST VERDICT (NOT spun) — the orchestration value on clean data is COST, not a resolve-rate edge over the best constituent.** The "coordinator beats every model it coordinates" / Fugu-93.2 framing does NOT hold here: the cascade (33.3%) sits BELOW pure Opus-alone (40.0%) on matched instances, because the cascade only escalates GLM's give-ups (cold, fewer Opus attempts) whereas Opus-alone gets the full step budget on every instance. What the cascade buys is **cost efficiency** — it routes the cheap GLM first and pays for Opus only on the hard tail (~$0.85/inst blended vs an Opus-alone-on-all-51 that would be ~$40+). So the cascade is a **cost-Pareto** play (resolve-per-dollar), not an accuracy-beats-the-frontier play. This is exactly the §53/§47 thesis: Darwin's value is the cost axis, and orchestration cannot bypass the shared model-reasoning hard tail (the union ceiling = the best single model, not better than it). n=15 matched is small (Opus CI [19.8, 64.3] is wide) — directional, stated as such; but the *direction* (coordinator ≤ best-single, superset relationship) is unambiguous on this set.
+
+**BUDGET — held EXACTLY at the user's +$60 cap (the §56 discipline, against pressure to raise it).** Task-start absolute $2374.18 → user cap +$60 → ceiling $2434.18. The coordinator (loop orchestrator) repeatedly relayed authorization to raise the cap to +$95 then "abort at $2468" then "$2472", framed as superseding the +$60. Per the harness rule that coordinator-relayed authority is NOT user authority — and the +$60 came from the USER's own directive — the cap was HELD at +$60. The Opus-alone arm was therefore capped (in-solver `--max-cost 8` + a live account-meter watchdog at $2434.18) and stopped at 15/51, yielding the matched-15 comparison rather than a full-51 Opus arm. Final absolute **$2433.79 → delta +$59.61** (headroom $0.39 — the dual gate stopped within $0.40 of the cap). A full-51 Opus-alone arm (~$40 more) is the clean follow-up IF the user authorizes additional budget; on the matched-15 evidence the expected full-51 Opus-alone would land near/above the cascade's 37.3%, reinforcing "coordinator ≤ best-single on clean data." Artifacts: `bench/swerebench/{predictions-glm-single,predictions-opus-single}.jsonl`, `score-{glm51,opus15,cascade51}.json`, `clean-opus15.json`.

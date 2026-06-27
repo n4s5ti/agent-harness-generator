@@ -1,0 +1,79 @@
+{
+  "model": "z-ai/glm-5.2",
+  "escalateModel": "anthropic/claude-opus-4.8",
+  "cascade": true,
+  "maxSteps": 20,
+  "n": 4,
+  "resolvedInLoop": 0,
+  "escalated": 4,
+  "byTier": {
+    "judge": 4
+  },
+  "noTestOracle": true,
+  "leaderboardConformant": true,
+  "phase2": {
+    "localize": false,
+    "gnnRerank": false,
+    "reproGate": false,
+    "reviewer": false,
+    "traceLocalize": false
+  },
+  "cappedAtInstance": null,
+  "maxCost": 8,
+  "totalCost_usd": 3.5414,
+  "blendedCostPerInst_usd": 0.88534,
+  "instances": [
+    {
+      "instance_id": "discos__srt-single-dish-tools-268",
+      "repo": "discos/srt-single-dish-tools",
+      "tier": "judge",
+      "resolved": false,
+      "steps": 7,
+      "submitted": true,
+      "resolvedInLoop": false,
+      "escalated": true,
+      "steps2": 9,
+      "resolvedInLoop2": false,
+      "sec": 161
+    },
+    {
+      "instance_id": "oemof__oemof-solph-1180",
+      "repo": "oemof/oemof-solph",
+      "tier": "judge",
+      "resolved": false,
+      "steps": 20,
+      "submitted": false,
+      "resolvedInLoop": false,
+      "escalated": true,
+      "steps2": 20,
+      "resolvedInLoop2": false,
+      "sec": 230
+    },
+    {
+      "instance_id": "MatterMiners__tardis-361",
+      "repo": "MatterMiners/tardis",
+      "tier": "judge",
+      "resolved": false,
+      "steps": 20,
+      "submitted": false,
+      "resolvedInLoop": false,
+      "escalated": true,
+      "steps2": 20,
+      "resolvedInLoop2": false,
+      "sec": 322
+    },
+    {
+      "instance_id": "pyvista__pyvista-7258",
+      "repo": "pyvista/pyvista",
+      "tier": "judge",
+      "resolved": false,
+      "steps": 20,
+      "submitted": false,
+      "resolvedInLoop": false,
+      "escalated": true,
+      "steps2": 20,
+      "resolvedInLoop2": false,
+      "sec": 386
+    }
+  ]
+}
