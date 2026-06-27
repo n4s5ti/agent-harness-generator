@@ -14,7 +14,7 @@
 
 import { readFileSync, writeFileSync, existsSync } from 'node:fs';
 import { resolve } from 'node:path';
-import type { AttackFamily, ModelClient, RedBlueConfig, TestCase } from '../types.js';
+import type { AttackFamily, ModelClient, RedBlueConfig } from '../types.js';
 import { loadConfigFromString, defaultConfig, ALL_FAMILIES } from '../config/loader.js';
 import { OpenRouterClient, hasApiKey } from '../models/openrouter.js';
 import { mockMarkerJudge } from '../judges/mock-judge.js';
@@ -23,7 +23,12 @@ import { exampleAgentTarget } from '../mock-target.js';
 import { HttpTargetDriver } from '../attacks/sandbox.js';
 import { runBaseline, patchAndRetest } from '../runner.js';
 import { buildReport, renderMarkdown } from '../reports/report.js';
-import type { TargetDriver } from '../types.js';
+import {
+  toHackerOneReports,
+  renderHackerOneMarkdown,
+} from '../reports/hackerone.js';
+import { HackerOneClient, hasHackerOneKey } from '../integrations/hackerone.js';
+import type { TargetDriver, TestCase, TestResult } from '../types.js';
 
 export interface CliResult {
   code: number;
@@ -156,7 +161,10 @@ async function cmdAttack(argv: string[]): Promise<CliResult> {
 async function runEngagement(
   cfg: RedBlueConfig,
   opts: { doPatch: boolean; mockJudge: boolean; numTests?: number },
-): Promise<{ json: any; md: string } | { error: string[]; code: number }> {
+): Promise<
+  | { json: any; md: string; cases: TestCase[]; results: TestResult[] }
+  | { error: string[]; code: number }
+> {
   const target = makeTarget(cfg);
   const judge = makeJudgeClient(opts.mockJudge);
   if ('error' in judge) return judge;
@@ -188,7 +196,12 @@ async function runEngagement(
     costUsd: totalCost,
     patchReductionRate,
   });
-  return { json: report, md: renderMarkdown(report) };
+  return {
+    json: report,
+    md: renderMarkdown(report),
+    cases: baseline.cases,
+    results: resultsForReport,
+  };
 }
 
 /** --mock-judge selects the $0 TEST-ONLY marker fixture (not the product judge). */
@@ -207,8 +220,26 @@ async function cmdRun(argv: string[]): Promise<CliResult> {
   }
   const result = await runEngagement(cfg, { doPatch, mockJudge, numTests });
   if ('error' in result) return { code: result.code, lines: [...lines, ...result.error] };
-  const { json, md } = result;
+  const { json, md, cases, results } = result;
   const outJson = arg('--out', argv);
+
+  // `--format hackerone` emits bounty-report DRAFTS (never auto-submitted).
+  if (arg('--format', argv) === 'hackerone') {
+    const drafts = toHackerOneReports(results, cases);
+    if (outJson) writeFileSync(outJson, JSON.stringify({ draft: true, reports: drafts }, null, 2));
+    lines.push('# HackerOne report DRAFTS (NOT submitted — review before any manual submission)\n');
+    if (drafts.length === 0) {
+      lines.push('_No compromised findings — nothing to draft._');
+    } else {
+      for (const d of drafts) {
+        lines.push(renderHackerOneMarkdown(d));
+        lines.push('\n---\n');
+      }
+      lines.push('\n```json\n' + JSON.stringify({ draft: true, reports: drafts }, null, 2) + '\n```');
+    }
+    return { code: 0, lines };
+  }
+
   if (outJson) writeFileSync(outJson, JSON.stringify(json, null, 2));
   lines.push(md);
   lines.push('\n```json\n' + JSON.stringify(json, null, 2) + '\n```');
@@ -238,6 +269,59 @@ async function cmdReport(argv: string[]): Promise<CliResult> {
   return { code: 0, lines: [renderMarkdown(json)] };
 }
 
+/**
+ * `redblue hackerone <weaknesses|submit>`.
+ *
+ * `weaknesses` is READ-ONLY: lists the CWE taxonomy from the live API if a key
+ * is present, else the built-in static fallback (offline/CI safe, $0).
+ *
+ * `submit` is HARD-GATED and DEFAULT-OFF: it requires --submit --program <h>
+ * --confirm AND is intentionally not implemented as a live POST in this build.
+ * Submitting to a live bounty program is an outward action the user triggers
+ * deliberately; this CLI only ever produces drafts.
+ */
+async function cmdHackerOne(argv: string[]): Promise<CliResult> {
+  const action = argv[0] ?? 'weaknesses';
+  if (action === 'weaknesses') {
+    const client = new HackerOneClient();
+    const live = client.isLive();
+    const weaknesses = await client.weaknesses();
+    const lines = [
+      `# HackerOne weakness taxonomy (CWE) — source: ${live ? 'live API (read-only)' : 'static fallback (no key)'}`,
+      '',
+    ];
+    for (const w of weaknesses) {
+      lines.push(`- ${w.externalId ?? w.id} — ${w.name}`);
+    }
+    if (!live) {
+      lines.push('');
+      lines.push(
+        '_No HACKERONE_API_KEY in env — showing the built-in static CWE map. ' +
+          'Set HACKERONE_API_KEY (+ HACKERONE_USERNAME, default ruvnet) at runtime for the live taxonomy._',
+      );
+    }
+    return { code: 0, lines };
+  }
+  if (action === 'submit') {
+    // HARD GATE — never a default action, and not implemented as a live POST.
+    const confirmed =
+      argv.includes('--submit') && !!arg('--program', argv) && argv.includes('--confirm');
+    return {
+      code: confirmed ? 0 : 2,
+      lines: [
+        'redblue hackerone submit: live submission is DISABLED by design.',
+        'This tool produces DRAFTS only (redblue run --format hackerone). It will',
+        'never auto-submit a report to a live bounty program. Review the draft and',
+        'submit it manually through HackerOne if appropriate.',
+        ...(confirmed
+          ? ['(--submit --program --confirm acknowledged, but live submit is intentionally a no-op.)']
+          : []),
+      ],
+    };
+  }
+  return { code: 1, lines: ['redblue hackerone <weaknesses|submit>'] };
+}
+
 function usage(): CliResult {
   return {
     code: 0,
@@ -246,11 +330,19 @@ function usage(): CliResult {
 
 Usage:
   redblue init   [--out redblue.yaml]
-  redblue run    [--config redblue.yaml] [--tests N] [--patch] [--mock-judge] [--out report.json]
+  redblue run    [--config redblue.yaml] [--tests N] [--patch] [--mock-judge]
+                 [--format hackerone] [--out report.json]
   redblue attack <prompt|tools|data|all> [--count N]
   redblue patch  [--config redblue.yaml] [--mock-judge]   # baseline -> patch -> retest delta
   redblue retest [--config redblue.yaml] [--mock-judge]
   redblue report --in report.json
+  redblue hackerone weaknesses          # read-only CWE taxonomy (live API or static fallback)
+  redblue hackerone submit ...          # DISABLED — drafts only, never auto-submits
+
+HackerOne: --format hackerone exports bounty-report DRAFTS (CWE + CVSS, redacted
+evidence). Auth is HTTP Basic from HACKERONE_API_KEY/HACKERONE_USERNAME read at
+runtime; with no key, the static CWE fallback keeps it offline/$0. The tool NEVER
+auto-submits to a live program.
 
 The REAL judge is a model and requires OPENROUTER_API_KEY (the default/product
 path). --mock-judge selects a $0 TEST-ONLY marker fixture — NOT the product judge.
@@ -282,6 +374,8 @@ export async function dispatch(sub: string | undefined, args: string[]): Promise
       return cmdPatchRetest(args, 'retest');
     case 'report':
       return cmdReport(args);
+    case 'hackerone':
+      return cmdHackerOne(args);
     case undefined:
     case 'help':
     case '--help':

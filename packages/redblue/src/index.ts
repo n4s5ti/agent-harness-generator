@@ -63,6 +63,36 @@ export type { RunOptions, BaselineRun, PatchRetestResult } from './runner.js';
 // Reports
 export { buildReport, renderMarkdown } from './reports/report.js';
 
+// HackerOne integration: CWE + CVSS mapping, read-only client, draft export.
+export {
+  FAMILY_TAXONOMY,
+  cvssForBand,
+  taxonomyForFamily,
+  primaryCwe,
+} from './integrations/cwe-cvss.js';
+export type { CweRef, FamilyTaxonomy, CvssBand } from './integrations/cwe-cvss.js';
+export {
+  HackerOneClient,
+  hasHackerOneKey,
+  resolveCredentials,
+  staticWeaknessFallback,
+} from './integrations/hackerone.js';
+export type {
+  HackerOneWeakness,
+  HackerOneCredentials,
+  HackerOneClientOptions,
+  FetchLike,
+} from './integrations/hackerone.js';
+export {
+  toHackerOneReport,
+  toHackerOneReports,
+  renderHackerOneMarkdown,
+} from './reports/hackerone.js';
+export type {
+  HackerOneReportDraft,
+  ToHackerOneReportOptions,
+} from './reports/hackerone.js';
+
 // Example targets
 export {
   exampleAgentTarget,

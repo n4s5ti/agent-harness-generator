@@ -168,6 +168,82 @@ families: [direct_prompt_injection, tool_overreach, data_exfiltration_attempt, r
 | `role_confusion` | malicious_user | LLM02 Insecure Output Handling | MAP |
 | `cost_amplification` | malicious_user | LLM08 Excessive Agency (denial-of-wallet) | MANAGE |
 
+## HackerOne integration (CWE + CVSS, bounty-report drafts)
+
+redblue can speak the language a bug-bounty triager expects: **CWE** (MITRE
+weakness ids), **CVSS 3.1** (vector + base score), and a **bounty-report-ready
+draft** for HackerOne. This makes findings industry-standard and portable.
+
+### CWE / CVSS mapping per family
+
+Every attack family maps to a primary CWE (plus closely-related ones), its OWASP
+LLM anchor, and a representative CVSS 3.1 vector. The redblue 0–1 severity is
+mapped **honestly** onto CVSS bands (no inflation) and the raw redblue score is
+preserved in the draft.
+
+| Family | CWE | OWASP LLM | CVSS 3.1 vector (shape) |
+| --- | --- | --- | --- |
+| `direct_prompt_injection` | CWE-1427, CWE-77 | LLM01 Prompt Injection | `AV:N/AC:L/PR:N/UI:N/S:C/C:L/I:H/A:N` |
+| `tool_overreach` | CWE-250, CWE-862 | LLM06 Excessive Agency | `AV:N/AC:L/PR:L/UI:N/S:C/C:L/I:H/A:H` |
+| `data_exfiltration_attempt` | CWE-200, CWE-201 | LLM06 Sensitive Info Disclosure | `AV:N/AC:L/PR:L/UI:N/S:C/C:H/I:N/A:N` |
+| `role_confusion` | CWE-269, CWE-1427 | LLM01 / Insecure Output Handling | `AV:N/AC:L/PR:N/UI:N/S:C/C:L/I:H/A:N` |
+| `cost_amplification` | CWE-770, CWE-400 | LLM06 Excessive Agency (denial-of-wallet) | `AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:H` |
+
+Severity-band → CVSS mapping (conservative): `Info→None`, `Low→Low (3.1)`,
+`Med→Medium (5.3)`, `High→High (7.5)`, `Critical→Critical (9.1)`.
+
+### Draft export (never auto-submitted)
+
+```bash
+# Export every compromised finding as a HackerOne report DRAFT (markdown + JSON):
+redblue run --mock-judge --tests 5 --format hackerone --out drafts.json
+```
+
+Each draft carries the title, weakness/CWE, severity/CVSS vector, **redacted**
+evidence (reuses redblue's `redact()`), repro steps derived from the *safe*
+family taxonomy (never a working exploit), impact, and a recommended fix. Every
+draft is stamped `draft: true` and `submission.auto_submit: false`.
+
+Library API:
+
+```ts
+import { toHackerOneReport, renderHackerOneMarkdown } from '@metaharness/redblue';
+const draft = toHackerOneReport(finding, { testCase });   // draft-only
+const md = renderHackerOneMarkdown(draft);                // bounty-report body
+```
+
+### Read-only weakness taxonomy
+
+```bash
+redblue hackerone weaknesses   # lists the CWE taxonomy
+```
+
+With a key, this reads the live HackerOne weakness taxonomy (`GET /v1/weaknesses`,
+**read-only**). With **no key**, it returns a built-in static CWE map so
+offline/CI works deterministically at $0.
+
+### Auth (env vars, read at runtime)
+
+HackerOne auth is HTTP Basic `username:api_key`. Both are read **at runtime** from
+the environment (or a local, gitignored `.env`):
+
+| Var | Purpose | Default |
+| --- | --- | --- |
+| `HACKERONE_API_KEY` | API token (the Basic password) | — (no key → static fallback) |
+| `HACKERONE_USERNAME` | API identifier (the Basic user) | `ruvnet` |
+
+The key is **never** logged, printed, or written to any file. The live read-only
+path activates automatically when the key is present.
+
+### ⚠️ Safety: never auto-submits
+
+The HackerOne API is used **READ-ONLY** (weakness taxonomy). redblue **never
+auto-submits reports to live HackerOne programs.** `--format hackerone` produces
+a **draft/dry-run** only. `redblue hackerone submit` is **disabled by design** —
+even when fully flagged (`--submit --program <handle> --confirm`) it is a no-op
+that tells you to review and submit manually. Submitting to a live bounty program
+is an outward action you must trigger deliberately, outside this tool.
+
 ## Severity scoring
 
 ```
