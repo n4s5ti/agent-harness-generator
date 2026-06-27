@@ -1,23 +1,47 @@
 # @metaharness/weight-eft
 
-**Evolutionary fine-tuning** — the bridge from Darwin's gradient-FREE policy
-evolution (*freeze the model, evolve the harness*) to **gradient / weight**
-self-learning on the **open cheap tier**.
+> **Make cheap open-source LLMs solve more coding tasks on their own.** Fine-tune them (LoRA) on your AI agent's *past successful runs*, so your pipeline calls expensive frontier models (GPT, Claude) **less often** — and your cost-per-fix drops.
 
-## Thesis (honest, bounded)
+[![npm version](https://img.shields.io/npm/v/@metaharness/weight-eft.svg)](https://www.npmjs.com/package/@metaharness/weight-eft)
+[![license: MIT](https://img.shields.io/npm/l/@metaharness/weight-eft.svg)](./LICENSE)
+[![node](https://img.shields.io/node/v/@metaharness/weight-eft.svg)](https://nodejs.org)
 
-We attack the **cost-Pareto axis, not the frontier ceiling.**
+```bash
+npm i @metaharness/weight-eft
+```
 
-The metaharness cascade runs a cheap open model first (GLM / Qwen / DeepSeek)
-and **escalates to a frontier model** (Opus / GPT) only on the hard tail. Each
-escalation costs ~$0.50. `weight-eft` **distills the harness's archival
-success into the cheap tier via LoRA** so the cheap model resolves more issues
-on its own → **the cascade escalates less often** → **$/resolved drops.**
+## What is this? (plain language)
 
-A 7-14B local-GPU tune **will not crack the hard tail** — that's a frontier
-reasoning ceiling (clean-eval ~37.3%, ADR-177 §53). The win is **fewer
-escalations**, and the telemetry stays honest about that. The eval metric is
-**escalation-rate-reduction + cost/resolved**, *not* hard-tail cracking.
+If you run an **AI coding agent**, you probably use a **model cascade**: a cheap
+model (GLM / Qwen / DeepSeek) tries first, and only the hard problems
+**escalate** to an expensive frontier model (GPT / Claude). Every escalation
+costs real money.
+
+**`weight-eft` makes the cheap model smarter** by fine-tuning it with **LoRA** on
+the trajectories your agent *already solved* — turning your run history into
+training data. The cheap model then resolves more issues by itself, so you
+**escalate less and pay less per solved task.**
+
+It's a self-improving loop: **your agent's wins become the next model's training set.**
+
+- **Input:** your agent's run archive (successful + failed trajectories).
+- **Output:** portable LoRA training data — **SFT + DPO** in standard formats
+  (OpenAI chat JSONL / TRL / axolotl / unsloth) **+ a GPU training plan**.
+- **Goal:** lower **cost-per-resolved**, not a leaderboard score.
+
+## Why it exists (the honest, bounded thesis)
+
+We attack the **cost axis, not the capability ceiling.** A small (7-14B) local
+fine-tune **will not** out-reason a frontier model on the hardest problems —
+that's a model-capability ceiling (measured: clean-eval ~37.3%, ADR-198 / §53).
+The win is **fewer escalations** (lower cost), and the tooling keeps the
+telemetry honest about exactly that: the eval metric is
+**escalation-rate-reduction + cost/resolved**, *never* "we beat the frontier."
+
+Under the hood this is the gradient/weight counterpart to Darwin's gradient-free
+policy evolution (*freeze the model, evolve the harness*) — here we **also**
+evolve the cheap model's *weights*, on the open tier, from the harness's own
+archive.
 
 ## The data recipe (on/off-policy)
 
