@@ -309,8 +309,14 @@ async function buildTraceHint(inst, llmFn) {
         extraFiles: { [REPRO_PATH]: rp, [TRACE_PATH]: tracer }, timeoutMs: 300000,
         // ADR-196 fix: the tracer emits a JSON block that routinely exceeds the default 2500-char
         // tail; without a wider tail the TRACE_BEGIN sentinel is truncated and parseTrace silently
-        // returns ok:false (every trace seed becomes null → the lever is a no-op). 200 KB is ample.
-        tailBytes: 200_000,
+        // returns ok:false (every trace seed becomes null → the lever is a no-op).
+        // ADR-196 fix #3 (§61): 200 KB was NOT ample for django. `django.setup()` touches 300+ source
+        // files, so the tracer's `counts` map alone serializes to ~223 KB (measured on django-11099) —
+        // larger than the 200 KB byte-cap → TRACE_BEGIN is dropped by the BYTE-slice even after the §59
+        // line-cap fix preserves it. django is 114/300 of Lite-300 and dominates the escalated empties,
+        // so this silently killed the lever on >1/3 of the target set. Raised to 4 MB (django worst case
+        // is ~223 KB; 4 MB is comfortable headroom for any conceivable trace volume).
+        tailBytes: 4_000_000,
         // ADR-196 fix #2 (§59): ALSO widen the in-container `| tail -N` LINE cap. A chatty repro emits
         // many lines BEFORE the tracer sentinels; the default `tail -50` drops TRACE_BEGIN → null seed.
         // This was the silent 0/82 fire-rate on the full-300 escalated set (django/sympy/sphinx are
@@ -385,7 +391,12 @@ async function runInstance(inst) {
       patch = rv.patch; row.reviewed = true; row.reviewApproved = rv.approved; row.reviewRevisions = rv.revisions;
     }
   } catch (e) { row.error = String(e).split('\n')[0].slice(0, 200); }
-  appendFileSync(OUT, JSON.stringify({ instance_id: inst.instance_id, model_name_or_path: 'darwin-agentic', model_patch: patch }) + '\n');
+  // ADR-196 (§60): record the trace-localize fire-rate IN the preds themselves so a future re-run
+  // can audit fire-rate from the predictions file alone (no separate report needed). Only emitted
+  // when --trace-localize is on, so the preds stay byte-identical for every other caller/config.
+  const predRow = { instance_id: inst.instance_id, model_name_or_path: 'darwin-agentic', model_patch: patch };
+  if (TRACE_LOCALIZE) predRow.traceLocalized = !!row.traceLocalized;
+  appendFileSync(OUT, JSON.stringify(predRow) + '\n');
   row.sec = Math.round((Date.now() - t0) / 1000); report.push(row);
   console.error(`[${report.length}/${manifest.length}] ${inst.instance_id} tier=${row.tier} esc=${!!row.escalated} inloop=${row.resolvedInLoop}/${row.resolvedInLoop2 ?? '-'} ${row.sec}s ${row.error ? 'ERR:' + row.error : ''}`);
 }
