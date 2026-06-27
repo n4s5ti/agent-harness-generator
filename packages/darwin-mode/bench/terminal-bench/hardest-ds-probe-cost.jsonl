@@ -1,0 +1,6 @@
+{"task_id": "organization-json-generator", "model": "deepseek/deepseek-chat", "input_tokens": 26237, "output_tokens": 1742, "usd": 0.007547, "steps": 10, "failure_mode": "none", "ts": 1782519919}
+{"task_id": "blind-maze-explorer-5x5", "model": "deepseek/deepseek-chat", "input_tokens": 76507, "output_tokens": 2303, "usd": 0.022684, "steps": 25, "failure_mode": "none", "ts": 1782519961}
+{"task_id": "write-compressor", "model": "deepseek/deepseek-chat", "input_tokens": 37457, "output_tokens": 1832, "usd": 0.00962, "steps": 14, "failure_mode": "none", "ts": 1782519982}
+{"task_id": "path-tracing-reverse", "model": "deepseek/deepseek-chat", "input_tokens": 34239, "output_tokens": 2438, "usd": 0.010413, "steps": 13, "failure_mode": "none", "ts": 1782520087}
+{"task_id": "path-tracing", "model": "deepseek/deepseek-chat", "input_tokens": 11080, "output_tokens": 235, "usd": 0.002681, "steps": 5, "failure_mode": "none", "ts": 1782520147}
+{"task_id": "extract-moves-from-video", "model": "deepseek/deepseek-chat", "input_tokens": 116423, "output_tokens": 1569, "usd": 0.034649, "steps": 21, "failure_mode": "none", "ts": 1782520428}

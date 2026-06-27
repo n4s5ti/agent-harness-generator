@@ -1,0 +1,1002 @@
+{
+  "dataset": "terminal-bench-core",
+  "version": "0.1.1",
+  "dataset_path": "/home/ruvultra/.cache/terminal-bench/terminal-bench-core/0.1.1",
+  "n": 80,
+  "byDifficulty": {
+    "hard": 24,
+    "medium": 44,
+    "easy": 12
+  },
+  "generated": "2026-06-27T00:09:38.789Z",
+  "note": "tasks[] sorted HARDEST-FIRST (difficulty then reference-solution bytes). rank = hardest-first index.",
+  "tasks": [
+    {
+      "task_id": "write-compressor",
+      "difficulty": "hard",
+      "category": "software-engineering",
+      "tags": [
+        "coding"
+      ],
+      "solution_bytes": 24841,
+      "instruction_chars": 363,
+      "rank": 0
+    },
+    {
+      "task_id": "blind-maze-explorer-5x5",
+      "difficulty": "hard",
+      "category": "games",
+      "tags": [
+        "maze",
+        "exploration",
+        "mapping",
+        "algorithms"
+      ],
+      "solution_bytes": 13609,
+      "instruction_chars": 3495,
+      "rank": 1
+    },
+    {
+      "task_id": "path-tracing",
+      "difficulty": "hard",
+      "category": "software-engineering",
+      "tags": [
+        "images"
+      ],
+      "solution_bytes": 10670,
+      "instruction_chars": 571,
+      "rank": 2
+    },
+    {
+      "task_id": "path-tracing-reverse",
+      "difficulty": "hard",
+      "category": "software-engineering",
+      "tags": [
+        "images"
+      ],
+      "solution_bytes": 9913,
+      "instruction_chars": 389,
+      "rank": 3
+    },
+    {
+      "task_id": "extract-moves-from-video",
+      "difficulty": "hard",
+      "category": "file-operations",
+      "tags": [
+        "file-operations",
+        "web",
+        "video-processing"
+      ],
+      "solution_bytes": 7585,
+      "instruction_chars": 259,
+      "rank": 4
+    },
+    {
+      "task_id": "organization-json-generator",
+      "difficulty": "hard",
+      "category": "file-operations",
+      "tags": [
+        "file-operations"
+      ],
+      "solution_bytes": 5975,
+      "instruction_chars": 433,
+      "rank": 5
+    },
+    {
+      "task_id": "pytorch-model-cli",
+      "difficulty": "hard",
+      "category": "model-training",
+      "tags": [
+        "coding",
+        "C",
+        "pytorch"
+      ],
+      "solution_bytes": 5676,
+      "instruction_chars": 933,
+      "rank": 6
+    },
+    {
+      "task_id": "pytorch-model-cli.easy",
+      "difficulty": "hard",
+      "category": "model-training",
+      "tags": [
+        "coding",
+        "C",
+        "pytorch"
+      ],
+      "solution_bytes": 5676,
+      "instruction_chars": 1357,
+      "rank": 7
+    },
+    {
+      "task_id": "pytorch-model-cli.hard",
+      "difficulty": "hard",
+      "category": "model-training",
+      "tags": [
+        "coding",
+        "C",
+        "pytorch"
+      ],
+      "solution_bytes": 5676,
+      "instruction_chars": 530,
+      "rank": 8
+    },
+    {
+      "task_id": "run-pdp11-code",
+      "difficulty": "hard",
+      "category": "security",
+      "tags": [
+        "file-operations",
+        "forensics",
+        "system"
+      ],
+      "solution_bytes": 5459,
+      "instruction_chars": 174,
+      "rank": 9
+    },
+    {
+      "task_id": "cartpole-rl-training",
+      "difficulty": "hard",
+      "category": "model-training",
+      "tags": [
+        "pytorch",
+        "RL"
+      ],
+      "solution_bytes": 5020,
+      "instruction_chars": 1448,
+      "rank": 10
+    },
+    {
+      "task_id": "intrusion-detection",
+      "difficulty": "hard",
+      "category": "system-administration",
+      "tags": [
+        "file-operations",
+        "system"
+      ],
+      "solution_bytes": 4795,
+      "instruction_chars": 1494,
+      "rank": 11
+    },
+    {
+      "task_id": "gpt2-codegolf",
+      "difficulty": "hard",
+      "category": "software-engineering",
+      "tags": [],
+      "solution_bytes": 3432,
+      "instruction_chars": 442,
+      "rank": 12
+    },
+    {
+      "task_id": "password-recovery",
+      "difficulty": "hard",
+      "category": "security",
+      "tags": [
+        "system",
+        "file-operations",
+        "troubleshooting"
+      ],
+      "solution_bytes": 2695,
+      "instruction_chars": 641,
+      "rank": 13
+    },
+    {
+      "task_id": "configure-git-webserver",
+      "difficulty": "hard",
+      "category": "system-administration",
+      "tags": [
+        "system",
+        "version-control",
+        "web"
+      ],
+      "solution_bytes": 2354,
+      "instruction_chars": 346,
+      "rank": 14
+    },
+    {
+      "task_id": "super-benchmark-upet",
+      "difficulty": "hard",
+      "category": "model-training",
+      "tags": [
+        "super-benchmark"
+      ],
+      "solution_bytes": 1938,
+      "instruction_chars": 477,
+      "rank": 15
+    },
+    {
+      "task_id": "swe-bench-astropy-2",
+      "difficulty": "hard",
+      "category": "debugging",
+      "tags": [
+        "coding",
+        "swe-bench"
+      ],
+      "solution_bytes": 1521,
+      "instruction_chars": 1284,
+      "rank": 16
+    },
+    {
+      "task_id": "train-fasttext",
+      "difficulty": "hard",
+      "category": "model-training",
+      "tags": [
+        "data-processing",
+        "data-science"
+      ],
+      "solution_bytes": 1442,
+      "instruction_chars": 236,
+      "rank": 17
+    },
+    {
+      "task_id": "git-multibranch",
+      "difficulty": "hard",
+      "category": "system-administration",
+      "tags": [
+        "system",
+        "version-control",
+        "web"
+      ],
+      "solution_bytes": 1281,
+      "instruction_chars": 568,
+      "rank": 18
+    },
+    {
+      "task_id": "swe-bench-astropy-1",
+      "difficulty": "hard",
+      "category": "debugging",
+      "tags": [
+        "debugging",
+        "swe-bench"
+      ],
+      "solution_bytes": 1035,
+      "instruction_chars": 1139,
+      "rank": 19
+    },
+    {
+      "task_id": "oom",
+      "difficulty": "hard",
+      "category": "data-science",
+      "tags": [
+        "coding",
+        "data-processing",
+        "data-science"
+      ],
+      "solution_bytes": 756,
+      "instruction_chars": 141,
+      "rank": 20
+    },
+    {
+      "task_id": "prove-plus-comm",
+      "difficulty": "hard",
+      "category": "software-engineering",
+      "tags": [
+        "coding"
+      ],
+      "solution_bytes": 615,
+      "instruction_chars": 567,
+      "rank": 21
+    },
+    {
+      "task_id": "polyglot-rust-c",
+      "difficulty": "hard",
+      "category": "software-engineering",
+      "tags": [
+        "coding",
+        "no-verified-solution"
+      ],
+      "solution_bytes": 469,
+      "instruction_chars": 235,
+      "rank": 22
+    },
+    {
+      "task_id": "play-zork",
+      "difficulty": "hard",
+      "category": "games",
+      "tags": [
+        "games",
+        "long-context",
+        "interactive",
+        "shortcut-solution"
+      ],
+      "solution_bytes": 289,
+      "instruction_chars": 279,
+      "rank": 23
+    },
+    {
+      "task_id": "get-bitcoin-nodes",
+      "difficulty": "medium",
+      "category": "software-engineering",
+      "tags": [
+        "api",
+        "coding",
+        "data-processing"
+      ],
+      "solution_bytes": 10890,
+      "instruction_chars": 2317,
+      "rank": 24
+    },
+    {
+      "task_id": "blind-maze-explorer-algorithm",
+      "difficulty": "medium",
+      "category": "software-engineering",
+      "tags": [
+        "maze",
+        "coding",
+        "algorithms"
+      ],
+      "solution_bytes": 10066,
+      "instruction_chars": 3070,
+      "rank": 25
+    },
+    {
+      "task_id": "blind-maze-explorer-algorithm.easy",
+      "difficulty": "medium",
+      "category": "software-engineering",
+      "tags": [
+        "maze",
+        "coding",
+        "algorithms"
+      ],
+      "solution_bytes": 10066,
+      "instruction_chars": 4928,
+      "rank": 26
+    },
+    {
+      "task_id": "blind-maze-explorer-algorithm.hard",
+      "difficulty": "medium",
+      "category": "software-engineering",
+      "tags": [
+        "maze",
+        "coding",
+        "algorithms"
+      ],
+      "solution_bytes": 10066,
+      "instruction_chars": 2886,
+      "rank": 27
+    },
+    {
+      "task_id": "solana-data",
+      "difficulty": "medium",
+      "category": "software-engineering",
+      "tags": [
+        "api",
+        "coding",
+        "data-processing"
+      ],
+      "solution_bytes": 9175,
+      "instruction_chars": 3049,
+      "rank": 28
+    },
+    {
+      "task_id": "chess-best-move",
+      "difficulty": "medium",
+      "category": "games",
+      "tags": [],
+      "solution_bytes": 8131,
+      "instruction_chars": 258,
+      "rank": 29
+    },
+    {
+      "task_id": "sqlite-db-truncate",
+      "difficulty": "medium",
+      "category": "debugging",
+      "tags": [
+        "file-operations"
+      ],
+      "solution_bytes": 4235,
+      "instruction_chars": 258,
+      "rank": 30
+    },
+    {
+      "task_id": "reshard-c4-data",
+      "difficulty": "medium",
+      "category": "data-science",
+      "tags": [
+        "coding",
+        "data-processing",
+        "file-operations"
+      ],
+      "solution_bytes": 3734,
+      "instruction_chars": 544,
+      "rank": 31
+    },
+    {
+      "task_id": "jupyter-notebook-server",
+      "difficulty": "medium",
+      "category": "data-science",
+      "tags": [
+        "data-processing",
+        "security",
+        "system",
+        "web"
+      ],
+      "solution_bytes": 3566,
+      "instruction_chars": 873,
+      "rank": 32
+    },
+    {
+      "task_id": "simple-sheets-put",
+      "difficulty": "medium",
+      "category": "file-operations",
+      "tags": [
+        "api",
+        "data-processing"
+      ],
+      "solution_bytes": 3385,
+      "instruction_chars": 482,
+      "rank": 33
+    },
+    {
+      "task_id": "hf-model-inference",
+      "difficulty": "medium",
+      "category": "data-science",
+      "tags": [
+        "api",
+        "coding",
+        "data-processing",
+        "data-science"
+      ],
+      "solution_bytes": 3265,
+      "instruction_chars": 1172,
+      "rank": 34
+    },
+    {
+      "task_id": "openssl-selfsigned-cert",
+      "difficulty": "medium",
+      "category": "security",
+      "tags": [
+        "coding",
+        "file-operations",
+        "security",
+        "system"
+      ],
+      "solution_bytes": 3135,
+      "instruction_chars": 1366,
+      "rank": 35
+    },
+    {
+      "task_id": "qemu-alpine-ssh",
+      "difficulty": "medium",
+      "category": "system-administration",
+      "tags": [
+        "sys-admin"
+      ],
+      "solution_bytes": 3063,
+      "instruction_chars": 288,
+      "rank": 36
+    },
+    {
+      "task_id": "raman-fitting",
+      "difficulty": "medium",
+      "category": "scientific-computing",
+      "tags": [
+        "coding",
+        "fitting",
+        "analysis",
+        "physics"
+      ],
+      "solution_bytes": 2655,
+      "instruction_chars": 503,
+      "rank": 37
+    },
+    {
+      "task_id": "raman-fitting.easy",
+      "difficulty": "medium",
+      "category": "scientific-computing",
+      "tags": [
+        "coding",
+        "fitting",
+        "analysis",
+        "physics"
+      ],
+      "solution_bytes": 2655,
+      "instruction_chars": 827,
+      "rank": 38
+    },
+    {
+      "task_id": "decommissioning-service-with-sensitive-data",
+      "difficulty": "medium",
+      "category": "file-operations",
+      "tags": [
+        "coding",
+        "system",
+        "file-operations",
+        "encryption",
+        "shred",
+        "secure-deletion"
+      ],
+      "solution_bytes": 2044,
+      "instruction_chars": 1305,
+      "rank": 39
+    },
+    {
+      "task_id": "nginx-request-logging",
+      "difficulty": "medium",
+      "category": "system-administration",
+      "tags": [
+        "web-server"
+      ],
+      "solution_bytes": 1790,
+      "instruction_chars": 1059,
+      "rank": 40
+    },
+    {
+      "task_id": "tmux-advanced-workflow",
+      "difficulty": "medium",
+      "category": "debugging",
+      "tags": [
+        "data-processing",
+        "debugging",
+        "system"
+      ],
+      "solution_bytes": 1616,
+      "instruction_chars": 1367,
+      "rank": 41
+    },
+    {
+      "task_id": "fibonacci-server",
+      "difficulty": "medium",
+      "category": "software-engineering",
+      "tags": [
+        "coding",
+        "networking",
+        "web"
+      ],
+      "solution_bytes": 1466,
+      "instruction_chars": 358,
+      "rank": 42
+    },
+    {
+      "task_id": "heterogeneous-dates",
+      "difficulty": "medium",
+      "category": "file-operations",
+      "tags": [
+        "data-processing"
+      ],
+      "solution_bytes": 1438,
+      "instruction_chars": 347,
+      "rank": 43
+    },
+    {
+      "task_id": "sqlite-with-gcov",
+      "difficulty": "medium",
+      "category": "system-administration",
+      "tags": [
+        "software-installation",
+        "system"
+      ],
+      "solution_bytes": 1392,
+      "instruction_chars": 90,
+      "rank": 44
+    },
+    {
+      "task_id": "polyglot-c-py",
+      "difficulty": "medium",
+      "category": "software-engineering",
+      "tags": [
+        "coding"
+      ],
+      "solution_bytes": 1364,
+      "instruction_chars": 218,
+      "rank": 45
+    },
+    {
+      "task_id": "build-initramfs-qemu",
+      "difficulty": "medium",
+      "category": "system-administration",
+      "tags": [],
+      "solution_bytes": 1277,
+      "instruction_chars": 338,
+      "rank": 46
+    },
+    {
+      "task_id": "vim-terminal-task",
+      "difficulty": "medium",
+      "category": "software-engineering",
+      "tags": [
+        "coding",
+        "data-processing",
+        "file-operations"
+      ],
+      "solution_bytes": 1277,
+      "instruction_chars": 661,
+      "rank": 47
+    },
+    {
+      "task_id": "sanitize-git-repo",
+      "difficulty": "medium",
+      "category": "security",
+      "tags": [
+        "security",
+        "system",
+        "version-control"
+      ],
+      "solution_bytes": 1243,
+      "instruction_chars": 711,
+      "rank": 48
+    },
+    {
+      "task_id": "sanitize-git-repo.hard",
+      "difficulty": "medium",
+      "category": "security",
+      "tags": [
+        "security",
+        "system",
+        "version-control"
+      ],
+      "solution_bytes": 1243,
+      "instruction_chars": 538,
+      "rank": 49
+    },
+    {
+      "task_id": "qemu-startup",
+      "difficulty": "medium",
+      "category": "system-administration",
+      "tags": [
+        "sys-admin"
+      ],
+      "solution_bytes": 1078,
+      "instruction_chars": 290,
+      "rank": 50
+    },
+    {
+      "task_id": "swe-bench-fsspec",
+      "difficulty": "medium",
+      "category": "debugging",
+      "tags": [
+        "swe-bench",
+        "coding"
+      ],
+      "solution_bytes": 1054,
+      "instruction_chars": 3005,
+      "rank": 51
+    },
+    {
+      "task_id": "download-youtube",
+      "difficulty": "medium",
+      "category": "file-operations",
+      "tags": [
+        "file-operations",
+        "web"
+      ],
+      "solution_bytes": 1051,
+      "instruction_chars": 134,
+      "rank": 52
+    },
+    {
+      "task_id": "crack-7z-hash",
+      "difficulty": "medium",
+      "category": "security",
+      "tags": [
+        "decrypt",
+        "security",
+        "file-operations"
+      ],
+      "solution_bytes": 1049,
+      "instruction_chars": 324,
+      "rank": 53
+    },
+    {
+      "task_id": "crack-7z-hash.easy",
+      "difficulty": "medium",
+      "category": "security",
+      "tags": [
+        "decrypt",
+        "security",
+        "file-operations"
+      ],
+      "solution_bytes": 1049,
+      "instruction_chars": 654,
+      "rank": 54
+    },
+    {
+      "task_id": "crack-7z-hash.hard",
+      "difficulty": "medium",
+      "category": "security",
+      "tags": [
+        "decrypt",
+        "security",
+        "file-operations"
+      ],
+      "solution_bytes": 1049,
+      "instruction_chars": 182,
+      "rank": 55
+    },
+    {
+      "task_id": "swe-bench-langcodes",
+      "difficulty": "medium",
+      "category": "debugging",
+      "tags": [
+        "coding",
+        "swe-bench"
+      ],
+      "solution_bytes": 1003,
+      "instruction_chars": 1709,
+      "rank": 56
+    },
+    {
+      "task_id": "conda-env-conflict-resolution",
+      "difficulty": "medium",
+      "category": "debugging",
+      "tags": [
+        "data-science",
+        "debugging",
+        "package-management",
+        "system"
+      ],
+      "solution_bytes": 880,
+      "instruction_chars": 967,
+      "rank": 57
+    },
+    {
+      "task_id": "build-linux-kernel-qemu",
+      "difficulty": "medium",
+      "category": "system-administration",
+      "tags": [],
+      "solution_bytes": 854,
+      "instruction_chars": 479,
+      "rank": 58
+    },
+    {
+      "task_id": "eval-mteb",
+      "difficulty": "medium",
+      "category": "data-science",
+      "tags": [
+        "data-processing",
+        "data-science"
+      ],
+      "solution_bytes": 821,
+      "instruction_chars": 310,
+      "rank": 59
+    },
+    {
+      "task_id": "eval-mteb.hard",
+      "difficulty": "medium",
+      "category": "data-science",
+      "tags": [
+        "data-processing",
+        "data-science"
+      ],
+      "solution_bytes": 821,
+      "instruction_chars": 241,
+      "rank": 60
+    },
+    {
+      "task_id": "cron-broken-network",
+      "difficulty": "medium",
+      "category": "system-administration",
+      "tags": [
+        "sys-admin",
+        "networking",
+        "troubleshooting"
+      ],
+      "solution_bytes": 818,
+      "instruction_chars": 96,
+      "rank": 61
+    },
+    {
+      "task_id": "build-tcc-qemu",
+      "difficulty": "medium",
+      "category": "system-administration",
+      "tags": [],
+      "solution_bytes": 642,
+      "instruction_chars": 491,
+      "rank": 62
+    },
+    {
+      "task_id": "fix-git",
+      "difficulty": "medium",
+      "category": "software-engineering",
+      "tags": [
+        "coding",
+        "version-control"
+      ],
+      "solution_bytes": 611,
+      "instruction_chars": 157,
+      "rank": 63
+    },
+    {
+      "task_id": "fix-pandas-version",
+      "difficulty": "medium",
+      "category": "debugging",
+      "tags": [
+        "coding",
+        "data-processing",
+        "debugging"
+      ],
+      "solution_bytes": 543,
+      "instruction_chars": 339,
+      "rank": 64
+    },
+    {
+      "task_id": "new-encrypt-command",
+      "difficulty": "medium",
+      "category": "security",
+      "tags": [
+        "file-operations",
+        "security"
+      ],
+      "solution_bytes": 483,
+      "instruction_chars": 255,
+      "rank": 65
+    },
+    {
+      "task_id": "incompatible-python-fasttext",
+      "difficulty": "medium",
+      "category": "debugging",
+      "tags": [
+        "package-management",
+        "troubleshooting"
+      ],
+      "solution_bytes": 389,
+      "instruction_chars": 191,
+      "rank": 66
+    },
+    {
+      "task_id": "incompatible-python-fasttext.base_with_hint",
+      "difficulty": "medium",
+      "category": "debugging",
+      "tags": [
+        "package-management",
+        "troubleshooting"
+      ],
+      "solution_bytes": 389,
+      "instruction_chars": 324,
+      "rank": 67
+    },
+    {
+      "task_id": "simple-web-scraper",
+      "difficulty": "easy",
+      "category": "data-science",
+      "tags": [
+        "web-scraping",
+        "data-extraction"
+      ],
+      "solution_bytes": 2947,
+      "instruction_chars": 1275,
+      "rank": 68
+    },
+    {
+      "task_id": "modernize-fortran-build",
+      "difficulty": "easy",
+      "category": "software-engineering",
+      "tags": [
+        "compiler-migration,",
+        "build-automation,",
+        "fortran"
+      ],
+      "solution_bytes": 1737,
+      "instruction_chars": 534,
+      "rank": 69
+    },
+    {
+      "task_id": "grid-pattern-transform",
+      "difficulty": "easy",
+      "category": "software-engineering",
+      "tags": [
+        "python",
+        "coding",
+        "numpy",
+        "grid-manipulation",
+        "pattern-recognition"
+      ],
+      "solution_bytes": 1340,
+      "instruction_chars": 1142,
+      "rank": 70
+    },
+    {
+      "task_id": "processing-pipeline",
+      "difficulty": "easy",
+      "category": "system-administration",
+      "tags": [
+        "file-operations",
+        "system"
+      ],
+      "solution_bytes": 1063,
+      "instruction_chars": 292,
+      "rank": 71
+    },
+    {
+      "task_id": "count-dataset-tokens",
+      "difficulty": "easy",
+      "category": "model-training",
+      "tags": [
+        "machine-learning",
+        "data",
+        "datasets",
+        "tokenization",
+        "huggingface"
+      ],
+      "solution_bytes": 1012,
+      "instruction_chars": 371,
+      "rank": 72
+    },
+    {
+      "task_id": "security-vulhub-minio",
+      "difficulty": "easy",
+      "category": "security",
+      "tags": [
+        "file-operations",
+        "system",
+        "security"
+      ],
+      "solution_bytes": 744,
+      "instruction_chars": 164,
+      "rank": 73
+    },
+    {
+      "task_id": "extract-safely",
+      "difficulty": "easy",
+      "category": "security",
+      "tags": [
+        "file-operations",
+        "system"
+      ],
+      "solution_bytes": 538,
+      "instruction_chars": 130,
+      "rank": 74
+    },
+    {
+      "task_id": "fix-permissions",
+      "difficulty": "easy",
+      "category": "system-administration",
+      "tags": [
+        "file-operations",
+        "system"
+      ],
+      "solution_bytes": 396,
+      "instruction_chars": 140,
+      "rank": 75
+    },
+    {
+      "task_id": "create-bucket",
+      "difficulty": "easy",
+      "category": "file-operations",
+      "tags": [
+        "cloud",
+        "storage",
+        "system"
+      ],
+      "solution_bytes": 378,
+      "instruction_chars": 86,
+      "rank": 76
+    },
+    {
+      "task_id": "csv-to-parquet",
+      "difficulty": "easy",
+      "category": "data-science",
+      "tags": [
+        "data-processing",
+        "file-operations"
+      ],
+      "solution_bytes": 371,
+      "instruction_chars": 127,
+      "rank": 77
+    },
+    {
+      "task_id": "git-workflow-hack",
+      "difficulty": "easy",
+      "category": "security",
+      "tags": [
+        "security",
+        "file-operations",
+        "package-management"
+      ],
+      "solution_bytes": 345,
+      "instruction_chars": 724,
+      "rank": 78
+    },
+    {
+      "task_id": "hello-world",
+      "difficulty": "easy",
+      "category": "file-operations",
+      "tags": [
+        "file-operations"
+      ],
+      "solution_bytes": 169,
+      "instruction_chars": 156,
+      "rank": 79
+    }
+  ]
+}

@@ -1,0 +1,6 @@
+# Transient Terminal-Bench run outputs (reproducible, bulky: tmux casts, panes, per-task logs).
+# The committed evidence is the small Pareto/results JSONs we copy out explicitly.
+runs/
+darwin-cost.jsonl
+!*-pareto.json
+!*-result.json

@@ -26,7 +26,12 @@ const CPU_QUOTA = 32, SSD_QUOTA = 500; // us-central1 limits (pd-standard avoids
 const RUNNER_URL = 'https://raw.githubusercontent.com/ruvnet/agent-harness-generator/main/scripts/gcp-swebench-runner.sh';
 const PREFIX = 'darwin-';
 
-const BOARDS = { lite: 'SWE-bench Lite', verified: 'SWE-bench Verified', multilingual: 'SWE-bench Multilingual', pro: 'SWE-bench Pro' };
+const BOARDS = { lite: 'SWE-bench Lite', verified: 'SWE-bench Verified', multilingual: 'SWE-bench Multilingual', pro: 'SWE-bench Pro', 'terminal-bench': 'Terminal-Bench Core' };
+// NOTE: the `terminal-bench` board is driven by the dedicated tbench-gcp.mjs dispatcher +
+// scripts/gcp-tbench-runner.sh (the VM installs the official `tb` harness + our agent, runs
+// hardest-first, self-reports to Firestore darwin_tbench_runs, autostops). It is listed here so
+// `BOARDS['terminal-bench']` resolves for shared status/down tooling; provisioning goes through
+// tbench-gcp.mjs because the runner contract (tb, not swebench) differs.
 // default matrix: cheap models × boards (model slug : short tag)
 const MATRIX = [
   ['lite', 'z-ai/glm-5.2', 'glm'],

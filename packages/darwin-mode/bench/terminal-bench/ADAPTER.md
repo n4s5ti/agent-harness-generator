@@ -3,7 +3,12 @@
 Wiring our cheap-model ReAct terminal solver into the **official Terminal-Bench**
 harness, scoring with the official tests, and capturing **$/task**.
 
-> Status: design + stub. Not yet validated end-to-end on a GCE VM.
+> Status: **BUILT + EVAL-VALIDATED + smoke-passed end-to-end (local Docker).**
+> `tb` 0.2.18 installed; `terminal-bench-core==0.1.1` (80 tasks) downloaded;
+> oracle→100% PASS / nop→0% FAIL (eval discriminates, §42 satisfied); the Darwin
+> agent solved `hello-world` through the official eval at $0.000231. See §6 LEARNINGS
+> for the verified CLI contract (it differs from the original design assumptions) and
+> the tmux-framing bug the build had to fix.
 
 ## 1. The REAL official harness (verified against source, not invented)
 
@@ -103,12 +108,19 @@ plots accuracy vs `$/resolved`.
 
 ## 3. Files in this dir
 
-- `darwin_terminal_agent.py` — the `BaseAgent` ReAct adapter (the stub).
-- `requirements.txt` — `terminal-bench` (pulls the harness + deps).
-- `score.py` — join harness results.json + darwin-cost.jsonl → Pareto row. (TODO)
-- `run.sh` — the GCE recipe (below, also as a script). (TODO)
+> **All BUILT** (the §3/§4 "stub/TODO" labels below were the design draft; see §6 for the
+> verified file list and the corrected CLI — §4's `--dataset-name`/`--model-name` flags
+> were wrong, the real flags are `-d name==version` and `-k model=…`).
 
-## 4. Exact GCP run command
+- `darwin_terminal_agent.py` — the `BaseAgent` ReAct adapter. **BUILT + validated.**
+- `build-manifest.mjs` — hardest-first manifest builder → `tbench-manifest.json`. **BUILT.**
+- `hardest-first.mjs` — the crack-the-tail scheduler over official `tb`. **BUILT.**
+- `score.py` — join harness results.json + darwin-cost.jsonl → Pareto row. **BUILT.**
+- `run.sh` — local eval-validate-then-run recipe. **BUILT.**
+- `requirements.txt` — `terminal-bench>=0.2.18`.
+- `../../../../scripts/tbench-gcp.mjs` + `../../../../scripts/gcp-tbench-runner.sh` — GCP board.
+
+## 4. GCP run command (NOTE: flags below are the DESIGN DRAFT — use §6's verified contract)
 
 VM: `e2-standard-8` (Docker-in-VM needs the cores/RAM for task containers),
 `pd-standard` 100 GB, Ubuntu 24.04, OpenRouter key in instance metadata
@@ -184,3 +196,83 @@ logic is simple and already proven, so this is a port, not a redesign.
 `oracle` and one real task locally with Docker; ~1 day to harden the tmux I/O and
 the cost sidecar/score join; remaining time is the GCE full-set run + per-model
 sweeps. The single biggest unknown is tmux output framing reliability.
+
+## 6. LEARNINGS (build + eval-validation + probe, 2026-06-26)
+
+Built and validated locally against `tb` **0.2.18** + dataset **terminal-bench-core
+0.1.1** (80 tasks). The build corrected several assumptions in §1-§4 (which were
+written from memory) against the **installed source** — recorded here so the next
+session trusts the verified contract, not the design draft.
+
+### Verified CLI contract (differs from the §4 draft)
+- Dataset flag is **`-d name==version`** (e.g. `-d terminal-bench-core==0.1.1`), NOT
+  `--dataset-name` + `--dataset-version`. `tb datasets download -d …` caches to
+  `~/.cache/terminal-bench/<name>/<version>/`.
+- Custom agent: **`--agent-import-path module:Class`** with **`module:Class`** colon
+  syntax (e.g. `darwin_terminal_agent:DarwinTerminalAgent`). Agent must be importable
+  (`PYTHONPATH=<this dir>`).
+- **`--model` is NOT forwarded to a custom agent.** With `--agent-import-path` the
+  harness only passes `--agent-kwarg`/`-k k=v` to the agent `__init__`. So the model
+  is `-k model=…` (our agent reads it), and the OpenRouter key is the
+  `OPENROUTER_API_KEY` env var — NOT `-m`.
+- Concurrency is **`--n-concurrent N`** (default 4); attempts/pass@k is `--n-attempts`.
+- Per-task layout is `{output}/{task_id}/{trial_name}/agent-logs/`, so in
+  `perform_task(... logging_dir)` the **task_id is `logging_dir.parent.parent.name`**
+  (two levels up), not the parent.
+- Eval result of record: top-level `results.json` → `{accuracy, results:[{task_id,
+  is_resolved,…}]}`; `_is_resolved` = ALL parsed unit tests PASS. We never recompute
+  it; `score.py` reads it verbatim and joins our `$` sidecar.
+
+### THE tmux framing bug (the one real gotcha — fixed)
+First smoke run hung: the model emitted a **heredoc** (`cat > f <<'EOF' … EOF`) as its
+first command. `session.send_keys` sends it to tmux, but the multi-line heredoc left
+the shell parked at a **PS2 `> ` continuation prompt**; every subsequent command was
+then typed into that dead prompt and never executed, and each `send_keys(block=True)`
+burned its full timeout waiting for a prompt that never returned. The agent looked
+"stuck retrying `hello.txt`" for 8+ minutes.
+**Fix:** run every command base64-encoded as ONE physical line —
+`printf %s '<b64>' | base64 -d | bash; echo MARKER$?` — so newlines/quotes/heredocs
+survive intact and tmux only ever sees a single line. After the fix, `hello-world`
+solved in 2 steps. This is the "tmux output framing reliability" unknown §5 flagged,
+now closed.
+
+### EVAL VALIDATION (§42 — non-negotiable, PASSED)
+- **oracle** agent (applies the task's own reference `solution.sh`) on `hello-world`
+  → **Accuracy 100% (PASS)**. Proves the env builds + the grader scores a known-good
+  solution as resolved.
+- **nop** agent (does nothing) on `hello-world` → **Accuracy 0% (FAIL)**. Proves the
+  grader does NOT pass an empty attempt — the number discriminates.
+- Conclusion: the eval is trustworthy; our reported resolve numbers are real.
+
+### Hardest-first manifest
+`build-manifest.mjs` reads every `task.yaml`'s declared `difficulty`
+(**24 hard / 44 medium / 12 easy**) and emits `tbench-manifest.json` sorted
+hardest-first (difficulty primary, reference-solution byte length as the within-band
+tiebreak). `hardest-first.mjs` runs the head of that list first (`--n`, `--band`,
+`--ladder`), scoring each band via `score.py`, with a live OpenRouter spend breaker.
+
+### Conformance (no oracle leakage)
+The task's hidden tests live in the container under `tests/` and the harness runs them
+only AFTER `perform_task` returns. The agent's system prompt forbids reading/running/
+editing anything under `tests/` — the agent never sees the grading tests. Leakage-free
+by construction (stronger than our SWE-bench `--no-test-oracle` work, since here the
+grader is fully external to the agent loop).
+
+### GCP board
+`scripts/tbench-gcp.mjs` (`terminal-bench` board) provisions quota-aware self-running
+`darwin-tb-*` VMs (e2-standard-8 + 200GB pd-standard, Docker-in-VM for the task
+containers) that fetch `scripts/gcp-tbench-runner.sh` from `main`, install `tb`, run
+the eval-validation gate (oracle→PASS before trusting anything), run hardest-first,
+score the Pareto, **self-report to Firestore `darwin_tbench_runs`**, and **autostop**.
+Mirrors the proven swebench fleet pattern; CPU_QUOTA-aware and never touches non-
+`darwin-tb-` VMs. Because Docker-in-VM is heavy, a **LOCAL** small run is the validated
+path for the probe (used here); GCP is for scale-out.
+
+### Files
+- `darwin_terminal_agent.py` — the `BaseAgent` ReAct shell adapter (OpenRouter +
+  base64 framing + `$` sidecar). VALIDATED.
+- `build-manifest.mjs` — hardest-first manifest builder → `tbench-manifest.json`.
+- `hardest-first.mjs` — the crack-the-tail scheduler over the official `tb`.
+- `score.py` — join official `results.json` + `darwin-cost.jsonl` → Pareto row.
+- `scripts/tbench-gcp.mjs` + `scripts/gcp-tbench-runner.sh` — the GCP `terminal-bench`
+  board (self-running, self-reporting, autostop).

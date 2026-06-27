@@ -1,0 +1,61 @@
+{
+  "run_dir": "runs/hardest-ds",
+  "results_json": "runs/hardest-ds/2026-06-26__20-24-15/results.json",
+  "accuracy_official": 0.16666666666666666,
+  "n_tasks": 6,
+  "n_resolved": 1,
+  "accuracy": 0.1667,
+  "total_usd": 0.087594,
+  "mean_usd_per_task": 0.014599,
+  "usd_per_resolved": 0.087594,
+  "rows": [
+    {
+      "task_id": "blind-maze-explorer-5x5",
+      "resolved": false,
+      "usd": 0.022684,
+      "input_tokens": 76507,
+      "output_tokens": 2303,
+      "steps": 25
+    },
+    {
+      "task_id": "extract-moves-from-video",
+      "resolved": false,
+      "usd": 0.034649,
+      "input_tokens": 116423,
+      "output_tokens": 1569,
+      "steps": 21
+    },
+    {
+      "task_id": "organization-json-generator",
+      "resolved": true,
+      "usd": 0.007547,
+      "input_tokens": 26237,
+      "output_tokens": 1742,
+      "steps": 10
+    },
+    {
+      "task_id": "path-tracing",
+      "resolved": false,
+      "usd": 0.002681,
+      "input_tokens": 11080,
+      "output_tokens": 235,
+      "steps": 5
+    },
+    {
+      "task_id": "path-tracing-reverse",
+      "resolved": false,
+      "usd": 0.010413,
+      "input_tokens": 34239,
+      "output_tokens": 2438,
+      "steps": 13
+    },
+    {
+      "task_id": "write-compressor",
+      "resolved": false,
+      "usd": 0.00962,
+      "input_tokens": 37457,
+      "output_tokens": 1832,
+      "steps": 14
+    }
+  ]
+}
