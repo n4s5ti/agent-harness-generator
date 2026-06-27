@@ -10,7 +10,12 @@
 //                         are emitted as `prove` jobs (run on GCP → Firestore → next generation)
 import { execSync } from 'node:child_process';
 
-export const MODELS = ['deepseek/deepseek-v4-flash', 'z-ai/glm-5.2', 'moonshotai/kimi-k2.6', 'deepseek/deepseek-v3.2', 'minimax/minimax-m2.5'];
+// `ornith-1.0-9b` is a LOCAL allele (§64): deepreinforce-ai/Ornith-1.0-9B-GGUF served via ollama 0.30.11
+// at http://localhost:11434/v1 — $0 inference (local RTX 5080, 6 GB VRAM, ~90 tok/s, 100% GPU). Pass it
+// to a solver with `--model ornith-1.0-9b --base-url http://localhost:11434/v1 --api-key-env NONE`.
+// Its native <think>+<tool_call> format bridges transparently to the harness's single-line-JSON tool
+// protocol (parseAction strips the think block; zero harness changes needed — verified §64).
+export const MODELS = ['deepseek/deepseek-v4-flash', 'z-ai/glm-5.2', 'moonshotai/kimi-k2.6', 'deepseek/deepseek-v3.2', 'minimax/minimax-m2.5', 'ornith-1.0-9b'];
 export const MODES = ['single', 'bo3', 'cascade', 'xbo']; // xbo = cross-model Best-of-N (model = comma-list of DIFFERENT models)
 export const JUDGES = ['deepseek/deepseek-v4-flash', 'anthropic/claude-opus-4.8'];
 export const STEPS = [12, 15, 20];
@@ -43,13 +48,18 @@ export function mutate(rng, g) {
 export function crossover(rng, a, b) { return { model: rng() < 0.5 ? a.model : b.model, mode: rng() < 0.5 ? a.mode : b.mode, escalate: rng() < 0.5 ? a.escalate : b.escalate, judge: rng() < 0.5 ? a.judge : b.judge, maxSteps: rng() < 0.5 ? a.maxSteps : b.maxSteps }; }
 
 // per-single-model priors (cost $/inst, resolve %) — real data overrides these via Firestore.
-export const baseCost = (m) => m.includes('glm') ? 0.018 : m.includes('kimi') ? 0.02 : m.includes('v3.2') ? 0.012 : m.includes('minimax') ? 0.012 : m.includes('opus') ? 0.5 : 0.005;
-export const singleResolve = (m) => m.includes('glm') ? 31 : m.includes('kimi') ? 33 : m.includes('v3.2') ? 34 : m.includes('minimax') ? 32 : m.includes('opus') ? 60 : 34;
+export const baseCost = (m) => m.includes('ornith') ? 0.0 : m.includes('glm') ? 0.018 : m.includes('kimi') ? 0.02 : m.includes('v3.2') ? 0.012 : m.includes('minimax') ? 0.012 : m.includes('opus') ? 0.5 : 0.005;
+// `ornith` prior = 13 from the §64 matched-15 clean probe (2/15, single-model conformant, n=15 directional).
+export const singleResolve = (m) => m.includes('ornith') ? 13 : m.includes('glm') ? 31 : m.includes('kimi') ? 33 : m.includes('v3.2') ? 34 : m.includes('minimax') ? 32 : m.includes('opus') ? 60 : 34;
 // deterministic cost model (mode/model) — cost is calculable; resolve is the measured part.
 export function costModel(g) {
   if (g.mode === 'xbo') { let c = g.model.split(',').reduce((s, m) => s + baseCost(m), 0) + 0.0002; if ((g.judge || '').includes('opus')) c += 0.01; return c * (g.maxSteps / 15); }
   const m = baseCost(g.model);
-  let c = m; if (g.mode === 'bo3') c = 3 * m + 0.0002; if (g.mode === 'cascade') c = m + 0.62 * (m * 6);
+  // cascade: pay the base on every instance, then the ESCALATE model's cost on the ~62% give-up tail
+  // (×6 = its full step budget cold). §64: must charge the escalate model — with a $0 local base
+  // (ornith) the old `m + 0.62*(m*6)` collapsed a cascade's cost to 0, mis-ranking it below a single.
+  const esc = baseCost(g.escalate || g.model);
+  let c = m; if (g.mode === 'bo3') c = 3 * m + 0.0002; if (g.mode === 'cascade') c = m + 0.62 * (esc * 6);
   if ((g.judge || '').includes('opus') && g.mode !== 'single') c += 0.01;
   return c * (g.maxSteps / 15);
 }

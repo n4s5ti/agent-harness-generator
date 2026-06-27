@@ -1,0 +1,177 @@
+{
+  "model": "ornith-1.0-9b",
+  "escalateModel": null,
+  "cascade": false,
+  "maxSteps": 20,
+  "n": 15,
+  "resolvedInLoop": 0,
+  "escalated": 0,
+  "byTier": {
+    "T1": 15
+  },
+  "noTestOracle": true,
+  "leaderboardConformant": true,
+  "phase2": {
+    "localize": false,
+    "gnnRerank": false,
+    "reproGate": false,
+    "reviewer": false,
+    "traceLocalize": false
+  },
+  "cappedAtInstance": null,
+  "maxCost": null,
+  "totalCost_usd": 0,
+  "blendedCostPerInst_usd": 0,
+  "instances": [
+    {
+      "instance_id": "scikit-hep__cabinetry-506",
+      "repo": "scikit-hep/cabinetry",
+      "tier": "T1",
+      "resolved": false,
+      "steps": 17,
+      "submitted": true,
+      "resolvedInLoop": false,
+      "sec": 67
+    },
+    {
+      "instance_id": "instructlab__sdg-461",
+      "repo": "instructlab/sdg",
+      "tier": "T1",
+      "resolved": false,
+      "steps": 20,
+      "submitted": false,
+      "resolvedInLoop": false,
+      "sec": 75
+    },
+    {
+      "instance_id": "MAIF__meteole-33",
+      "repo": "MAIF/meteole",
+      "tier": "T1",
+      "resolved": false,
+      "steps": 20,
+      "submitted": false,
+      "resolvedInLoop": false,
+      "sec": 76
+    },
+    {
+      "instance_id": "intel__code-base-investigator-178",
+      "repo": "intel/code-base-investigator",
+      "tier": "T1",
+      "resolved": false,
+      "steps": 20,
+      "submitted": false,
+      "resolvedInLoop": false,
+      "sec": 79
+    },
+    {
+      "instance_id": "lmfit__lmfit-py-989",
+      "repo": "lmfit/lmfit-py",
+      "tier": "T1",
+      "resolved": false,
+      "steps": 20,
+      "submitted": false,
+      "resolvedInLoop": false,
+      "sec": 143
+    },
+    {
+      "instance_id": "ua-parser__uap-python-255",
+      "repo": "ua-parser/uap-python",
+      "tier": "T1",
+      "resolved": false,
+      "steps": 20,
+      "submitted": false,
+      "resolvedInLoop": false,
+      "sec": 143
+    },
+    {
+      "instance_id": "ryanhiebert__django-cmd-19",
+      "repo": "ryanhiebert/django-cmd",
+      "tier": "T1",
+      "resolved": false,
+      "steps": 20,
+      "submitted": false,
+      "resolvedInLoop": false,
+      "sec": 139
+    },
+    {
+      "instance_id": "aburrell__ocbpy-144",
+      "repo": "aburrell/ocbpy",
+      "tier": "T1",
+      "resolved": false,
+      "steps": 20,
+      "submitted": false,
+      "resolvedInLoop": false,
+      "sec": 146
+    },
+    {
+      "instance_id": "fox-it__dissect.cstruct-120",
+      "repo": "fox-it/dissect.cstruct",
+      "tier": "T1",
+      "resolved": false,
+      "steps": 20,
+      "submitted": false,
+      "resolvedInLoop": false,
+      "sec": 102
+    },
+    {
+      "instance_id": "zarr-developers__zarr-python-2661",
+      "repo": "zarr-developers/zarr-python",
+      "tier": "T1",
+      "resolved": false,
+      "steps": 20,
+      "submitted": false,
+      "resolvedInLoop": false,
+      "sec": 99
+    },
+    {
+      "instance_id": "rayokota__jsonata-python-14",
+      "repo": "rayokota/jsonata-python",
+      "tier": "T1",
+      "resolved": false,
+      "steps": 20,
+      "submitted": false,
+      "resolvedInLoop": false,
+      "sec": 161
+    },
+    {
+      "instance_id": "boxed__mutmut-363",
+      "repo": "boxed/mutmut",
+      "tier": "T1",
+      "resolved": false,
+      "steps": 20,
+      "submitted": false,
+      "resolvedInLoop": false,
+      "sec": 169
+    },
+    {
+      "instance_id": "astropy__asdf-astropy-253",
+      "repo": "astropy/asdf-astropy",
+      "tier": "T1",
+      "resolved": false,
+      "steps": 20,
+      "submitted": false,
+      "resolvedInLoop": false,
+      "sec": 105
+    },
+    {
+      "instance_id": "canonical__charmcraft-2084",
+      "repo": "canonical/charmcraft",
+      "tier": "T1",
+      "resolved": false,
+      "steps": 20,
+      "submitted": false,
+      "resolvedInLoop": false,
+      "sec": 103
+    },
+    {
+      "instance_id": "PennLINC__xcp_d-1433",
+      "repo": "PennLINC/xcp_d",
+      "tier": "T1",
+      "resolved": false,
+      "steps": 20,
+      "submitted": false,
+      "resolvedInLoop": false,
+      "sec": 45
+    }
+  ]
+}

@@ -47,9 +47,12 @@ arm (below) isolates orchestration value from benchmark-difference.
 **Matched subset — the 15 instances Opus-alone covered before the budget cap (apples-to-apples):**
 | Arm | resolve on the SAME 15 |
 |---|---|
+| **Ornith-1.0-9B alone** (FREE, local — §64) | **2/15 = 13.3%** [3.7, 37.9] |
 | GLM-5.2 alone | 3/15 = 20.0% |
 | Darwin coordinator (cascade) | 5/15 = 33.3% |
 | **Opus-4.8 alone** | **6/15 = 40.0%** [19.8, 64.3] |
+
+**§64 free-local probe:** Ornith-1.0-9B (Qwen3.5-hybrid GGUF, ~93 tok/s, 6 GB VRAM, $0 inference via ollama 0.30.11) ALONE on the matched-15 = **2/15 = 13.3%** — does **NOT** bridge GLM(20%)→Opus(40%); it lands *below* GLM-alone, and its 2 wins are a strict subset of Opus's 6. Cause is behavioral: 14/15 exhausted the 20-step budget without `submit` (Ornith is trained to drive its own scaffold, not our fixed ReAct submit-protocol). Tool-call FORMAT bridged with zero harness changes (`<think>`+JSON parses via `parseAction`); the misfit is the finalize behavior. Added as a documented `ornith-1.0-9b` local allele in `evolve-arch.mjs` for later evolution.
 
 Key deltas (clean data, matched n=15):
 - **coordinator − best-single-constituent (Opus) = −6.7pp** — the coordinator does NOT beat its best constituent; it sits *below* Opus-alone.

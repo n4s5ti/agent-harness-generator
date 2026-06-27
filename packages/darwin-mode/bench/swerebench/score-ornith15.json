@@ -1,0 +1,31 @@
+{
+  "dataset": "nebius/SWE-rebench",
+  "split": "filtered",
+  "runId": "ornith15",
+  "n": 15,
+  "resolved": 2,
+  "resolvePct": 13.3,
+  "wilson95": [
+    3.7,
+    37.9
+  ],
+  "resolved_ids": [
+    "rayokota__jsonata-python-14",
+    "ryanhiebert__django-cmd-19"
+  ],
+  "unresolved_ids": [
+    "instructlab__sdg-461",
+    "scikit-hep__cabinetry-506",
+    "MAIF__meteole-33",
+    "intel__code-base-investigator-178",
+    "lmfit__lmfit-py-989",
+    "ua-parser__uap-python-255",
+    "aburrell__ocbpy-144",
+    "fox-it__dissect.cstruct-120",
+    "zarr-developers__zarr-python-2661",
+    "boxed__mutmut-363",
+    "astropy__asdf-astropy-253",
+    "canonical__charmcraft-2084",
+    "PennLINC__xcp_d-1433"
+  ]
+}

@@ -57,7 +57,11 @@ test('objective-responsiveness: low w → single (cheap), high w → bo3 (capabl
   const fn = (g) => g.mode === 'bo3' ? 39.7 : g.mode === 'cascade' ? 38 : 34;
   const lo = evolve({ w: 0.2, gens: 6, pop: 10, seed: 3, resolveFn: fn, noise1: 0, noise2: 0 });
   const hi = evolve({ w: 0.95, gens: 6, pop: 10, seed: 3, resolveFn: fn, noise1: 0, noise2: 0 });
-  assert.equal(lo.champion.g.mode, 'single');   // cost dominates → cheapest
+  // §64: a FREE local model (ornith, baseCost $0) breaks the old "low-w ⇒ single" invariant — with a
+  // free escalate tier a cascade can cost the SAME as a single (base + 0.62·6·$0) while scoring higher,
+  // so the GA legitimately prefers a free cascade over a single. The property the cost axis must still
+  // satisfy: low-w drives toward MINIMAL cost (champion ≤ the cheapest PAID single, glm @ $0.018).
+  assert.ok(costModel(lo.champion.g) <= costModel({ model: 'z-ai/glm-5.2', mode: 'single', escalate: null, judge: lo.champion.g.judge, maxSteps: lo.champion.g.maxSteps })); // cost dominates → cheap
   assert.equal(hi.champion.g.mode, 'bo3');       // capability dominates → highest resolve
 });
 
