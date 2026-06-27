@@ -1,0 +1,37 @@
+{
+  "measurement": "ADR-196 \u00a762 trace-localize matched A/B on the 35 control give-ups",
+  "model": "anthropic/claude-opus-4.8",
+  "mode": "single-tier --trace-localize --no-test-oracle (conformant, gold scores only)",
+  "n_giveups": 35,
+  "fire_rate": "31/35",
+  "fired_count": 31,
+  "non_empty_patches": 8,
+  "patched_instances": [
+    "django__django-16408",
+    "django__django-16820",
+    "pylint-dev__pylint-7228",
+    "sympy__sympy-14024",
+    "sympy__sympy-17630",
+    "sympy__sympy-21379",
+    "sympy__sympy-23191",
+    "sympy__sympy-23262"
+  ],
+  "K_cracked": 3,
+  "cracked_instances": [
+    "django__django-16408",
+    "sympy__sympy-21379",
+    "sympy__sympy-23262"
+  ],
+  "control_resolved": 154,
+  "control_pct": 51.33,
+  "implied_treatment_resolved": 157,
+  "implied_treatment_pct": 52.33,
+  "wilson95": [
+    46.69,
+    57.92
+  ],
+  "delta_pp": 1.0,
+  "account_spend_delta_usd": 42.34,
+  "budget_cap_usd": 50,
+  "verdict": "Real but modest conformant lift (+3 give-up cracks, K=3). Delta +1.0pp lands INSIDE the Wilson CI (CI contains 51.3%) \u2014 within noise. Fire-rate 31/35 confirms \u00a759/\u00a761 fixes work; no fourth bug. trace-localize does NOT lift the shipped Lite number beyond noise on this matched A/B."
+}
