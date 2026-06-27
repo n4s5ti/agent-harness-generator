@@ -19,8 +19,9 @@ const execFile = promisify(execFileCb);
 const PHASES = [
   // Phase 1: kernel-js — everything imports from it. router, harness,
   // darwin-mode and projects are dependency-free (no internal imports) so they
-  // build here too.
-  ['kernel-js', 'router', 'harness', 'darwin-mode', 'projects', 'redblue'],
+  // build here too. weight-eft (ADR-198) is dependency-free and must build
+  // BEFORE create-agent-harness (phase 3), which depends on it.
+  ['kernel-js', 'router', 'harness', 'darwin-mode', 'projects', 'redblue', 'weight-eft'],
   // Phase 2: vertical-base — vertical-trading imports from it
   ['vertical-base'],
   // Phase 3: hosts + sdk + cli — all depend on kernel-js

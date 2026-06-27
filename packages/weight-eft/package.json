@@ -1,0 +1,64 @@
+{
+  "name": "@metaharness/weight-eft",
+  "version": "0.1.0",
+  "description": "Evolutionary fine-tuning — distill the harness's archival success into the open cheap tier (GLM/Qwen) via LoRA so the cost-cascade escalates to a frontier model less often. SFT-distills ALL gold-resolved trajectories; on-policy DPO on GLM-vs-GLM pairs only. Attacks the cost-Pareto axis (fewer escalations), NOT the frontier reasoning ceiling. Strict train/eval instance-ID disjointness (the contamination guard).",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "bin": {
+    "weight-eft": "./dist/cli.js"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./cli": {
+      "types": "./dist/cli.d.ts",
+      "import": "./dist/cli.js"
+    }
+  },
+  "files": [
+    "dist/**",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "test": "vitest run",
+    "lint": "tsc --noEmit"
+  },
+  "keywords": [
+    "llm",
+    "lora",
+    "fine-tuning",
+    "evolutionary-fine-tuning",
+    "weight-eft",
+    "sft",
+    "dpo",
+    "distillation",
+    "cost-optimization",
+    "swe-bench",
+    "metaharness",
+    "darwin-mode",
+    "contamination-guard"
+  ],
+  "author": "rUv <ruv@ruv.net>",
+  "license": "MIT",
+  "homepage": "https://github.com/ruvnet/agent-harness-generator",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/ruvnet/agent-harness-generator",
+    "directory": "packages/weight-eft"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.4.0",
+    "vitest": "^2.0.0"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}

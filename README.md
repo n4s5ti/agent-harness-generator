@@ -58,6 +58,14 @@ Output is an npm-publishable `.zip` with **your name on it, your branding, your 
   sandbox, and keeps only what *measurably* improves. The model stays frozen; the harness
   evolves. Safe by default (no network, no API key; pure refactor/tuning behind a safety
   gate). Validated on real **SWE-bench Lite** bug-fixing. `--no-darwin` to skip.
+- **Distil the cheap tier instead of escalating to a frontier model.** **Weight-EFT**
+  ([`@metaharness/weight-eft`](packages/weight-eft/), `metaharness weight-eft`) takes the
+  *complementary* lever to Darwin's gradient-free evolution: it exports the harness's gold-resolved
+  archive into standard SFT/DPO sets and LoRA-tunes the open cheap tier (GLM/Qwen), so the
+  cost-cascade escalates to Opus/GPT **less often**. It attacks **cost** (fewer $0.50 escalations),
+  not the frontier ceiling — and stays honest about it. Strict train/eval-disjointness +
+  reward-hacking filters keep the lift real; the tune is a *gene* Darwin can prune if it overfits.
+  See [ADR-198](docs/adrs/ADR-198-weight-eft-hybrid-policy-weight-evolution.md). ($0 / GPU-gated.)
 
 ## Tune it to your project — then ship it as your own npm
 

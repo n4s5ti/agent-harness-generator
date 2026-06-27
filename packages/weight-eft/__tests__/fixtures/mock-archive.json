@@ -1,0 +1,104 @@
+[
+  {
+    "instance_id": "astropy__astropy-14182",
+    "model": "z-ai/glm-5.2",
+    "tier": "cheap",
+    "resolved": true,
+    "sample": 0,
+    "source": "darwin_runs",
+    "model_patch": "diff --git a/a.py b/a.py\n+fix\n",
+    "messages": [
+      { "role": "system", "content": "You are a SWE agent. Use tools to fix the issue." },
+      { "role": "user", "content": "Issue: RST writer ignores header_rows." },
+      {
+        "role": "assistant",
+        "content": null,
+        "tool_calls": [
+          { "id": "call_1", "type": "function", "function": { "name": "read_file", "arguments": "{\"path\":\"astropy/io/ascii/rst.py\"}" } }
+        ]
+      },
+      { "role": "tool", "tool_call_id": "call_1", "name": "read_file", "content": "class RST(FixedWidth): ..." },
+      {
+        "role": "assistant",
+        "content": null,
+        "tool_calls": [
+          { "id": "call_2", "type": "function", "function": { "name": "apply_patch", "arguments": "{\"diff\":\"diff --git a/a.py b/a.py\\n+fix\\n\"}" } }
+        ]
+      },
+      { "role": "tool", "tool_call_id": "call_2", "name": "apply_patch", "content": "applied" },
+      { "role": "assistant", "content": "Done. Final patch submitted." }
+    ]
+  },
+  {
+    "instance_id": "astropy__astropy-14182",
+    "model": "z-ai/glm-5.2",
+    "tier": "cheap",
+    "resolved": false,
+    "sample": 1,
+    "source": "darwin_runs",
+    "model_patch": "",
+    "messages": [
+      { "role": "system", "content": "You are a SWE agent. Use tools to fix the issue." },
+      { "role": "user", "content": "Issue: RST writer ignores header_rows." },
+      {
+        "role": "assistant",
+        "content": null,
+        "tool_calls": [
+          { "id": "call_x", "type": "function", "function": { "name": "read_file", "arguments": "{\"path\":\"wrong.py\"}" } }
+        ]
+      },
+      { "role": "tool", "tool_call_id": "call_x", "name": "read_file", "content": "not found" },
+      { "role": "assistant", "content": "I could not find the fix." }
+    ]
+  },
+  {
+    "instance_id": "django__django-15252",
+    "model": "anthropic/claude-opus-4.8",
+    "tier": "frontier",
+    "resolved": true,
+    "sample": 0,
+    "source": "darwin_runs",
+    "model_patch": "diff --git a/b.py b/b.py\n+frontier-fix\n",
+    "messages": [
+      { "role": "system", "content": "You are a SWE agent." },
+      { "role": "user", "content": "Issue: migration recorder ignores db router." },
+      {
+        "role": "assistant",
+        "content": null,
+        "tool_calls": [
+          { "id": "call_d1", "type": "function", "function": { "name": "apply_patch", "arguments": "{\"diff\":\"diff --git a/b.py b/b.py\\n+frontier-fix\\n\"}" } }
+        ]
+      },
+      { "role": "tool", "tool_call_id": "call_d1", "name": "apply_patch", "content": "applied" },
+      { "role": "assistant", "content": "Fixed via db router check." }
+    ]
+  },
+  {
+    "instance_id": "django__django-15252",
+    "model": "z-ai/glm-5.2",
+    "tier": "cheap",
+    "resolved": false,
+    "sample": 0,
+    "source": "darwin_runs",
+    "model_patch": "",
+    "messages": [
+      { "role": "system", "content": "You are a SWE agent." },
+      { "role": "user", "content": "Issue: migration recorder ignores db router." },
+      { "role": "assistant", "content": "I am not sure how to fix this." }
+    ]
+  },
+  {
+    "instance_id": "sympy__sympy-21055",
+    "model": "anthropic/claude-opus-4.8",
+    "tier": "frontier",
+    "resolved": true,
+    "sample": 0,
+    "source": "predictions-mm25",
+    "model_patch": "diff --git a/c.py b/c.py\n+refine-fix\n",
+    "messages": [
+      { "role": "system", "content": "You are a SWE agent." },
+      { "role": "user", "content": "Issue: refine() drops assumptions." },
+      { "role": "assistant", "content": "Patched refine()." }
+    ]
+  }
+]

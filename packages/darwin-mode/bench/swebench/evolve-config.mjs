@@ -103,6 +103,34 @@ export function capSuffix(g) {
   return on.length ? '+' + on.join('+') : '';
 }
 
+// ADR-198 weight-EFT GENE — `weightAdapter` lets evolution SELECT among LoRA adapters distilled from the
+// archive into the cheap tier (@metaharness/weight-eft). null === BASE (no adapter) — the DEFAULT, so a
+// genome that never opts into an adapter is byte-identical (by key) to a pre-gene genome. A string is an
+// adapter id ('sft' = SFT-distill only, 'sft-dpo' = SFT then on-policy DPO). The gene is the
+// prune-the-overfitter safety net: base competes against tuned adapters under the SAME conformant fitness,
+// so selection drops an adapter that doesn't actually lift held-out resolve. Inert until an adapter is
+// trained (a GPU job) — the gene only NAMES an adapter; it does not create one.
+export const WEIGHT_ADAPTERS = [null, 'sft', 'sft-dpo'];
+// Normalize a raw gene value. Absent / '' / 'base' / 'none' all coerce to null (BASE) so an unset gene is
+// indistinguishable from an explicit base choice (the byte-identical invariant).
+export function normalizeWeightAdapter(v) {
+  if (v == null || typeof v !== 'string') return null;
+  const s = v.trim().toLowerCase();
+  if (s === '' || s === 'base' || s === 'none') return null;
+  return v.trim();
+}
+// stable "+w:<id>" suffix — EMPTY for BASE so the gene contributes nothing to a genome key unless an
+// adapter is selected (the backward-compatibility invariant).
+export function weightAdapterSuffix(g) {
+  const a = normalizeWeightAdapter(g && g.weightAdapter);
+  return a == null ? '' : `+w:${a}`;
+}
+// map the gene to the cheap-tier solver flag. BASE → no flag; a tuned adapter → --lora-adapter <id>.
+export function weightAdapterFlags(g) {
+  const a = normalizeWeightAdapter(g && g.weightAdapter);
+  return a == null ? [] : ['--lora-adapter', a];
+}
+
 export const mkRng = (s) => () => { s = (s * 1103515245 + 12345) & 0x7fffffff; return s / 0x7fffffff; };
 const pick = (rng, a) => a[Math.floor(rng() * a.length)];
 function pickModels(rng, k, pool = CHEAP_MODELS) { const p = [...pool]; const out = []; for (let i = 0; i < k && p.length; i++) out.push(p.splice(Math.floor(rng() * p.length), 1)[0]); return out; }
@@ -122,7 +150,9 @@ export function gkey(g) {
   const setKey = (ms) => ms.map((m) => m.split('/').pop()).sort().join('+');
   // ADR-195: capability suffix is appended ONLY when a Phase-2 gene is on, so pre-Phase-2 genomes
   // keep byte-identical keys (backward-compatible Firestore readback).
-  const cap = capSuffix(g);
+  // ADR-198: the weight-adapter suffix is appended ONLY when a non-base adapter is selected, so a
+  // base/no-adapter genome keeps byte-identical keys too.
+  const cap = capSuffix(g) + weightAdapterSuffix(g);
   switch (g.mode) {
     case 'ecascade': return `ecascade|${g.baseModel.split('/').pop()}>${g.escalateModel.split('/').pop()}|s${g.maxSteps}${cap}`;
     case 'xcascade': return `xcascade|${setKey(g.xmodels)}>${g.escalateModel.split('/').pop()}|s${g.maxSteps}${cap}`;
@@ -159,7 +189,9 @@ export function normalizeGenome(g) {
     xmodels: g.xmodels ? [...new Set(g.xmodels)] : null, maxSteps: g.maxSteps || 15, temp: g.temp ?? 0,
     // ADR-195 Phase-2 genes (default off — coerced to plain booleans so absent === false).
     // ADR-196 adds traceLocalize (execution-trace localization).
-    localize: !!g.localize, reproGate: !!g.reproGate, reviewer: !!g.reviewer, traceLocalize: !!g.traceLocalize };
+    localize: !!g.localize, reproGate: !!g.reproGate, reviewer: !!g.reviewer, traceLocalize: !!g.traceLocalize,
+    // ADR-198 weight-EFT gene (default null = BASE/no-adapter → byte-identical key when unset).
+    weightAdapter: normalizeWeightAdapter(g.weightAdapter) };
   if (h.mode === 'xbo' || h.mode === 'xcascade') { if (!h.xmodels || h.xmodels.length < 2) h.xmodels = CHEAP_MODELS.slice(0, 2); h.baseModel = null; }
   else { h.xmodels = null; if (!h.baseModel) h.baseModel = CHEAP_MODELS[0]; }
   if (h.mode === 'cascade' || h.mode === 'ecascade' || h.mode === 'xcascade') {
@@ -187,10 +219,13 @@ export function mutate(rng, g) {
   const h = normalizeGenome(g);
   // ADR-195: include the Phase-2 capability genes in the mutable field set so evolution can toggle
   // them. Pre-Phase-2 behaviour is preserved when a cap mutation lands on an already-off/on flip.
-  const fields = ['mode', 'base', 'escalate', 'steps', 'cap'];
+  // ADR-198: 'wadapter' mutates the weight-EFT gene (select among base / sft / sft-dpo). Carried through a
+  // mode change like the Phase-2 caps so a re-modelled genome keeps its adapter choice.
+  const fields = ['mode', 'base', 'escalate', 'steps', 'cap', 'wadapter'];
   const f = pick(rng, fields);
-  if (f === 'mode') { const n = remodel(rng, { ...h, mode: pick(rng, MODES) }); for (const c of PHASE2_CAPS) n[c] = h[c]; return normalizeGenome(n); }
+  if (f === 'mode') { const n = remodel(rng, { ...h, mode: pick(rng, MODES) }); for (const c of PHASE2_CAPS) n[c] = h[c]; n.weightAdapter = h.weightAdapter; return normalizeGenome(n); }
   if (f === 'cap') { const c = pick(rng, PHASE2_CAPS); h[c] = !h[c]; return normalizeGenome(h); }
+  if (f === 'wadapter') { h.weightAdapter = pick(rng, WEIGHT_ADAPTERS); return normalizeGenome(h); }
   if (f === 'base') { if (h.mode === 'xbo' || h.mode === 'xcascade') h.xmodels = pickModels(rng, 2 + Math.floor(rng() * 2)); else h.baseModel = pick(rng, CHEAP_MODELS); }
   else if (f === 'escalate') { if (h.escalateModel) h.escalateModel = pick(rng, ESCALATE_MODELS); else h.maxSteps = pick(rng, STEPS); }
   else h.maxSteps = pick(rng, STEPS);
@@ -228,6 +263,9 @@ export function crossover(rng, a, b) {
   if (mode === 'cascade' || mode === 'ecascade' || mode === 'xcascade') h.escalateModel = rng() < 0.5 ? escFrom(a) : escFrom(b);
   // ADR-195: inherit each Phase-2 capability gene independently from either parent (uniform crossover).
   for (const c of PHASE2_CAPS) h[c] = (rng() < 0.5 ? a[c] : b[c]) || false;
+  // ADR-198: inherit the weight-adapter gene from one parent (uniform crossover). normalizeGenome coerces
+  // an absent value to BASE.
+  h.weightAdapter = rng() < 0.5 ? a.weightAdapter : b.weightAdapter;
   return normalizeGenome(h);
 }
 
@@ -270,7 +308,8 @@ export function readbackKey(g) {
   const setKey = (ms) => ms.map((m) => m.split('/').pop()).sort().join('+');
   // ADR-195: same capability suffix as gkey (appended only when a gene is on) so a Phase-2 genome
   // reads back its own measured fitness, while pre-Phase-2 keys are unchanged.
-  const cap = capSuffix(g);
+  // ADR-198: the weight-adapter suffix follows the same rule (empty for base).
+  const cap = capSuffix(g) + weightAdapterSuffix(g);
   switch (g.mode) {
     case 'ecascade': return `ecascade|${g.baseModel.split('/').pop()}>${g.escalateModel.split('/').pop()}${cap}`;
     case 'xcascade': return `xcascade|${setKey(g.xmodels)}>${g.escalateModel.split('/').pop()}${cap}`;
@@ -331,6 +370,11 @@ export function seedPopulation() {
     // Distinct from `localize` (the naive semantic seed that failed §52); seeds the agent with what the
     // failing reproduction actually executed (fix-site is in the trace, not in symptom-similar text).
     normalizeGenome({ mode: 'single', baseModel: 'anthropic/claude-opus-4.8', maxSteps: 15, traceLocalize: true }),  // execution-trace localization
+    // ADR-198 weight-EFT probes — the cheap tier WITH a distilled LoRA adapter, so per-instance evolution can
+    // measure the cost-Pareto win (fewer escalations) vs the same cheap base WITHOUT an adapter. Inert until an
+    // adapter is trained (a GPU job); base/no-adapter remains the control already seeded above.
+    normalizeGenome({ mode: 'ecascade', baseModel: 'z-ai/glm-5.2', escalateModel: 'anthropic/claude-opus-4.8', maxSteps: 15, weightAdapter: 'sft' }),     // SFT-distilled cheap base → opus
+    normalizeGenome({ mode: 'ecascade', baseModel: 'z-ai/glm-5.2', escalateModel: 'anthropic/claude-opus-4.8', maxSteps: 15, weightAdapter: 'sft-dpo' }), // SFT+on-policy-DPO cheap base → opus
   ];
 }
 

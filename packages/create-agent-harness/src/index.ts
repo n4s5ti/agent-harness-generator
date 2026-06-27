@@ -584,6 +584,17 @@ async function runMetaHarnessSubcommand(sub: string, rest: string[]): Promise<nu
       for (const line of r.lines) console.log(line);
       return r.code;
     }
+    case 'weight-eft': {
+      // `metaharness weight-eft <export|train|eval|status>` (ADR-198) — delegates
+      // to @metaharness/weight-eft: evolutionary fine-tuning. Distil the archive
+      // into the open cheap tier via LoRA so the cost-cascade escalates to a
+      // frontier model less often. $0 by default (export + dry-run plan); a real
+      // train is GPU-gated behind --train.
+      const { dispatch } = await import('@metaharness/weight-eft/cli');
+      const r = await dispatch(rest[0], rest.slice(1));
+      for (const line of r.lines) console.log(line);
+      return r.code;
+    }
     default:
       return null; // not a known subcommand
   }
