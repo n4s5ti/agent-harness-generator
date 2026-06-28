@@ -1,6 +1,6 @@
 {
  "updated": "2026-06-28",
- "notes": "[object Object] | FRAMES tab: n=50 seed42 same-Qs, conformant; both cheap models =42% EM at parity with older-frontier at 2-20x lower cost (docs/research/cheap-vs-frontier).",
+ "notes": "[object Object] | FRAMES tab: n=150 seed42 fair 18-step, conformant; all 4 models statistically indistinguishable (overlapping CI), cheap matches gpt-5.2 (0.427) at 5-16x lower cost (docs/research/cheap-vs-frontier).",
  "sources": [
   "https://github.com/swe-bench/experiments",
   "https://www.swebench.com/",
@@ -836,64 +836,64 @@
    ]
   },
   "frames": {
-   "label": "FRAMES (50) · everyday-agentic QA — cheap vs older-frontier",
-   "denom": 50,
+   "label": "FRAMES (150) · everyday-agentic QA — cheap vs older-frontier (fair 18-step)",
+   "denom": 150,
    "entries": [
     {
-     "name": "DeepSeek-V4-Pro",
-     "scaffold": "ReAct (search→open→submit, 12-step)",
-     "model": "deepseek-v4-pro (cheap)",
-     "resolve": 42,
+     "name": "GLM-5.2",
+     "scaffold": "ReAct 18-step",
+     "model": "glm-5.2 (cheap)",
+     "resolve": 43.3,
      "ci": [
-      29.4,
-      55.8
+      35.7,
+      51.3
      ],
-     "cost": 0.0175,
+     "cost": 0.0411,
      "kind": "meas",
      "costEst": false,
-     "note": "21/50 EM, conformant leak-free; $0.042/correct; cheap tier"
+     "note": "65/150 EM; $0.095/correct; cheap — top accuracy"
     },
     {
-     "name": "GLM-5.2",
-     "scaffold": "ReAct (12-step)",
-     "model": "glm-5.2 (cheap)",
-     "resolve": 42,
+     "name": "DeepSeek-V4-Pro",
+     "scaffold": "ReAct 18-step",
+     "model": "deepseek-v4-pro (cheap)",
+     "resolve": 42.7,
      "ci": [
-      29.4,
-      55.8
+      35,
+      50.7
      ],
-     "cost": 0.0418,
+     "cost": 0.0235,
      "kind": "meas",
      "costEst": false,
-     "note": "21/50 EM; $0.100/correct; cheap tier — independently matches DeepSeek"
+     "note": "64/150 EM; $0.055/correct; cheap — exactly matches gpt-5.2 at 5x lower cost"
     },
     {
      "name": "GPT-5.2",
-     "scaffold": "ReAct (12-step)",
+     "scaffold": "ReAct 18-step",
      "model": "gpt-5.2 (older-frontier)",
-     "resolve": 38,
+     "resolve": 42.7,
      "ci": [
-      25.9,
-      51.9
+      35,
+      50.7
      ],
-     "cost": 0.0792,
+     "cost": 0.1145,
      "kind": "meas",
      "costEst": false,
-     "note": "19/50 EM; $0.209/correct; clean frontier comparator — parity w/ cheap (overlapping CI)"
+     "note": "64/150 EM; $0.268/correct; clean frontier comparator — parity with cheap"
     },
     {
-     "name": "Claude-Opus-4.5 †",
-     "scaffold": "ReAct (12-step)",
+     "name": "Claude-Opus-4.5",
+     "scaffold": "ReAct 18-step",
      "model": "opus-4.5 (older-frontier)",
-     "resolve": 28,
+     "resolve": 37.3,
      "ci": [
-      17.5,
-      41.7
+      30,
+      45.3
      ],
-     "cost": 0.2367,
+     "cost": 0.3248,
      "kind": "meas",
      "costEst": false,
-     "note": "14/50 EM — UNDERSTATED: step-cap×deep-search artifact (local n=8 diag: 0 errors); excluded from beats-claim"
+     "note": "56/150 EM; $0.870/correct; fair 18-step lifted it from 0.28→0.373 (n=50 was step-cap artifact); parity-class (overlapping CI)"
     }
    ]
   }

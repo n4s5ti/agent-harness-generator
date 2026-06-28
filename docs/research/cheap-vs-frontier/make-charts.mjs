@@ -106,16 +106,16 @@ function chart3() {
 // ---- Chart 4: FRAMES empirical (our measurement) ----
 function chart4() {
   const rows = [
-    { m: 'DeepSeek-V4-Pro', tier: 'cheap', em: 0.42, cpc: 0.042 },
-    { m: 'GLM-5.2', tier: 'cheap', em: 0.42, cpc: 0.100 },
-    { m: 'GPT-5.2', tier: 'frontier', em: 0.38, cpc: 0.209 },
-    { m: 'Opus-4.5†', tier: 'frontier', em: 0.28, cpc: 0.845 },
+    { m: 'GLM-5.2', tier: 'cheap', em: 0.433, cpc: 0.095 },
+    { m: 'DeepSeek-V4-Pro', tier: 'cheap', em: 0.427, cpc: 0.055 },
+    { m: 'GPT-5.2', tier: 'frontier', em: 0.427, cpc: 0.268 },
+    { m: 'Opus-4.5', tier: 'frontier', em: 0.373, cpc: 0.870 },
   ];
   const lx = rows.map(r => Math.log10(r.cpc));
-  const x0 = Math.min(...lx) - 0.3, x1 = Math.max(...lx) + 0.3, y0 = 0.20, y1 = 0.50;
-  let s = frame('FRAMES (our measurement, n=50): accuracy vs cost per correct', 'Both cheap models = 0.42 EM at parity with frontier (overlapping CI) at 2–20× lower cost. †Opus understated (step-cap artifact)');
-  const yticks = []; for (let v = 0.2; v <= 0.5; v += 0.1) yticks.push({ y: sy(v, y0, y1), label: v.toFixed(1) });
-  const xticks = []; for (const c of [0.05, 0.1, 0.2, 0.5, 0.85]) { const v = Math.log10(c); if (v >= x0 && v <= x1) xticks.push({ x: sx(v, x0, x1), label: '$' + c }); }
+  const x0 = Math.min(...lx) - 0.3, x1 = Math.max(...lx) + 0.3, y0 = 0.32, y1 = 0.48;
+  let s = frame('FRAMES (our measurement, n=150, fair 18-step): accuracy vs cost per correct', 'All 4 models statistically indistinguishable (overlapping CI); cheap matches gpt-5.2 (0.427) at 5–16× lower cost');
+  const yticks = []; for (const v of [0.35, 0.40, 0.45]) yticks.push({ y: sy(v, y0, y1), label: v.toFixed(2) });
+  const xticks = []; for (const c of [0.05, 0.1, 0.27, 0.5, 0.87]) { const v = Math.log10(c); if (v >= x0 && v <= x1) xticks.push({ x: sx(v, x0, x1), label: '$' + c }); }
   s += axes('Cost per correct answer (USD, log scale)', 'FRAMES EM accuracy', xticks, yticks);
   for (const r of rows) {
     const x = sx(Math.log10(r.cpc), x0, x1), y = sy(r.em, y0, y1);
