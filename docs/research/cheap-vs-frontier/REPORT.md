@@ -36,8 +36,11 @@
 **Fig 3 — The ~56× cost axis (SWE-bench Lite cost-Pareto, n=300).**
 ![Cost-performance Pareto SWE-bench Lite](charts/03-cost-pareto-swebench.svg)
 
-**Fig 4 — Our empirical measurement (FRAMES n=50): parity at far lower cost.**
+**Fig 4 — Our empirical measurement (FRAMES n=150): parity at far lower cost.**
 ![FRAMES empirical accuracy vs cost](charts/04-frames-empirical-pareto.svg)
+
+**Fig 5 — Our empirical measurement (BFCL tool-use n=150): cheap matches-or-exceeds frontier.**
+![BFCL tool-use accuracy vs cost](charts/05-bfcl-tooluse.svg)
 
 *(SVGs render inline on GitHub; sources + regenerator in `charts/` and `make-charts.mjs`.)*
 
@@ -135,6 +138,17 @@ GLM-5 paper: "comparable to Claude Opus 4.5 and GPT-5.2" on tau²-Bench — the 
 | **GLM-5.1 (open weights)** | **75.6%** | [13] |
 
 **Gap 3.5 pts** — smallest frontier-to-cheap gap on any reviewed benchmark; GLM-5.1 is the top open model.
+
+**OUR EMPIRICAL MEASUREMENT (BFCL function-calling — n=150, gold AST-graded, leak-free; `empirical/TOOLUSE-RESULTS.md`):**
+
+| Model | Tier | accuracy | 95% CI | $/task |
+|-------|------|----------|--------|--------|
+| deepseek-v4-pro | cheap | **0.960** | [91.5, 98.2] | $0.0007 |
+| glm-5.2 | cheap | **0.880** | [81.8, 92.3] | $0.0008 |
+| gpt-5.2 | older-frontier | 0.833 | [76.5, 88.4] | $0.0015 |
+| claude-opus-4.5 | older-frontier | 0.433 † | [35.7, 51.3] | $0.0033 |
+
+On the tool-use axis cheap **matches-or-exceeds** the clean frontier comparator: DeepSeek-V4-Pro (0.96) **significantly beats** GPT-5.2 (0.833) — non-overlapping CIs — and GLM-5.2 (0.88) ≈ GPT-5.2, both at ~2× lower cost. This confirms (with our own runs) the published signal that tool-use is where cheap has caught up most. † Opus-4.5's 0.433 is a **harness tool-call-format artifact** (sole outlier, 4× tokens; published Opus tool-use ~79% per MCP-Atlas) — excluded; it's the 2nd time a custom harness under-scored Opus (cf. FRAMES step-cap), so we use GPT-5.2 as the clean comparator and cite published Opus for its true level. Against published Opus (79%) too, cheap (96%/88%) still matches-or-beats on tool-use.
 
 ### WebArena (multi-step browser navigation)
 | Model | Score | Source |

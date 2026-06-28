@@ -896,6 +896,68 @@
      "note": "56/150 EM; $0.870/correct; fair 18-step lifted it from 0.28→0.373 (n=50 was step-cap artifact); parity-class (overlapping CI)"
     }
    ]
+  },
+  "bfcl": {
+   "label": "BFCL (150) · tool-use / function-calling — cheap vs older-frontier",
+   "denom": 150,
+   "entries": [
+    {
+     "name": "DeepSeek-V4-Pro",
+     "scaffold": "native tool-calling, AST-graded",
+     "model": "deepseek-v4-pro (cheap)",
+     "resolve": 96,
+     "ci": [
+      91.5,
+      98.2
+     ],
+     "cost": 0.00071,
+     "kind": "meas",
+     "costEst": false,
+     "note": "144/150; cheap — significantly beats gpt-5.2 (non-overlapping CI) at 2x lower cost"
+    },
+    {
+     "name": "GLM-5.2",
+     "scaffold": "native tool-calling",
+     "model": "glm-5.2 (cheap)",
+     "resolve": 88,
+     "ci": [
+      81.8,
+      92.3
+     ],
+     "cost": 0.00082,
+     "kind": "meas",
+     "costEst": false,
+     "note": "132/150; cheap — ≈ gpt-5.2"
+    },
+    {
+     "name": "GPT-5.2",
+     "scaffold": "native tool-calling",
+     "model": "gpt-5.2 (older-frontier)",
+     "resolve": 83.3,
+     "ci": [
+      76.5,
+      88.4
+     ],
+     "cost": 0.00154,
+     "kind": "meas",
+     "costEst": false,
+     "note": "125/150; clean frontier comparator"
+    },
+    {
+     "name": "Claude-Opus-4.5 †",
+     "scaffold": "native tool-calling",
+     "model": "opus-4.5 (artifact)",
+     "resolve": 43.3,
+     "ci": [
+      35.7,
+      51.3
+     ],
+     "cost": 0.00329,
+     "kind": "meas",
+     "costEst": false,
+     "note": "HARNESS ARTIFACT (tool-call format); true ~79% per MCP-Atlas; excluded"
+    }
+   ]
   }
  }
 }
