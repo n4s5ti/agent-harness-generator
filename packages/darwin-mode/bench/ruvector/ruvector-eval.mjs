@@ -48,6 +48,12 @@ const MAX_STEPS = +argv('--max-steps', 1);        // 1-step RAG-QA in the skelet
 const TAU = +argv('--tau', 0.35);                  // arm-C dynamic-bail confidence threshold
 const CONCURRENCY = Math.max(1, +argv('--concurrency', 4));
 const MAX_COST = +argv('--max-cost', Infinity);
+// Account-meter budget gate (authoritative; mirrors cve-bench/gcp-cascade-dispatch.mjs §56 —
+// Opus undercounts ~1.7x on OpenRouter, so the per-process cost tally is only a soft secondary
+// guard). --meter polls OpenRouter auth/key.usage; --abort-usage is the ABSOLUTE USD ceiling at
+// which we stop launching new cells (skip + LOG). Both off by default → no network in $0/mock runs.
+const METER = has('--meter');
+const ABORT_USAGE = +argv('--abort-usage', Infinity);
 const OUT = rel(argv('--out', 'preds-ruvector.jsonl'));
 const REPORT = rel(argv('--report', 'report-ruvector.json'));
 const EXFIL = has('--exfil');
@@ -79,6 +85,18 @@ function mkOpenRouterLlm(model) {
     }
     throw lastErr ?? new Error('llm failed');
   };
+}
+
+// OpenRouter absolute account usage (USD). Returns null on any failure (gate then no-ops, fail-open
+// onto the soft per-process cap — same posture as cve-bench). Keyless/$0 path never calls this.
+async function orUsage() {
+  try {
+    const key = (process.env[KEY_ENV] || (() => { try { return readFileSync('/tmp/.orkey', 'utf8'); } catch { return ''; } })()).trim();
+    if (!key) return null;
+    const res = await fetch(`${BASE_URL}/auth/key`, { headers: { Authorization: `Bearer ${key}` } });
+    const j = await res.json();
+    return typeof j?.data?.usage === 'number' ? j.data.usage : null;
+  } catch { return null; }
 }
 
 const RAG_SYSTEM = 'You are a precise assistant. Use ONLY the provided CONTEXT passages to answer the '
@@ -136,6 +154,11 @@ async function runArm(armName, tasks, opts) {
   let idx = 0;
   async function worker() {
     while (idx < tasks.length && !stopped) {
+      // Authoritative account-meter gate: check ABSOLUTE OpenRouter usage BEFORE launching a cell.
+      if (METER && Number.isFinite(ABORT_USAGE)) {
+        const usage = await orUsage();
+        if (usage != null && usage > ABORT_USAGE) { stopped = true; console.error(`[${armName}] ABORT: OpenRouter usage $${usage.toFixed(2)} > cap $${ABORT_USAGE} — skip+LOG remaining cells`); break; }
+      }
       const my = idx++;
       const task = tasks[my];
       // each arm gets its OWN memory instance (independent index); same embedder → fair A/B.
@@ -146,7 +169,7 @@ async function runArm(armName, tasks, opts) {
         records[my] = { arm: armName, ...rec };
         opts.exfil.write({ arm: armName, ...rec });
         if (opts.onRec) opts.onRec(records[my]);
-        if (spent > MAX_COST) { stopped = true; console.error(`[${armName}] budget cap $${MAX_COST} hit at $${spent.toFixed(4)} — stopping`); }
+        if (spent > MAX_COST) { stopped = true; console.error(`[${armName}] soft per-process cap $${MAX_COST} hit at $${spent.toFixed(4)} — stopping`); }
       } finally { await memory.close(); }
     }
   }

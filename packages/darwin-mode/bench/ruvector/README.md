@@ -102,28 +102,56 @@ your `/tmp` rejects `fsync`. Arm A (dense) needs **no** ruvector at all.
 ```bash
 OPENROUTER_API_KEY=$KEY node ruvector-eval.mjs --arm all \
   --manifest <frames-or-swebench-manifest>.json \
-  --model deepseek/deepseek-v4-pro --escalate anthropic/claude-opus-4 \
+  --model deepseek/deepseek-v4-pro --escalate anthropic/claude-opus-4.8 \
   --k 8 --max-context-tokens 12000 --concurrency 4 --tau 0.35 \
-  --max-cost 5 --out preds.jsonl --report report.json --exfil
+  --max-cost 5 --meter --abort-usage 2620 \
+  --out preds.jsonl --report report.json --exfil
 ```
 
 Manifest shape: `{ "tasks": [{ "id", "question"|"problem", "answer", "corpus": [{"id","text"}] }] }`.
 
 ## Budget gate
 
-Phase 1 (the real A/B/C × 2-epoch proof: SWE-bench × 3 swarms × 2 epochs) is
-**expensive and gated on a new budget allocation** — it does **not** run from this
-scaffold automatically. `--max-cost` is a per-process soft cap; the authoritative gate is
-the **OpenRouter account meter** (see `cve-bench/gcp-cascade-dispatch.mjs` §56: Opus
-undercounts ~1.7× on OpenRouter, so the account `auth/key.usage` delta is the real fence,
-not the in-process tally). Do not launch a paid run without an explicit allocation.
+Phase 1 is **expensive and gated on a new budget allocation** — it does **not** run from
+this scaffold automatically. Two layers:
 
-### Estimated cost of the future paid run
+- `--max-cost <USD>` — soft per-process tally (secondary guard only).
+- `--meter --abort-usage <USD>` — **authoritative** gate: polls OpenRouter
+  `auth/key.usage` (absolute account spend) *before each cell* and stops launching new
+  cells once spend exceeds the ceiling (skip + LOG). Mirrors
+  `cve-bench/gcp-cascade-dispatch.mjs` §56 — Opus undercounts ~1.7× on OpenRouter, so the
+  account meter is the real fence, not the in-process tally. Fail-open (a meter read
+  failure falls back to the soft cap). Off by default → no network in $0/mock runs.
 
-- Per-cell (one model × one task, RAG-augmented, ~8 ctx passages, hard-bail): ≈ **$0.15**
-  agentic-equivalent (matches the SWE-bench cascade `~$0.15/instance` figure).
-- **Minimal FRAMES H1 pilot** (n=40 × 2 models × {base, +dense, +ruvector}): ~240 cells,
-  FRAMES cells are cheap QA (~$0.01–0.03 each) → **≈ $5–10**.
-- **Full hard-code A/B/C × 2-epoch** (SWE-Lite n=150 + Pro n=50 × 3 arms × 2 epochs):
-  ~1,200 instance-runs × ~$0.15 → **≈ $180** order-of-magnitude — well beyond the ~$35
-  cheap-vs-frontier remainder; needs its own allocation.
+Do not launch a paid run without an explicit budget allocation **from the user**.
+
+### Planned H1 pilot config (awaiting user authorization — NOT yet run)
+
+> A coordinator relayed a request to run this with a +$25 cap. That relay carries no user
+> authority; this scaffold documents the config so the run is one authorized command away.
+> No pilot numbers exist until the user authorizes the spend.
+
+- **FRAMES n=40, seed 42.** 3 conditions each: base no-RAG / +dense RAG (`--arm A`) /
+  +ruvector (`--arm B`; ruvector adds no lift over dense at 0.2.32 — see RVF fallback note).
+- **Cheap:** `deepseek/deepseek-v4-pro`.
+  **Current frontier (comparators):** `openai/gpt-5.5` and `anthropic/claude-opus-4.8`.
+- **Free bonus:** the **base no-RAG** cells (deepseek-v4-pro vs gpt-5.5 vs opus-4.8) are
+  the **cheap-vs-CURRENT-frontier** FRAMES reference — report that gap explicitly (the live
+  lag vs *today's* frontier, complementing the parity-vs-months-ago-frontier result). Add a
+  one-line "cheap vs current-frontier (base, no-RAG)" callout.
+- **Budget:** +$25 hard cap → `--meter --abort-usage 2620` (abort cell if absolute usage
+  > $2620; skip + LOG). If 3 models × 3 conditions × 40 risks the cap, **trim priority**:
+  (1) keep all base cells (cheap-vs-current-frontier headline), (2) deepseek dense+ruvector
+  (the H1 Δ), (3) frontier dense+ruvector last. `opus-4.8` may hit the step-cap on multi-hop
+  — give it the same fair budget and note any cap.
+
+### Estimated cost
+
+- Per-cell (one model × one task, RAG-augmented, ~8 ctx passages): ≈ **$0.15**
+  agentic-equivalent (matches the SWE-bench cascade `~$0.15/instance`). FRAMES QA cells are
+  cheaper (~$0.01–0.05); frontier-priced cells (gpt-5.5 ~$5/$30, opus-4.8 ~$5/$25 per Mtok
+  as relayed — unverified) cost more per cell.
+- **FRAMES H1 pilot** (n=40 × 3 models × 3 conditions ≈ 360 cells, frontier-weighted) →
+  order **≈ $15–25** — why the +$25 / `--abort-usage 2620` gate + trim priority exist.
+- **Full hard-code A/B/C × 2-epoch** (SWE-Lite 150 + Pro 50 × 3 arms × 2 epochs ≈ 1,200
+  instance-runs × ~$0.15) → **≈ $180** — needs its own allocation.
