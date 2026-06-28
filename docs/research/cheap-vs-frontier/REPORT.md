@@ -438,3 +438,22 @@ Set-recall dense 76% > graph 59% (PageRank surfaces hubs, not fix files); Cr=−
 
 **Fig 9 — ruvector router cost-Pareto (FRAMES n=150): always-cheap dominates; the oracle's +10pp prize is unreachable at AUC≈chance.**
 ![router cost-Pareto](charts/09-router-cost-pareto.svg)
+
+## Intelligence via Agent Scaffolding (can a better loop lift cheap models?)
+
+Frontier GAIA scores come from *scaffolding*, not weights (§GAIA above). So we asked the direct question: does a smarter reasoning loop raise a **cheap** model's resolve, and is it worth the tokens? We ablated **{base ReAct, Plan-and-Solve, Self-Consistency N=10, verifier-gated Best-of-N N=10, PS+BoN compound}** (+ a Reflexion probe) × **{deepseek-v4-pro, glm-5.2}** on FRAMES **n=50, seed 42, 12-step cap, reasoning OFF** (same harness/questions as the §FRAMES base). Full method + tables + charts: [`../scaffolding/SCAFFOLDING-ABLATION.md`](../scaffolding/SCAFFOLDING-ABLATION.md); survey grades in [`../scaffolding/SCAFFOLDING-SOTA.md`](../scaffolding/SCAFFOLDING-SOTA.md). Harness: `packages/darwin-mode/bench/gaia/solve-gaia.mjs --scaffold …`.
+
+**Verdict: scaffolding does NOT buy cheap-model intelligence on FRAMES — most scaffolds BACKFIRE.**
+
+- **Only Self-Consistency (majority vote, N=10) lifts both models** — deepseek 0.50→**0.56**, glm 0.42→**0.46** (**+4–6pp**) — but the lift is **not significant at n=50** (CIs overlap) and costs **~10×** ($/task $0.017→$0.18, $0.030→$0.32; $/correct rises ~9–10×). Lift-per-dollar ≈ **0.14–0.36**; SC saturates by **N≈7**.
+- **At equal dollar spend, the LM-judge verifier BEATS-NOTHING — it loses to the naive vote** off the *same* samples: deepseek 0.52 (judge) vs 0.56 (vote), glm 0.40 vs 0.46. A **negative generation-verification gap**: a cheap model is a worse judge of its own answers than a vote-counter (no execution oracle on QA).
+- **Plan-and-Solve backfires** (−10pp deepseek, −6pp glm — over-commits to a brittle plan), **Reflexion backfires** (−8pp at 2.85× cost — hallucinated self-fixes), and the **PS+BoN compound** stacks the damage. Consistent with the **deepseek turn-budget cliff**: the base loop already saturates, so extra reasoning machinery only adds error-compounding surface.
+- **Honesty:** n=50 per cell (glm PS+BoN cut to n=21 by the +$60 budget meter — excluded); strict GAIA-EM + Wilson CIs; reasoning OFF (stated); base empty-rate 8%/12% (sampling reduces it, not an empty-answer artifact); same-harness relative comparison only. Spend $59.94/≤$60.
+
+**Takeaway:** for cheap models already at frontier-parity on everyday-agentic QA, the budget is better spent on **more base-ReAct questions** than on scaffolding the same ones; the only marginally-positive scaffold is sample-and-vote, and even that doesn't clear significance at n=50.
+
+**Fig 10 — Scaffolding cost↔resolve (FRAMES n=50): only Self-Consistency moves up; verifier/plan/reflexion sit at-or-below base.**
+![scaffold cost-resolve](../scaffolding/charts/01-scaffold-cost-resolve.svg)
+
+**Fig 11 — Self-Consistency saturates by N≈7; the verifier-BoN star sits *below* the vote line (negative gen-verification gap).**
+![self-consistency vs verifier](../scaffolding/charts/02-self-consistency-curve.svg)

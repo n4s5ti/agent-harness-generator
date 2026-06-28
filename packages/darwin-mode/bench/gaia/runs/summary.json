@@ -1,0 +1,493 @@
+{
+  "dataset": "google/frames-benchmark",
+  "seed": 42,
+  "n": 50,
+  "reasoning": "off (no reasoning API param; scaffolds are prompt/orchestration-level)",
+  "scorer": "gaia-style-normalized-exact-match (conformant, leak-free)",
+  "generated": "2026-06-28T20:11:26.590Z",
+  "cells": [
+    {
+      "file": "preds-base-ds.jsonl",
+      "model": "deepseek/deepseek-v4-pro",
+      "scaffold": "none",
+      "view": "primary",
+      "n": 50,
+      "correct": 25,
+      "acc": 0.5,
+      "ci": [
+        0.3664,
+        0.6336
+      ],
+      "empty_rate": 0.08,
+      "total_cost": 0.8633,
+      "cost_per_task": 0.017266,
+      "cost_per_correct": 0.034532,
+      "mean_steps": 8.16
+    },
+    {
+      "file": "preds-base-glm.jsonl",
+      "model": "z-ai/glm-5.2",
+      "scaffold": "none",
+      "view": "primary",
+      "n": 50,
+      "correct": 21,
+      "acc": 0.42,
+      "ci": [
+        0.2937,
+        0.5577
+      ],
+      "empty_rate": 0.12,
+      "total_cost": 1.5086,
+      "cost_per_task": 0.030173,
+      "cost_per_correct": 0.071839,
+      "mean_steps": 7.48
+    },
+    {
+      "file": "preds-bon10-ds.jsonl",
+      "model": "deepseek/deepseek-v4-pro",
+      "scaffold": "verifier-bon",
+      "view": "primary",
+      "n": 50,
+      "correct": 26,
+      "acc": 0.52,
+      "ci": [
+        0.3851,
+        0.652
+      ],
+      "empty_rate": 0,
+      "total_cost": 9.2204,
+      "cost_per_task": 0.184408,
+      "cost_per_correct": 0.354631,
+      "mean_steps": 84.56,
+      "lift_pp": 2,
+      "delta_cost_per_task": 0.167142,
+      "lift_per_dollar": 0.1197
+    },
+    {
+      "file": "preds-bon10-ds.jsonl",
+      "model": "deepseek/deepseek-v4-pro",
+      "scaffold": "verifier-bon:sc",
+      "view": "majority",
+      "n": 50,
+      "correct": 28,
+      "acc": 0.56,
+      "ci": [
+        0.4231,
+        0.6884
+      ],
+      "empty_rate": 0,
+      "total_cost": 9.2204,
+      "cost_per_task": 0.184408,
+      "cost_per_correct": 0.3293,
+      "mean_steps": 84.56,
+      "lift_pp": 6,
+      "delta_cost_per_task": 0.167142,
+      "lift_per_dollar": 0.359
+    },
+    {
+      "file": "preds-bon10-ds.jsonl",
+      "model": "deepseek/deepseek-v4-pro",
+      "scaffold": "verifier-bon:sc-curve",
+      "view": "sc-curve",
+      "sc_curve": {
+        "k1": {
+          "acc": 0.44,
+          "ci": [
+            0.3116,
+            0.5769
+          ],
+          "correct": 22,
+          "cost_per_task": 0.018441
+        },
+        "k3": {
+          "acc": 0.5,
+          "ci": [
+            0.3664,
+            0.6336
+          ],
+          "correct": 25,
+          "cost_per_task": 0.055322
+        },
+        "k5": {
+          "acc": 0.52,
+          "ci": [
+            0.3851,
+            0.652
+          ],
+          "correct": 26,
+          "cost_per_task": 0.092204
+        },
+        "k7": {
+          "acc": 0.56,
+          "ci": [
+            0.4231,
+            0.6884
+          ],
+          "correct": 28,
+          "cost_per_task": 0.129086
+        },
+        "k10": {
+          "acc": 0.56,
+          "ci": [
+            0.4231,
+            0.6884
+          ],
+          "correct": 28,
+          "cost_per_task": 0.184408
+        }
+      },
+      "n": 50
+    },
+    {
+      "file": "preds-bon10-glm.jsonl",
+      "model": "z-ai/glm-5.2",
+      "scaffold": "verifier-bon",
+      "view": "primary",
+      "n": 50,
+      "correct": 20,
+      "acc": 0.4,
+      "ci": [
+        0.2761,
+        0.5382
+      ],
+      "empty_rate": 0.02,
+      "total_cost": 16.2383,
+      "cost_per_task": 0.324767,
+      "cost_per_correct": 0.811916,
+      "mean_steps": 77.72,
+      "lift_pp": -2,
+      "delta_cost_per_task": 0.294594,
+      "lift_per_dollar": -0.0679
+    },
+    {
+      "file": "preds-bon10-glm.jsonl",
+      "model": "z-ai/glm-5.2",
+      "scaffold": "verifier-bon:sc",
+      "view": "majority",
+      "n": 50,
+      "correct": 23,
+      "acc": 0.46,
+      "ci": [
+        0.3297,
+        0.596
+      ],
+      "empty_rate": 0.02,
+      "total_cost": 16.2383,
+      "cost_per_task": 0.324767,
+      "cost_per_correct": 0.706014,
+      "mean_steps": 77.72,
+      "lift_pp": 4,
+      "delta_cost_per_task": 0.294594,
+      "lift_per_dollar": 0.1358
+    },
+    {
+      "file": "preds-bon10-glm.jsonl",
+      "model": "z-ai/glm-5.2",
+      "scaffold": "verifier-bon:sc-curve",
+      "view": "sc-curve",
+      "sc_curve": {
+        "k1": {
+          "acc": 0.42,
+          "ci": [
+            0.2937,
+            0.5577
+          ],
+          "correct": 21,
+          "cost_per_task": 0.032477
+        },
+        "k3": {
+          "acc": 0.42,
+          "ci": [
+            0.2937,
+            0.5577
+          ],
+          "correct": 21,
+          "cost_per_task": 0.09743
+        },
+        "k5": {
+          "acc": 0.42,
+          "ci": [
+            0.2937,
+            0.5577
+          ],
+          "correct": 21,
+          "cost_per_task": 0.162384
+        },
+        "k7": {
+          "acc": 0.46,
+          "ci": [
+            0.3297,
+            0.596
+          ],
+          "correct": 23,
+          "cost_per_task": 0.227337
+        },
+        "k10": {
+          "acc": 0.46,
+          "ci": [
+            0.3297,
+            0.596
+          ],
+          "correct": 23,
+          "cost_per_task": 0.324767
+        }
+      },
+      "n": 50
+    },
+    {
+      "file": "preds-plan-ds.jsonl",
+      "model": "deepseek/deepseek-v4-pro",
+      "scaffold": "plan",
+      "view": "primary",
+      "n": 50,
+      "correct": 20,
+      "acc": 0.4,
+      "ci": [
+        0.2761,
+        0.5382
+      ],
+      "empty_rate": 0.12,
+      "total_cost": 0.7358,
+      "cost_per_task": 0.014716,
+      "cost_per_correct": 0.036791,
+      "mean_steps": 8.1,
+      "lift_pp": -10,
+      "delta_cost_per_task": -0.00255,
+      "lift_per_dollar": null
+    },
+    {
+      "file": "preds-plan-glm.jsonl",
+      "model": "z-ai/glm-5.2",
+      "scaffold": "plan",
+      "view": "primary",
+      "n": 50,
+      "correct": 18,
+      "acc": 0.36,
+      "ci": [
+        0.2414,
+        0.4986
+      ],
+      "empty_rate": 0.12,
+      "total_cost": 1.7208,
+      "cost_per_task": 0.034415,
+      "cost_per_correct": 0.095597,
+      "mean_steps": 8,
+      "lift_pp": -6,
+      "delta_cost_per_task": 0.004242,
+      "lift_per_dollar": -14.1443
+    },
+    {
+      "file": "preds-psbon5-ds.jsonl",
+      "model": "deepseek/deepseek-v4-pro",
+      "scaffold": "ps-bon",
+      "view": "primary",
+      "n": 50,
+      "correct": 21,
+      "acc": 0.42,
+      "ci": [
+        0.2937,
+        0.5577
+      ],
+      "empty_rate": 0.04,
+      "total_cost": 4.9718,
+      "cost_per_task": 0.099435,
+      "cost_per_correct": 0.236751,
+      "mean_steps": 44.54,
+      "lift_pp": -8,
+      "delta_cost_per_task": 0.082169,
+      "lift_per_dollar": -0.9736
+    },
+    {
+      "file": "preds-psbon5-ds.jsonl",
+      "model": "deepseek/deepseek-v4-pro",
+      "scaffold": "ps-bon:sc",
+      "view": "majority",
+      "n": 50,
+      "correct": 24,
+      "acc": 0.48,
+      "ci": [
+        0.348,
+        0.6149
+      ],
+      "empty_rate": 0.04,
+      "total_cost": 4.9718,
+      "cost_per_task": 0.099435,
+      "cost_per_correct": 0.207157,
+      "mean_steps": 44.54,
+      "lift_pp": -2,
+      "delta_cost_per_task": 0.082169,
+      "lift_per_dollar": -0.2434
+    },
+    {
+      "file": "preds-psbon5-ds.jsonl",
+      "model": "deepseek/deepseek-v4-pro",
+      "scaffold": "ps-bon:sc-curve",
+      "view": "sc-curve",
+      "sc_curve": {
+        "k1": {
+          "acc": 0.48,
+          "ci": [
+            0.348,
+            0.6149
+          ],
+          "correct": 24,
+          "cost_per_task": 0.019887
+        },
+        "k3": {
+          "acc": 0.44,
+          "ci": [
+            0.3116,
+            0.5769
+          ],
+          "correct": 22,
+          "cost_per_task": 0.059661
+        },
+        "k5": {
+          "acc": 0.48,
+          "ci": [
+            0.348,
+            0.6149
+          ],
+          "correct": 24,
+          "cost_per_task": 0.099435
+        },
+        "k7": {
+          "acc": 0.48,
+          "ci": [
+            0.348,
+            0.6149
+          ],
+          "correct": 24,
+          "cost_per_task": 0.139209
+        },
+        "k10": {
+          "acc": 0.48,
+          "ci": [
+            0.348,
+            0.6149
+          ],
+          "correct": 24,
+          "cost_per_task": 0.19887
+        }
+      },
+      "n": 50
+    },
+    {
+      "file": "preds-psbon5-glm.jsonl",
+      "model": "z-ai/glm-5.2",
+      "scaffold": "ps-bon",
+      "view": "primary",
+      "n": 21,
+      "correct": 8,
+      "acc": 0.381,
+      "ci": [
+        0.2075,
+        0.5912
+      ],
+      "empty_rate": 0,
+      "total_cost": 3.6163,
+      "cost_per_task": 0.172207,
+      "cost_per_correct": 0.452042,
+      "mean_steps": 42.0952,
+      "lift_pp": -3.9,
+      "delta_cost_per_task": 0.142034,
+      "lift_per_dollar": -0.2746
+    },
+    {
+      "file": "preds-psbon5-glm.jsonl",
+      "model": "z-ai/glm-5.2",
+      "scaffold": "ps-bon:sc",
+      "view": "majority",
+      "n": 21,
+      "correct": 8,
+      "acc": 0.381,
+      "ci": [
+        0.2075,
+        0.5912
+      ],
+      "empty_rate": 0,
+      "total_cost": 3.6163,
+      "cost_per_task": 0.172207,
+      "cost_per_correct": 0.452042,
+      "mean_steps": 42.0952,
+      "lift_pp": -3.9,
+      "delta_cost_per_task": 0.142034,
+      "lift_per_dollar": -0.2746
+    },
+    {
+      "file": "preds-psbon5-glm.jsonl",
+      "model": "z-ai/glm-5.2",
+      "scaffold": "ps-bon:sc-curve",
+      "view": "sc-curve",
+      "sc_curve": {
+        "k1": {
+          "acc": 0.381,
+          "ci": [
+            0.2075,
+            0.5912
+          ],
+          "correct": 8,
+          "cost_per_task": 0.034441
+        },
+        "k3": {
+          "acc": 0.381,
+          "ci": [
+            0.2075,
+            0.5912
+          ],
+          "correct": 8,
+          "cost_per_task": 0.103324
+        },
+        "k5": {
+          "acc": 0.381,
+          "ci": [
+            0.2075,
+            0.5912
+          ],
+          "correct": 8,
+          "cost_per_task": 0.172207
+        },
+        "k7": {
+          "acc": 0.381,
+          "ci": [
+            0.2075,
+            0.5912
+          ],
+          "correct": 8,
+          "cost_per_task": 0.24109
+        },
+        "k10": {
+          "acc": 0.381,
+          "ci": [
+            0.2075,
+            0.5912
+          ],
+          "correct": 8,
+          "cost_per_task": 0.344414
+        }
+      },
+      "n": 21
+    },
+    {
+      "file": "preds-reflexion-ds.jsonl",
+      "model": "deepseek/deepseek-v4-pro",
+      "scaffold": "reflexion",
+      "view": "primary",
+      "n": 50,
+      "correct": 21,
+      "acc": 0.42,
+      "ci": [
+        0.2937,
+        0.5577
+      ],
+      "empty_rate": 0.02,
+      "total_cost": 2.4669,
+      "cost_per_task": 0.049338,
+      "cost_per_correct": 0.117472,
+      "mean_steps": 21.42,
+      "lift_pp": -8,
+      "delta_cost_per_task": 0.032072,
+      "lift_per_dollar": -2.4944
+    }
+  ]
+}

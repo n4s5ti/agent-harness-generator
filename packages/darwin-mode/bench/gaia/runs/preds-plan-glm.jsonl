@@ -1,0 +1,50 @@
+{"task_id":"frames-757","model":"z-ai/glm-5.2","scaffold":"plan","model_answer":"1,429,475","cost_usd":0.004265,"steps":4,"episodes":1,"reasoning_types":"Multiple constraints"}
+{"task_id":"frames-454","model":"z-ai/glm-5.2","scaffold":"plan","model_answer":"Orhan Pamuk","cost_usd":0.002087,"steps":3,"episodes":1,"reasoning_types":"Multiple constraints"}
+{"task_id":"frames-661","model":"z-ai/glm-5.2","scaffold":"plan","model_answer":"1983","cost_usd":0.003447,"steps":3,"episodes":1,"reasoning_types":"Multiple constraints"}
+{"task_id":"frames-119","model":"z-ai/glm-5.2","scaffold":"plan","model_answer":"Ang Lee","cost_usd":0.013002,"steps":5,"episodes":1,"reasoning_types":"Multiple constraints"}
+{"task_id":"frames-482","model":"z-ai/glm-5.2","scaffold":"plan","model_answer":"47","cost_usd":0.016419,"steps":7,"episodes":1,"reasoning_types":"Numerical reasoning | Tabular reasoning"}
+{"task_id":"frames-175","model":"z-ai/glm-5.2","scaffold":"plan","model_answer":"1225","cost_usd":0.010057,"steps":5,"episodes":1,"reasoning_types":"Numerical reasoning"}
+{"task_id":"frames-44","model":"z-ai/glm-5.2","scaffold":"plan","model_answer":"Nearby train stations in or around the G40 postcode area include:","cost_usd":0.02223,"steps":12,"episodes":1,"reasoning_types":"Multiple constraints"}
+{"task_id":"frames-286","model":"z-ai/glm-5.2","scaffold":"plan","model_answer":"Red, white, and blue","cost_usd":0.097957,"steps":12,"episodes":1,"reasoning_types":"Multiple constraints"}
+{"task_id":"frames-462","model":"z-ai/glm-5.2","scaffold":"plan","model_answer":"On the Road by Jack Kerouac","cost_usd":0.053037,"steps":11,"episodes":1,"reasoning_types":"Numerical reasoning | Multiple constraints | Temporal reasoning"}
+{"task_id":"frames-7","model":"z-ai/glm-5.2","scaffold":"plan","model_answer":"","cost_usd":0.049274,"steps":12,"episodes":1,"reasoning_types":"Multiple constraints | Temporal reasoning"}
+{"task_id":"frames-121","model":"z-ai/glm-5.2","scaffold":"plan","model_answer":"McDonald's","cost_usd":0.004836,"steps":4,"episodes":1,"reasoning_types":"Multiple constraints"}
+{"task_id":"frames-54","model":"z-ai/glm-5.2","scaffold":"plan","model_answer":"17","cost_usd":0.00797,"steps":5,"episodes":1,"reasoning_types":"Tabular reasoning | Multiple constraints | Post processing"}
+{"task_id":"frames-403","model":"z-ai/glm-5.2","scaffold":"plan","model_answer":"1914 (Benny Kauff), 1987 (Tony Gwynn), 2002 (Barry Bonds)","cost_usd":0.020302,"steps":6,"episodes":1,"reasoning_types":"Temporal reasoning"}
+{"task_id":"frames-322","model":"z-ai/glm-5.2","scaffold":"plan","model_answer":"Under Armour","cost_usd":0.066624,"steps":12,"episodes":1,"reasoning_types":"Tabular reasoning"}
+{"task_id":"frames-298","model":"z-ai/glm-5.2","scaffold":"plan","model_answer":"9.1%","cost_usd":0.064981,"steps":12,"episodes":1,"reasoning_types":"Numerical reasoning | Tabular reasoning | Multiple constraints"}
+{"task_id":"frames-379","model":"z-ai/glm-5.2","scaffold":"plan","model_answer":"George Washington","cost_usd":0.001525,"steps":2,"episodes":1,"reasoning_types":"Tabular reasoning | Temporal reasoning"}
+{"task_id":"frames-498","model":"z-ai/glm-5.2","scaffold":"plan","model_answer":"14.3 points per game (22.7 - 8.4 = 14.3)","cost_usd":0.053663,"steps":12,"episodes":1,"reasoning_types":"Numerical reasoning | Tabular reasoning | Multiple constraints | Post processing | Temporal reasoning"}
+{"task_id":"frames-621","model":"z-ai/glm-5.2","scaffold":"plan","model_answer":"5","cost_usd":0.028421,"steps":7,"episodes":1,"reasoning_types":"Multiple constraints | Post processing"}
+{"task_id":"frames-550","model":"z-ai/glm-5.2","scaffold":"plan","model_answer":"10","cost_usd":0.009039,"steps":3,"episodes":1,"reasoning_types":"Multiple constraints | Post processing"}
+{"task_id":"frames-473","model":"z-ai/glm-5.2","scaffold":"plan","model_answer":"5","cost_usd":0.007169,"steps":4,"episodes":1,"reasoning_types":"Multiple constraints"}
+{"task_id":"frames-504","model":"z-ai/glm-5.2","scaffold":"plan","model_answer":"","cost_usd":0.035141,"steps":12,"episodes":1,"reasoning_types":"Multiple constraints | Temporal reasoning"}
+{"task_id":"frames-407","model":"z-ai/glm-5.2","scaffold":"plan","model_answer":"10","cost_usd":0.041179,"steps":12,"episodes":1,"reasoning_types":"Numerical reasoning | Tabular reasoning"}
+{"task_id":"frames-494","model":"z-ai/glm-5.2","scaffold":"plan","model_answer":"11","cost_usd":0.016968,"steps":6,"episodes":1,"reasoning_types":"Post processing"}
+{"task_id":"frames-86","model":"z-ai/glm-5.2","scaffold":"plan","model_answer":"","cost_usd":0.047228,"steps":12,"episodes":1,"reasoning_types":"Tabular reasoning"}
+{"task_id":"frames-416","model":"z-ai/glm-5.2","scaffold":"plan","model_answer":"","cost_usd":0.076649,"steps":12,"episodes":1,"reasoning_types":"Tabular reasoning | Multiple constraints"}
+{"task_id":"frames-282","model":"z-ai/glm-5.2","scaffold":"plan","model_answer":"Almroth Edward Wright, Richard Pfeiffer, and Wilhelm Kolle","cost_usd":0.011426,"steps":5,"episodes":1,"reasoning_types":"Multiple constraints"}
+{"task_id":"frames-16","model":"z-ai/glm-5.2","scaffold":"plan","model_answer":"25","cost_usd":0.049353,"steps":8,"episodes":1,"reasoning_types":"Numerical reasoning | Tabular reasoning | Post processing | Temporal reasoning"}
+{"task_id":"frames-709","model":"z-ai/glm-5.2","scaffold":"plan","model_answer":"Rhesus macaque","cost_usd":0.005487,"steps":3,"episodes":1,"reasoning_types":"Multiple constraints"}
+{"task_id":"frames-346","model":"z-ai/glm-5.2","scaffold":"plan","model_answer":"Irish Sea","cost_usd":0.013009,"steps":5,"episodes":1,"reasoning_types":"Multiple constraints"}
+{"task_id":"frames-74","model":"z-ai/glm-5.2","scaffold":"plan","model_answer":"87 feet (26.5 meters)","cost_usd":0.010734,"steps":4,"episodes":1,"reasoning_types":"Numerical reasoning | Tabular reasoning"}
+{"task_id":"frames-110","model":"z-ai/glm-5.2","scaffold":"plan","model_answer":"Yes, Nashville","cost_usd":0.008582,"steps":4,"episodes":1,"reasoning_types":"Multiple constraints"}
+{"task_id":"frames-328","model":"z-ai/glm-5.2","scaffold":"plan","model_answer":"The M*A*S*H finale by 32 minutes.","cost_usd":0.058917,"steps":12,"episodes":1,"reasoning_types":"Numerical reasoning | Tabular reasoning"}
+{"task_id":"frames-263","model":"z-ai/glm-5.2","scaffold":"plan","model_answer":"Violant of Castile","cost_usd":0.020597,"steps":6,"episodes":1,"reasoning_types":"Multiple constraints"}
+{"task_id":"frames-753","model":"z-ai/glm-5.2","scaffold":"plan","model_answer":"15 years","cost_usd":0.02181,"steps":7,"episodes":1,"reasoning_types":"Numerical reasoning | Temporal reasoning"}
+{"task_id":"frames-167","model":"z-ai/glm-5.2","scaffold":"plan","model_answer":"Daniela Lavender","cost_usd":0.02004,"steps":6,"episodes":1,"reasoning_types":"Multiple constraints"}
+{"task_id":"frames-760","model":"z-ai/glm-5.2","scaffold":"plan","model_answer":"37","cost_usd":0.007317,"steps":4,"episodes":1,"reasoning_types":"Multiple constraints"}
+{"task_id":"frames-644","model":"z-ai/glm-5.2","scaffold":"plan","model_answer":"Game Freak","cost_usd":0.010346,"steps":8,"episodes":1,"reasoning_types":"Multiple constraints"}
+{"task_id":"frames-139","model":"z-ai/glm-5.2","scaffold":"plan","model_answer":"Skeleton Crew","cost_usd":0.018825,"steps":6,"episodes":1,"reasoning_types":"Multiple constraints | Temporal reasoning"}
+{"task_id":"frames-761","model":"z-ai/glm-5.2","scaffold":"plan","model_answer":"8","cost_usd":0.04817,"steps":12,"episodes":1,"reasoning_types":"Numerical reasoning | Tabular reasoning | Temporal reasoning"}
+{"task_id":"frames-758","model":"z-ai/glm-5.2","scaffold":"plan","model_answer":"James A. Sheets was the Mayor when it opened as Quincy Medical Center, and Thomas Koch was the Mayor when it closed.","cost_usd":0.05853,"steps":12,"episodes":1,"reasoning_types":"Numerical reasoning | Tabular reasoning | Temporal reasoning"}
+{"task_id":"frames-759","model":"z-ai/glm-5.2","scaffold":"plan","model_answer":"","cost_usd":0.041825,"steps":12,"episodes":1,"reasoning_types":"Multiple constraints"}
+{"task_id":"frames-764","model":"z-ai/glm-5.2","scaffold":"plan","model_answer":"Novak Djokovic","cost_usd":0.006031,"steps":4,"episodes":1,"reasoning_types":"Tabular reasoning"}
+{"task_id":"frames-765","model":"z-ai/glm-5.2","scaffold":"plan","model_answer":"1904","cost_usd":0.004127,"steps":3,"episodes":1,"reasoning_types":"Multiple constraints"}
+{"task_id":"frames-762","model":"z-ai/glm-5.2","scaffold":"plan","model_answer":"Keegan Murray","cost_usd":0.030226,"steps":12,"episodes":1,"reasoning_types":"Multiple constraints | Temporal reasoning"}
+{"task_id":"frames-17","model":"z-ai/glm-5.2","scaffold":"plan","model_answer":"Leirion","cost_usd":0.069061,"steps":12,"episodes":1,"reasoning_types":"Multiple constraints"}
+{"task_id":"frames-763","model":"z-ai/glm-5.2","scaffold":"plan","model_answer":"Kool & the Gang","cost_usd":0.04886,"steps":12,"episodes":1,"reasoning_types":"Multiple constraints | Temporal reasoning"}
+{"task_id":"frames-591","model":"z-ai/glm-5.2","scaffold":"plan","model_answer":"","cost_usd":0.039033,"steps":12,"episodes":1,"reasoning_types":"Tabular reasoning"}
+{"task_id":"frames-766","model":"z-ai/glm-5.2","scaffold":"plan","model_answer":"The provided text does not contain the population data for 1946 and 1975.","cost_usd":0.039007,"steps":12,"episodes":1,"reasoning_types":"Numerical reasoning | Tabular reasoning | Temporal reasoning"}
+{"task_id":"frames-767","model":"z-ai/glm-5.2","scaffold":"plan","model_answer":"Boston Celtics","cost_usd":0.047008,"steps":12,"episodes":1,"reasoning_types":"Tabular reasoning"}
+{"task_id":"frames-377","model":"z-ai/glm-5.2","scaffold":"plan","model_answer":"The research notes do not specify which General was originally scheduled to lead Operation Torch before Eisenhower, nor do they list the military awards received by that General.","cost_usd":0.278961,"steps":12,"episodes":1,"reasoning_types":"Multiple constraints"}

@@ -1,0 +1,50 @@
+{"task_id":"frames-454","model":"z-ai/glm-5.2","scaffold":"none","model_answer":"Orhan Pamuk","cost_usd":0.001469,"steps":2,"episodes":1,"reasoning_types":"Multiple constraints"}
+{"task_id":"frames-661","model":"z-ai/glm-5.2","scaffold":"none","model_answer":"1983","cost_usd":0.002111,"steps":3,"episodes":1,"reasoning_types":"Multiple constraints"}
+{"task_id":"frames-175","model":"z-ai/glm-5.2","scaffold":"none","model_answer":"1225","cost_usd":0.00544,"steps":5,"episodes":1,"reasoning_types":"Numerical reasoning"}
+{"task_id":"frames-621","model":"z-ai/glm-5.2","scaffold":"none","model_answer":"5","cost_usd":0.014273,"steps":4,"episodes":1,"reasoning_types":"Multiple constraints | Post processing"}
+{"task_id":"frames-482","model":"z-ai/glm-5.2","scaffold":"none","model_answer":"47","cost_usd":0.009701,"steps":7,"episodes":1,"reasoning_types":"Numerical reasoning | Tabular reasoning"}
+{"task_id":"frames-119","model":"z-ai/glm-5.2","scaffold":"none","model_answer":"Alfonso Cuarón","cost_usd":0.013228,"steps":5,"episodes":1,"reasoning_types":"Multiple constraints"}
+{"task_id":"frames-757","model":"z-ai/glm-5.2","scaffold":"none","model_answer":"1429475","cost_usd":0.01155,"steps":4,"episodes":1,"reasoning_types":"Multiple constraints"}
+{"task_id":"frames-403","model":"z-ai/glm-5.2","scaffold":"none","model_answer":"1914 (Benny Kauff), 1987 (Tony Gwynn), 2002 (Barry Bonds)","cost_usd":0.017299,"steps":8,"episodes":1,"reasoning_types":"Temporal reasoning"}
+{"task_id":"frames-44","model":"z-ai/glm-5.2","scaffold":"none","model_answer":"Nearby train stations to the G40 postcode area include Bridgeton, Dalmarnock, Glasgow Central, and Glasgow Queen Street.","cost_usd":0.034586,"steps":12,"episodes":1,"reasoning_types":"Multiple constraints"}
+{"task_id":"frames-322","model":"z-ai/glm-5.2","scaffold":"none","model_answer":"Umbro","cost_usd":0.036597,"steps":9,"episodes":1,"reasoning_types":"Tabular reasoning"}
+{"task_id":"frames-286","model":"z-ai/glm-5.2","scaffold":"none","model_answer":"","cost_usd":0.040419,"steps":12,"episodes":1,"reasoning_types":"Multiple constraints"}
+{"task_id":"frames-54","model":"z-ai/glm-5.2","scaffold":"none","model_answer":"17","cost_usd":0.010467,"steps":4,"episodes":1,"reasoning_types":"Tabular reasoning | Multiple constraints | Post processing"}
+{"task_id":"frames-121","model":"z-ai/glm-5.2","scaffold":"none","model_answer":"McDonald's","cost_usd":0.013066,"steps":6,"episodes":1,"reasoning_types":"Multiple constraints"}
+{"task_id":"frames-7","model":"z-ai/glm-5.2","scaffold":"none","model_answer":"2","cost_usd":0.045838,"steps":11,"episodes":1,"reasoning_types":"Multiple constraints | Temporal reasoning"}
+{"task_id":"frames-379","model":"z-ai/glm-5.2","scaffold":"none","model_answer":"George Washington","cost_usd":0.000283,"steps":1,"episodes":1,"reasoning_types":"Tabular reasoning | Temporal reasoning"}
+{"task_id":"frames-346","model":"z-ai/glm-5.2","scaffold":"none","model_answer":"Irish Sea","cost_usd":0.002594,"steps":4,"episodes":1,"reasoning_types":"Multiple constraints"}
+{"task_id":"frames-416","model":"z-ai/glm-5.2","scaffold":"none","model_answer":"Naruto","cost_usd":0.070288,"steps":12,"episodes":1,"reasoning_types":"Tabular reasoning | Multiple constraints"}
+{"task_id":"frames-462","model":"z-ai/glm-5.2","scaffold":"none","model_answer":"Onthe Road by Jack Kerouac","cost_usd":0.035367,"steps":9,"episodes":1,"reasoning_types":"Numerical reasoning | Multiple constraints | Temporal reasoning"}
+{"task_id":"frames-550","model":"z-ai/glm-5.2","scaffold":"none","model_answer":"10","cost_usd":0.005117,"steps":3,"episodes":1,"reasoning_types":"Multiple constraints | Post processing"}
+{"task_id":"frames-473","model":"z-ai/glm-5.2","scaffold":"none","model_answer":"5","cost_usd":0.006316,"steps":5,"episodes":1,"reasoning_types":"Multiple constraints"}
+{"task_id":"frames-86","model":"z-ai/glm-5.2","scaffold":"none","model_answer":"","cost_usd":0.074328,"steps":12,"episodes":1,"reasoning_types":"Tabular reasoning"}
+{"task_id":"frames-16","model":"z-ai/glm-5.2","scaffold":"none","model_answer":"28","cost_usd":0.010982,"steps":4,"episodes":1,"reasoning_types":"Numerical reasoning | Tabular reasoning | Post processing | Temporal reasoning"}
+{"task_id":"frames-494","model":"z-ai/glm-5.2","scaffold":"none","model_answer":"11","cost_usd":0.016334,"steps":5,"episodes":1,"reasoning_types":"Post processing"}
+{"task_id":"frames-407","model":"z-ai/glm-5.2","scaffold":"none","model_answer":"7","cost_usd":0.042205,"steps":12,"episodes":1,"reasoning_types":"Numerical reasoning | Tabular reasoning"}
+{"task_id":"frames-498","model":"z-ai/glm-5.2","scaffold":"none","model_answer":"22.7 - 8.4 = 14.3","cost_usd":0.06632,"steps":12,"episodes":1,"reasoning_types":"Numerical reasoning | Tabular reasoning | Multiple constraints | Post processing | Temporal reasoning"}
+{"task_id":"frames-644","model":"z-ai/glm-5.2","scaffold":"none","model_answer":"Game Freak","cost_usd":0.006129,"steps":3,"episodes":1,"reasoning_types":"Multiple constraints"}
+{"task_id":"frames-282","model":"z-ai/glm-5.2","scaffold":"none","model_answer":"Almroth Edward Wright","cost_usd":0.011953,"steps":7,"episodes":1,"reasoning_types":"Multiple constraints"}
+{"task_id":"frames-709","model":"z-ai/glm-5.2","scaffold":"none","model_answer":"Rhesus macaque","cost_usd":0.001977,"steps":2,"episodes":1,"reasoning_types":"Multiple constraints"}
+{"task_id":"frames-504","model":"z-ai/glm-5.2","scaffold":"none","model_answer":"Barbara Kingsolver","cost_usd":0.07078,"steps":12,"episodes":1,"reasoning_types":"Multiple constraints | Temporal reasoning"}
+{"task_id":"frames-298","model":"z-ai/glm-5.2","scaffold":"none","model_answer":"","cost_usd":0.06567,"steps":12,"episodes":1,"reasoning_types":"Numerical reasoning | Tabular reasoning | Multiple constraints"}
+{"task_id":"frames-74","model":"z-ai/glm-5.2","scaffold":"none","model_answer":"26.5 meters","cost_usd":0.023176,"steps":6,"episodes":1,"reasoning_types":"Numerical reasoning | Tabular reasoning"}
+{"task_id":"frames-167","model":"z-ai/glm-5.2","scaffold":"none","model_answer":"Daniela Lavender","cost_usd":0.002293,"steps":3,"episodes":1,"reasoning_types":"Multiple constraints"}
+{"task_id":"frames-753","model":"z-ai/glm-5.2","scaffold":"none","model_answer":"10 years","cost_usd":0.031292,"steps":12,"episodes":1,"reasoning_types":"Numerical reasoning | Temporal reasoning"}
+{"task_id":"frames-110","model":"z-ai/glm-5.2","scaffold":"none","model_answer":"Yes, they were both in Nashville (2017–2018)","cost_usd":0.058097,"steps":9,"episodes":1,"reasoning_types":"Multiple constraints"}
+{"task_id":"frames-139","model":"z-ai/glm-5.2","scaffold":"none","model_answer":"Skeleton Crew","cost_usd":0.018881,"steps":6,"episodes":1,"reasoning_types":"Multiple constraints | Temporal reasoning"}
+{"task_id":"frames-760","model":"z-ai/glm-5.2","scaffold":"none","model_answer":"37","cost_usd":0.004021,"steps":3,"episodes":1,"reasoning_types":"Multiple constraints"}
+{"task_id":"frames-17","model":"z-ai/glm-5.2","scaffold":"none","model_answer":"","cost_usd":0.094407,"steps":12,"episodes":1,"reasoning_types":"Multiple constraints"}
+{"task_id":"frames-328","model":"z-ai/glm-5.2","scaffold":"none","model_answer":"M*A*S*H by 32 minutes.","cost_usd":0.087829,"steps":12,"episodes":1,"reasoning_types":"Numerical reasoning | Tabular reasoning"}
+{"task_id":"frames-763","model":"z-ai/glm-5.2","scaffold":"none","model_answer":"Kool & the Gang","cost_usd":0.019426,"steps":5,"episodes":1,"reasoning_types":"Multiple constraints | Temporal reasoning"}
+{"task_id":"frames-764","model":"z-ai/glm-5.2","scaffold":"none","model_answer":"Novak Djokovic","cost_usd":0.000402,"steps":1,"episodes":1,"reasoning_types":"Tabular reasoning"}
+{"task_id":"frames-765","model":"z-ai/glm-5.2","scaffold":"none","model_answer":"1904","cost_usd":0.000278,"steps":1,"episodes":1,"reasoning_types":"Multiple constraints"}
+{"task_id":"frames-377","model":"z-ai/glm-5.2","scaffold":"none","model_answer":"","cost_usd":0.061678,"steps":12,"episodes":1,"reasoning_types":"Multiple constraints"}
+{"task_id":"frames-762","model":"z-ai/glm-5.2","scaffold":"none","model_answer":"Scottie Barnes","cost_usd":0.031711,"steps":8,"episodes":1,"reasoning_types":"Multiple constraints | Temporal reasoning"}
+{"task_id":"frames-591","model":"z-ai/glm-5.2","scaffold":"none","model_answer":"Perth","cost_usd":0.039513,"steps":12,"episodes":1,"reasoning_types":"Tabular reasoning"}
+{"task_id":"frames-767","model":"z-ai/glm-5.2","scaffold":"none","model_answer":"Boston Celtics","cost_usd":0.035688,"steps":8,"episodes":1,"reasoning_types":"Tabular reasoning"}
+{"task_id":"frames-758","model":"z-ai/glm-5.2","scaffold":"none","model_answer":"The provided text does not specify who the Mayor of Quincy was when the Quincy Medical Center opened in 1890 or when it closed in 2014.","cost_usd":0.058551,"steps":12,"episodes":1,"reasoning_types":"Numerical reasoning | Tabular reasoning | Temporal reasoning"}
+{"task_id":"frames-766","model":"z-ai/glm-5.2","scaffold":"none","model_answer":"64,000","cost_usd":0.059797,"steps":12,"episodes":1,"reasoning_types":"Numerical reasoning | Tabular reasoning | Temporal reasoning"}
+{"task_id":"frames-759","model":"z-ai/glm-5.2","scaffold":"none","model_answer":"","cost_usd":0.059202,"steps":12,"episodes":1,"reasoning_types":"Multiple constraints"}
+{"task_id":"frames-761","model":"z-ai/glm-5.2","scaffold":"none","model_answer":"The provided text does not specify.","cost_usd":0.05076,"steps":12,"episodes":1,"reasoning_types":"Numerical reasoning | Tabular reasoning | Temporal reasoning"}
+{"task_id":"frames-263","model":"z-ai/glm-5.2","scaffold":"none","model_answer":"Violant of Castile","cost_usd":0.028938,"steps":9,"episodes":1,"reasoning_types":"Multiple constraints"}

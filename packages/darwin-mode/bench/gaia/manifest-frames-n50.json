@@ -1,0 +1,308 @@
+{
+  "dataset": "google/frames-benchmark",
+  "split": "test",
+  "seed": 42,
+  "n": 50,
+  "tasks": [
+    {
+      "task_id": "frames-416",
+      "question": "As of July 2024, which protagonist of a 'shonen jump' series shares a name with a station on a West Japan Railway Company regional line?",
+      "answer": "Light Yagami",
+      "reasoning_types": "Tabular reasoning | Multiple constraints"
+    },
+    {
+      "task_id": "frames-175",
+      "question": "If Andrew Fluegelman's suggested donation for his freeware program were paid at a rate of 1 per every day, how much money would he have made during his fast?",
+      "answer": "$1,225",
+      "reasoning_types": "Numerical reasoning"
+    },
+    {
+      "task_id": "frames-757",
+      "question": "What was the population of the province which the town Robat-e Morad is located, in 2016?",
+      "answer": "1,429,475",
+      "reasoning_types": "Multiple constraints"
+    },
+    {
+      "task_id": "frames-621",
+      "question": "Only one of the founding members of the superhero team 'The Defenders' was not a doctor. How many letters are in his name?",
+      "answer": "Five (the name is Namor')",
+      "reasoning_types": "Multiple constraints | Post processing"
+    },
+    {
+      "task_id": "frames-286",
+      "question": "In 2020, the Italian curling team won the Moscow Classic annual bonspiel. One of the members of that four-person team was not born in Italy. As of August 1, 2024, what are the colors of the national flag of their country of origin?",
+      "answer": "Red and White (Switzerland, Joël Retornaz)",
+      "reasoning_types": "Multiple constraints"
+    },
+    {
+      "task_id": "frames-454",
+      "question": "During the year that Serbia became an independent republic after separation from Montenegro, who won the Nobel Prize for Literature?",
+      "answer": "Orhan Pamuk",
+      "reasoning_types": "Multiple constraints"
+    },
+    {
+      "task_id": "frames-661",
+      "question": "What year was the first Uber employee born?",
+      "answer": "1983",
+      "reasoning_types": "Multiple constraints"
+    },
+    {
+      "task_id": "frames-482",
+      "question": "How old was the first minister of the Ministry of Digital Affairs in Poland when Andrzej Halicki became minister?",
+      "answer": "The first minister of the Ministry of Digital Affairs in Poland Anna Streżyńska was 47 years old when Andrzej Halicki became minister in 2014. Anna Streżyńska was born on May 11th, 1967.",
+      "reasoning_types": "Numerical reasoning | Tabular reasoning"
+    },
+    {
+      "task_id": "frames-119",
+      "question": "The Office is an American mockumentary sitcom television series that first aired in 2005. Who won the Academy Award for Best Director the same year that the show had its series finale?",
+      "answer": "Ang Lee won the award for best director for Life of Pi.",
+      "reasoning_types": "Multiple constraints"
+    },
+    {
+      "task_id": "frames-44",
+      "question": "I am moving to the G40 postcode area - what train stations are nearby, as of 2024?",
+      "answer": "Bridgeton Railway Station and Dalmarnock Railway Station.",
+      "reasoning_types": "Multiple constraints"
+    },
+    {
+      "task_id": "frames-298",
+      "question": "How much bigger was Ford Motor Company's market share of US Sales the year Matthew McConaughey won his first MTV Movie Award than the year Zac Efron won his?",
+      "answer": "10.30%",
+      "reasoning_types": "Numerical reasoning | Tabular reasoning | Multiple constraints"
+    },
+    {
+      "task_id": "frames-462",
+      "question": "Since the turn of the 21st century, there has only been one year in which the Pulitzer Prize for Fiction has not been awarded. Among the finalists that year, one novel was published posthumously. The author of this posthumous publication is best known for a different novel published 15 years prior. The opening lines of this book later inspired a song by a band. The name of this band can be determined with the following calculation: find the age of the author on January 1 of the year the latter book was published, add four, and subtract the sum from the year this author was a Pulitzer Prize finalist. The name of this band was inspired by yet another book. What is the name of this book and its author?",
+      "answer": "On the Road by Jack Kerouac",
+      "reasoning_types": "Numerical reasoning | Multiple constraints | Temporal reasoning"
+    },
+    {
+      "task_id": "frames-322",
+      "question": "Who manufactured the kits Tomáš Pekhart wore in 2008 in his senior career?",
+      "answer": "Puma and Umbro",
+      "reasoning_types": "Tabular reasoning"
+    },
+    {
+      "task_id": "frames-403",
+      "question": "Put in chronological order the Major League Baseball seasons in which Barry Bonds, Tony Gwynn, and Benny Kauff hit for a .370 batting average.",
+      "answer": "1914, 1987, 2002",
+      "reasoning_types": "Temporal reasoning"
+    },
+    {
+      "task_id": "frames-7",
+      "question": "As of Aug 3, 2024, the artist who released the album \"Father of Asahd\" went to the same high school as an Olympic diver. How many Olympic teams did this diver participate on?",
+      "answer": "2",
+      "reasoning_types": "Multiple constraints | Temporal reasoning"
+    },
+    {
+      "task_id": "frames-498",
+      "question": "How many more points did Michael Jordan average in his sophomore season (regular season) in the NBA than the first black NBA player averaged during his career (regular season)? Show me a math equation to justify your answer.",
+      "answer": "14.3 PPG  22.7 - 8.4 = 14.3",
+      "reasoning_types": "Numerical reasoning | Tabular reasoning | Multiple constraints | Post processing | Temporal reasoning"
+    },
+    {
+      "task_id": "frames-54",
+      "question": "How many letters long is the title of the first movie composed by the composer of the first American Godzilla movie?",
+      "answer": "17",
+      "reasoning_types": "Tabular reasoning | Multiple constraints | Post processing"
+    },
+    {
+      "task_id": "frames-121",
+      "question": "Which fast food restaurant opened first, McDonald's, Wendy's or In-and-Out?",
+      "answer": "McDonald's in 1940",
+      "reasoning_types": "Multiple constraints"
+    },
+    {
+      "task_id": "frames-504",
+      "question": "Concerning just the winners between 2019 and 2024, which Pulitzer Prize-winning author was born in Maryland?",
+      "answer": "Barbara Kingsolver",
+      "reasoning_types": "Multiple constraints | Temporal reasoning"
+    },
+    {
+      "task_id": "frames-377",
+      "question": "What military awards were received by the General originally scheduled to lead Operation Torch before Lieutenant General Dwight D. Eisenhower was given command of the operation?",
+      "answer": "Joseph Stilwell was originally scheduled to lead Operation Torch before Lieutenant General Dwight D. Eisenhower was given command of the operation. Stillwell received a Distinguished Service Cross, two Army Distinguished Service Medals, a Legion of Merit award, and a Bronze Star during his military career.",
+      "reasoning_types": "Multiple constraints"
+    },
+    {
+      "task_id": "frames-86",
+      "question": "What medal did the woman who tied for 19th in the 2011 Pan American Games women's individual bowling event win as part of a women's bowling doubles team in the 2017 World Games?",
+      "answer": "Bronze medalist",
+      "reasoning_types": "Tabular reasoning"
+    },
+    {
+      "task_id": "frames-379",
+      "question": "What US president was born in the same year that the Treaty of Resht was signed?",
+      "answer": "George Washington",
+      "reasoning_types": "Tabular reasoning | Temporal reasoning"
+    },
+    {
+      "task_id": "frames-346",
+      "question": "What sea borders the Irish County where the author of the short story Foster was born?",
+      "answer": "The Irish Sea",
+      "reasoning_types": "Multiple constraints"
+    },
+    {
+      "task_id": "frames-16",
+      "question": "On March 7th, 2012, the director James Cameron explored a very deep underseas trench.  As of August 3, 2024, how many times would the tallest building in San Francisco fit end to end from the bottom of the New Britain Trench to the surface of the ocean? The answer should be a rounded-off whole number.",
+      "answer": "28",
+      "reasoning_types": "Numerical reasoning | Tabular reasoning | Post processing | Temporal reasoning"
+    },
+    {
+      "task_id": "frames-550",
+      "question": "As of August 4, 2024, Rosamund Pike voices a character in a podcast about the so-called \"First Female President.\" How many siblings does the character have?",
+      "answer": "10",
+      "reasoning_types": "Multiple constraints | Post processing"
+    },
+    {
+      "task_id": "frames-473",
+      "question": "In January of 2024, how many colleges were in the district in which the William C. Davis Science building can be found?",
+      "answer": "Alamo Colleges District has 5 schools.",
+      "reasoning_types": "Multiple constraints"
+    },
+    {
+      "task_id": "frames-407",
+      "question": "How many more medals did France win in the 2008 Summer Olympics than in the 2004 Summer Olympics?",
+      "answer": "10",
+      "reasoning_types": "Numerical reasoning | Tabular reasoning"
+    },
+    {
+      "task_id": "frames-494",
+      "question": "How many years did it take after the FIFA ban was lifted for someone to wear a hijab in the World Cup?",
+      "answer": "11 years",
+      "reasoning_types": "Post processing"
+    },
+    {
+      "task_id": "frames-644",
+      "question": "The incorporation of this company happened in the same year titled on Taylor Swift 5th studio album. It was incorporated by a man born in Setagaya, Tokyo, Japan that worked with the illustrator who largely designed the original 151 Pokémon.     What is “this company”?",
+      "answer": "Game Freak",
+      "reasoning_types": "Multiple constraints"
+    },
+    {
+      "task_id": "frames-263",
+      "question": "Who was the wife of the founder of the city where the 2023 Tour De France started?",
+      "answer": "Violant of Castile",
+      "reasoning_types": "Multiple constraints"
+    },
+    {
+      "task_id": "frames-282",
+      "question": "Who developed the first effective vaccine against the disease that killed the father of a famous Hungarian composer born in 1811?",
+      "answer": "Almroth Edward Wright",
+      "reasoning_types": "Multiple constraints"
+    },
+    {
+      "task_id": "frames-328",
+      "question": "Of the top two most watched television season finales (as of June 2024), which finale ran the longest in length and by how much?",
+      "answer": "The MASH finale ran for 52 minutes longer than the Cheers finale.",
+      "reasoning_types": "Numerical reasoning | Tabular reasoning"
+    },
+    {
+      "task_id": "frames-709",
+      "question": "What primate species, known for its large population in China and presence in Florida, could potentially carry the Herpes B virus?",
+      "answer": "Rhesus Macaques",
+      "reasoning_types": "Multiple constraints"
+    },
+    {
+      "task_id": "frames-139",
+      "question": "What is the name of the play written in May 2016 by a playwright who won the MacArthur Fellowship the same year as the poet who wrote \"Postcolonial Love Poem\"?",
+      "answer": "Skeleton Crew",
+      "reasoning_types": "Multiple constraints | Temporal reasoning"
+    },
+    {
+      "task_id": "frames-17",
+      "question": "In August of 2024, what is the first name of the mayor of the U.S. state capital city who attended the same university as at least one U.S. president and whose city is home to an outgoing or former full member of the Big 12 Conference",
+      "answer": "Leirion",
+      "reasoning_types": "Multiple constraints"
+    },
+    {
+      "task_id": "frames-74",
+      "question": "As of August 3, 2024, how much taller was the tsunami wave of the most powerful earthquake in North America than the most powerful earthquake ever recorded in Japan?",
+      "answer": "26.5 meters of 87 feet",
+      "reasoning_types": "Numerical reasoning | Tabular reasoning"
+    },
+    {
+      "task_id": "frames-110",
+      "question": "As of 1st August 2024, Are the actors who play Summer and Luke in the OC in anything else together?",
+      "answer": "Yes, Nashville series 5.",
+      "reasoning_types": "Multiple constraints"
+    },
+    {
+      "task_id": "frames-753",
+      "question": "How long after the incorporation of Ottawa was the designer of Ottawa's Justice Building born?",
+      "answer": "10 years.",
+      "reasoning_types": "Numerical reasoning | Temporal reasoning"
+    },
+    {
+      "task_id": "frames-167",
+      "question": "Who is married to the actor who plays Imdad Khan in the film version of The Wonderful Story of Henry Sugar, as of August 1, 2024 ?",
+      "answer": "Daniela Lavender",
+      "reasoning_types": "Multiple constraints"
+    },
+    {
+      "task_id": "frames-591",
+      "question": "What is the name of the home town of the top scorer for the 2018-19 Brisbane Roar Football Club?",
+      "answer": "Perth.",
+      "reasoning_types": "Tabular reasoning"
+    },
+    {
+      "task_id": "frames-758",
+      "question": "Who was the Mayor of Quincy, Massachusetts when the Quincy Medical Center opened and who was the Mayor when it closed?",
+      "answer": "Henry O. Fairbanks and Thomas P. Koch",
+      "reasoning_types": "Numerical reasoning | Tabular reasoning | Temporal reasoning"
+    },
+    {
+      "task_id": "frames-759",
+      "question": "I can't recall who I'm trying to think of. This person was the partner of someone in the 1984 Olympic keelboat competition. Their partner's sister was the only American who placed in the 2003 Pan American Games for sailing in the men's or women's competition (not including the open events).",
+      "answer": "Richard Coxon.",
+      "reasoning_types": "Multiple constraints"
+    },
+    {
+      "task_id": "frames-760",
+      "question": "There's a famous children's book about a King Elephant. At what age did the French author die?",
+      "answer": "37 years old.",
+      "reasoning_types": "Multiple constraints"
+    },
+    {
+      "task_id": "frames-761",
+      "question": "How many ballets did Frederick Ashton choreograph by the time he was 25 years old?",
+      "answer": "8",
+      "reasoning_types": "Numerical reasoning | Tabular reasoning | Temporal reasoning"
+    },
+    {
+      "task_id": "frames-762",
+      "question": "In the season before Jamal Murray won the NBA Championship, who was the fourth overall draft pick?",
+      "answer": "Scottie Barnes",
+      "reasoning_types": "Multiple constraints | Temporal reasoning"
+    },
+    {
+      "task_id": "frames-763",
+      "question": "What band had a male lead singer born on the day Mohammad Mosaddegh announced the dissolution of the Iranian parliament?",
+      "answer": "Kool & the Gang",
+      "reasoning_types": "Multiple constraints | Temporal reasoning"
+    },
+    {
+      "task_id": "frames-764",
+      "question": "Who won the French Open Men’s Singles tournament the year that New York City FC won their first MLS Cup title?",
+      "answer": "Novak Djokovic",
+      "reasoning_types": "Tabular reasoning"
+    },
+    {
+      "task_id": "frames-765",
+      "question": "In what year did a great fire destroy over 100 buildings in the North American city which hosted the 2010 G20 summit?",
+      "answer": "1904 (Great Toronto Fire of 1904)",
+      "reasoning_types": "Multiple constraints"
+    },
+    {
+      "task_id": "frames-766",
+      "question": "What was the difference in population in the most populous town in the Isère department from 1946 to 1975?",
+      "answer": "63876",
+      "reasoning_types": "Numerical reasoning | Tabular reasoning | Temporal reasoning"
+    },
+    {
+      "task_id": "frames-767",
+      "question": "What team scored the most points in an NBA finals game while Ronald Reagan was president of the United States of America?",
+      "answer": "Game 1 of the Finals in 1985 the Boston Celtics scored 148 points.",
+      "reasoning_types": "Tabular reasoning"
+    }
+  ]
+}
