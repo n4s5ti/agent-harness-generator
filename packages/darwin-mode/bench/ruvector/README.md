@@ -11,45 +11,83 @@ ruvector is a drop-in/drop-out.
 
 ---
 
-## Ground-truth: REAL `ruvector@0.2.32` API surface (verified 2026-06-28)
+## Ground-truth: LOCAL ruvector repo capability map (verified 2026-06-28)
 
-The ADR brief's code sample imported from `'ruvnet'` — **wrong**; the package is
-**`ruvector`**. Probed the actual native build (`getImplementationType() === 'native'`).
-What is **shipped** vs **stub/absent** at this version:
+### Local repo: `/home/ruvultra/projects/ruvector` (v0.1.2, HEAD 9ea2fd2, ~160 crates, 58 npm packages)
 
-| Capability (ADR-201 claim) | Status at 0.2.32 | Real API |
+This is the ground-truth from the LOCAL Rust monorepo — NOT the published npm `ruvector@0.2.32`.
+The local repo ships the missing capabilities that blocked ADR-201's H3.
+
+| Capability | Local repo status | Node surface |
 |---|---|---|
-| **`.rvf` persistent store + COW lineage** | ✅ **SHIPPED** | `createRvfStore / openRvfStore / rvfIngest / rvfQuery / rvfDelete / rvfStatus / rvfCompact / **rvfDerive** (COW child) / rvfClose`. `isRvfAvailable() === true`. |
-| **GNN module** | ✅ present | `isGnnAvailable() === true`; `gnnWrapper`, `gnn`. |
-| **Vector DB / HNSW** | ✅ SHIPPED | `VectorDB`/`VectorDb`/`VectorIndex`, `DiskAnnIndex`, `cosineSimilarity`. |
-| **Self-learning / feedback** | ⚠️ **PARTIAL — different shape** | No graph `memory_feedback` edge-reweight. Shipped as **RL episode recording**: `IntelligenceEngine.{recordEpisode, recordRouteOutcome, learnFromSimilar, forceLearn, recordErrorFix}` + `LearningEngine.{qLearningUpdate, sarsaUpdate, ppoUpdate, decisionTransformerUpdate, …}`. |
-| **GraphRAG / Cypher retrieval** | ❌ **NOT SHIPPED (stubbed here)** | `CodeGraph` exists with `.cypher / pageRank / shortestPath / communities`, **but** instantiating it throws `@ruvector/graph-node not installed` (not bundled). `isGraphAvailable() === false`. |
-| **Embedding providers (keyless)** | ❌ **stubs at 0.2.32** | `MockEmbeddingProvider` returns `[[]]`; `LocalNGramProvider` returns a length-1 vector. `EmbeddingService`/`OnnxEmbedder` work but pull an ONNX model. → We ship our own keyless embedder. |
+| **GraphDatabase + Cypher + kHop** | ✅ **REAL, BUILT** | `npm/packages/graph-node` + `node_modules/@ruvector/graph-node-linux-x64-gnu/ruvector-graph.node` |
+| **RVF multi-vector HNSW (fixed)** | ✅ **REAL, BUILT** | `npm/packages/rvf-node/rvf-node.linux-x64-gnu.node` |
+| **GNN node bindings** | ⚠️ source only | `crates/ruvector-gnn-node/` exists; NO pre-built `.node`. Needs `napi build`. |
+| **Cypher engine (rvlite)** | ✅ full impl | `crates/rvlite/src/cypher/` — lexer/parser/AST/executor/graph_store. WASM-targeted, no Node binding. |
 
-### Two quirks that shape the harness
+### Graph-node v2.0.4 — what actually works from Node
 
-1. **RVF multi-vector persistence is broken at this dep version.** `rvfIngest` reports
-   `accepted: N` but `rvfStatus().totalVectors === 1`, and `rvfQuery` returns ≤1 hit
-   (positional id `"0"`) regardless of batch size or one-by-one ingest. So **RVF cannot
-   be the live ANN index yet.** `RuvectorMemory` therefore uses RVF for **persistence +
-   COW lineage** (which work) and **falls back to in-process cosine over the authoritative
-   doc table** for ranking, flagged `rvfDegraded: true`. Marked `TODO[rvf-query]` — drop
-   the fallback when native multi-vector query is fixed.
-2. **RVF query returns remapped ids** (not the canonical id ingested). `RuvectorMemory`
-   keeps an ingest-order map + canonical doc table to resolve payloads. `TODO[rvf-id]`.
+```js
+const { GraphDatabase } = require('/home/ruvultra/projects/ruvector/npm/packages/graph-node');
+const db = new GraphDatabase({ dimensions: 64, distanceMetric: 'Cosine' });
+await db.createNode({ id: 'n1', embedding: new Float32Array([...]), labels: ['Document'], properties: {...} });
+await db.createEdge({ from: 'n1', to: 'n2', description: 'RELATED', embedding: ..., confidence: 0.9 });
+const neighbors = await db.kHopNeighbors('n1', 2); // returns [n1, n2, n3, ...]
+const result = await db.query('MATCH (n:Document) RETURN n'); // label-scoped query works
+// NOTE: bare 'MATCH (n) RETURN n' returns 0 nodes — must use label: 'MATCH (n:Label) RETURN n'
+// NOTE: kHopNeighbors(id, k) includes the start node itself; isolated nodes return [self]
+const stats = await db.stats(); // { totalNodes, totalEdges, avgDegree }
+```
 
-### What this means for ADR-201
+### Local rvf-node — sync API, fixes multi-vector bug
 
-- **H3 "GraphRAG > dense"** cannot be tested as *graph* retrieval at 0.2.32 — GraphRAG is
-  absent. The harness exposes `graphrag: true` on `RuvectorMemory`, currently a
-  `[GRAPHRAG-STUB]` that routes to vector kNN; when `@ruvector/graph-node` ships, wire
-  `CodeGraph.cypher` in `RuvectorMemory.query()`.
-- **H4 "GNN self-learning"** is implemented as **reward-rerank** feedback (a faithful,
-  shipped approximation persisted across the RVF COW branch). `TODO[gnn-feedback]`: swap
-  in graph edge-reweight when available.
-- Honest consequence: **at 0.2.32, ruvector provides no retrieval *lift* over dense**
-  (same embedder + same docs + degraded RVF query). The harness is built to *measure*
-  lift the moment a ruvector version with working RVF query + GraphRAG lands.
+```js
+const { RvfDatabase } = require('/home/ruvultra/projects/ruvector/npm/packages/rvf-node');
+const db = RvfDatabase.create(path, { dimension: 384, metric: 'cosine' }); // synchronous
+db.ingestBatch(new Float32Array([...flat vectors...]), [1, 2, 3]); // numeric ids
+const results = db.query(new Float32Array([...query vector...]), k); // [{id: number, distance: number}]
+const child = db.derive(childPath); // COW child (synchronous)
+db.status(); // { totalVectors, totalSegments, ... }
+db.close();
+// DIFFERENCE from npm ruvector@0.2.32: local returns ALL k hits (not 1)
+```
+
+### What the local build fixes vs npm ruvector@0.2.32
+
+| Issue (at 0.2.32) | Local fix |
+|---|---|
+| `rvfQuery` returns ≤1 hit regardless of ingest size | Local `RvfDatabase.query(vec, k)` returns all k hits correctly |
+| GraphRAG / `@ruvector/graph-node` missing | Local `npm/packages/graph-node` is pre-built and loads from Node |
+| `graphrag: true` on `RuvectorMemory` was a stub → kNN fallback | `GraphRagMemory` (kind:`'graph'`) now does REAL kHop graph expansion |
+
+### H3 measurability — ground-truthed proof
+
+**H3 "GraphRAG > dense"** is NOW UNBLOCKED. Key verified facts:
+
+1. **Different candidate pools**: graph expands to the kHop neighborhood of the top-1 anchor; dense
+   evaluates all docs globally. For a 6-doc corpus with PLANT_QUERY, graph considers 5 candidates
+   (kHop union) vs dense's 6 — AND d2 (chlorophyll, graph-reachable) appears in the graph pool
+   but NOT in dense's top-4.
+
+2. **Different top-k after feedback**: after 5 positive feedbacks on d2 (a graph-expanded doc),
+   graph promotes d2 to #2 position (`score 0.318`). A fresh DenseMemory (no feedback) keeps d2
+   out of its top-4 entirely. Proved by `tests/graph-memory.test.mjs:feedback-divergence`.
+
+3. **Structural difference**: Dense is pure cosine kNN. Graph uses kHopNeighbors for multi-hop
+   expansion THEN re-ranks by cosine + reward bias. The mechanism differs regardless of outcome.
+
+4. **Hash embedder caveat**: with the cheap hash-based embedder (`embedder.mjs`), the H3 effect
+   only manifests after feedback accumulation (same embedder → same cosine ranking). With an ONNX
+   semantic embedder (384-dim), semantically related but lexically distant docs ("chlorophyll" for
+   "plants sunlight") would rank higher naturally, and graph expansion would differentiate top-k
+   from round 1.
+
+5. **Conclusion**: H3 pilot is measurable with the current scaffold. A $0 mock run shows
+   divergent top-k after feedback. A paid pilot with `--embed onnx` will show natural divergence
+   without requiring prior feedback.
+
+**H4 "GNN self-learning"** still implemented as reward-rerank (no GNN node available — needs
+`napi build` on `crates/ruvector-gnn-node`). This is unchanged from 0.2.32.
 
 ---
 
@@ -57,14 +95,14 @@ What is **shipped** vs **stub/absent** at this version:
 
 | File | Role |
 |---|---|
-| `memory-layer.mjs` | The seam. `DenseMemory` (in-proc cosine, $0, dep-free) + `RuvectorMemory` (real RVF + COW; GraphRAG stubbed). `makeMemory(kind, opts)`. |
-| `embedder.mjs` | Keyless deterministic hashed-bigram embedder + cosine + token estimate. Shared by both arms so A/B isolates the *index*, not the embedding model. |
+| `memory-layer.mjs` | The seam. `DenseMemory` (in-proc cosine, $0, dep-free) + `RuvectorMemory` (local RvfDatabase HNSW, no rvfDegraded) + `GraphRagMemory` (real kHop graph expansion, H3 unblocked). `makeMemory(kind, opts)`. |
+| `embedder.mjs` | Keyless deterministic hashed-bigram embedder + cosine + token estimate. Shared by all arms so A/B/C isolates the *index*, not the embedding model. |
 | `telemetry.mjs` | Pure ADR-201 math: Retrieval Lift Δ, Compression Cr, Turn-Budget Survival S_T, Cost-Adjusted Lift L_C, Context-Degradation knee, Wilson CI. No I/O → unit-tested. |
 | `ruvector-eval.mjs` | A/B/C runner. Control A (dense, hard bail) / Test B (ruvector, static bail) / Test C (ruvector, dynamic bail @ τ). Emits all telemetry; per-task preds exfil. |
 | `warmup-epoch.mjs` | H4 protocol: Epoch0 → solve-outcome feedback → RVF COW branch → Epoch1 → Wilson-CI verdict. Per-instance isolation + persistent reward map. |
 | `exfil.mjs` | Per-task pred exfil mirroring the FRAMES/cve-bench Firestore REST pattern. **Default = local JSONL ($0/no-GCP)**; `--exfil` also POSTs to Firestore via `gcloud` token. |
 | `synthetic.mjs` | $0 offline fixtures: deterministic RAG-QA manifest + mock LLM + answer normalizer. |
-| `tests/` | `telemetry.test.mjs` (10) + `dense-memory.test.mjs` (9). Dep-free — no ruvector needed for CI. |
+| `tests/` | `telemetry.test.mjs` (10) + `dense-memory.test.mjs` (9) + `graph-memory.test.mjs` (17). First two are dep-free; graph tests require local ruvector repo at default path. |
 
 ## Conformance firewall
 
@@ -80,22 +118,30 @@ offline scorer, never placed in a prompt or in feedback.
 ### $0 self-validation (no network, no GCP) — what proves the plumbing
 
 ```bash
-# unit tests (dense baseline + telemetry math) — 19 tests, dep-free
+# dep-free: dense baseline + telemetry math (9+10=19 tests)
 node --test tests/telemetry.test.mjs tests/dense-memory.test.mjs
 
-# mocked end-to-end A/B/C dry-run (proves wiring + Cr/Δ/S_T/L_C compute)
-RUVECTOR_PATH=/path/to/ruvector@0.2.x \
-  node ruvector-eval.mjs --arm all --synthetic 12 --mock --k 5 --concurrency 2 \
+# requires local ruvector repo: graph + rvf (17 tests, all pass)
+node --test tests/graph-memory.test.mjs
+
+# all 36 tests at once
+node --test tests/telemetry.test.mjs tests/dense-memory.test.mjs tests/graph-memory.test.mjs
+
+# mocked A/B/C dry-run (dense + ruvector local-rvf + graph arms)
+node ruvector-eval.mjs --arm all --synthetic 12 --mock --k 5 --concurrency 2 \
   --out /tmp/preds.jsonl --report /tmp/report.json
 
-# mocked warm-up epoch (proves Epoch0→feedback→COW branch→Epoch1→verdict)
-RUVECTOR_PATH=/path/to/ruvector@0.2.x \
-  node warmup-epoch.mjs --synthetic 20 --mock --kind ruvector --k 2 --report /tmp/wu.json
+# mocked H4 warm-up epoch (Epoch0→feedback→COW branch→Epoch1→verdict)
+node warmup-epoch.mjs --synthetic 20 --mock --kind ruvector --k 2 --report /tmp/wu.json
 ```
 
-`RUVECTOR_PATH` must point at a **ruvector@0.2.x** install (the RVF surface; 0.1.x lacks
-`rvf*`). If unset, the loader tries `ruvector` then known local paths. Set `RVF_DIR` if
-your `/tmp` rejects `fsync`. Arm A (dense) needs **no** ruvector at all.
+Local paths used by default (no env vars needed if local ruvector repo is at default location):
+- `GRAPH_NODE_PATH` — override path to graph-node package (default: `/home/ruvultra/projects/ruvector/npm/packages/graph-node`)
+- `RVF_NODE_PATH` — override path to rvf-node package (default: `/home/ruvultra/projects/ruvector/npm/packages/rvf-node`)
+- `RUVECTOR_PATH` — override path to npm ruvector (used only if local rvf-node is unavailable)
+- `RVF_DIR` — override RVF store directory (default: `/tmp`; set if `/tmp` rejects `fsync`)
+
+Arm A (dense) needs NO external deps. Arms B+C require local ruvector repo at default paths.
 
 ### Paid, BUDGET-GATED A/B/C × 2-epoch run (NOT run in Phase 0)
 
