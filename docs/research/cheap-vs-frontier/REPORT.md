@@ -84,7 +84,18 @@ Lag: DeepSeek V3.2 (67.8%) ≈ Opus 4 mid-2025 (~72%) → ~7 mo. V4-Pro (80.6%) 
 | Claude Sonnet 4.5 (HAL) | 2026-01 | 74.6% | scaffolded | [10] |
 | Top ensemble (Alibaba OPS-Agentic-Search) | 2026-03 | 92.4% | multi-model | [10] |
 
-GAIA gap persists; top scores come from multi-model orchestration, not raw model gains. No confirmed cheap-model GAIA score for V4-Pro/GLM-5.2 yet. **[EMPIRICAL SLOT: GAIA with Darwin scaffold on GLM-5.2 + DeepSeek V4-Pro — v2]**
+GAIA gap persists in published scaffolded leaderboards; top scores come from multi-model orchestration, not raw model gains.
+
+**OUR EMPIRICAL MEASUREMENT (FRAMES, the open GAIA-class proxy — n=50, seed 42, same questions per model, conformant leak-free; `empirical/FRAMES-RESULTS.md`):**
+
+| Model | Tier | EM acc | 95% CI | $/task | $/correct |
+|-------|------|--------|--------|--------|-----------|
+| deepseek-v4-pro | cheap | **0.42** | [0.29, 0.56] | $0.018 | $0.042 |
+| glm-5.2 | cheap | **0.42** | [0.29, 0.56] | $0.042 | $0.100 |
+| gpt-5.2 | older-frontier | 0.38 | [0.26, 0.52] | $0.079 | $0.209 |
+| claude-opus-4.5 | older-frontier | 0.28 † | [0.18, 0.42] | $0.237 | $0.845 |
+
+**Both cheap models independently hit EM=0.42**, matching/exceeding both older-frontier models with **fully overlapping CIs** (statistically indistinguishable at n=50) at **2–20× lower $/correct**. The central thesis, measured: on everyday-agentic multi-hop QA, cheap ≈ older-frontier accuracy at far lower cost. Honesty: parity (overlapping CI), not "victory"; absolute scores are low (lightweight retrieval) so only the same-harness relative comparison is valid. † Opus-4.5's 0.28 is a *step-cap × deep-search* harness artifact that **understates** Opus (local n=8 diagnostic: 0 errors — it exhausts the 12-step cap on hard multi-hop → truncated non-answers); GPT-5.2 is the clean frontier comparator, and cheap is at parity with it.
 
 ### TAU-bench (tool-agent-user)
 | Model | Release | Score | Source |
