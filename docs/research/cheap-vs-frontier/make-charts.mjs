@@ -106,47 +106,53 @@ function chart3() {
 // ---- Chart 4: FRAMES empirical (our measurement) ----
 function chart4() {
   const rows = [
-    { m: 'GLM-5.2', tier: 'cheap', em: 0.433, cpc: 0.095 },
-    { m: 'DeepSeek-V4-Pro', tier: 'cheap', em: 0.427, cpc: 0.055 },
-    { m: 'GPT-5.2', tier: 'frontier', em: 0.427, cpc: 0.268 },
-    { m: 'Opus-4.5', tier: 'frontier', em: 0.373, cpc: 0.870 },
+    { m: 'GLM-5.2', tier: 'cheap', em: 0.433, cpc: 0.095, ci: [0.357, 0.513] },
+    { m: 'DeepSeek-V4-Pro', tier: 'cheap', em: 0.427, cpc: 0.055, ci: [0.350, 0.507] },
+    { m: 'GPT-5.2', tier: 'frontier', em: 0.427, cpc: 0.268, ci: [0.350, 0.507] },
+    { m: 'Opus-4.5', tier: 'frontier', em: 0.373, cpc: 0.870, ci: [0.300, 0.453] },
   ];
   const lx = rows.map(r => Math.log10(r.cpc));
-  const x0 = Math.min(...lx) - 0.3, x1 = Math.max(...lx) + 0.3, y0 = 0.32, y1 = 0.48;
-  let s = frame('FRAMES (our measurement, n=150, fair 18-step): accuracy vs cost per correct', 'All 4 models statistically indistinguishable (overlapping CI); cheap matches gpt-5.2 (0.427) at 5–16× lower cost');
-  const yticks = []; for (const v of [0.35, 0.40, 0.45]) yticks.push({ y: sy(v, y0, y1), label: v.toFixed(2) });
+  const x0 = Math.min(...lx) - 0.3, x1 = Math.max(...lx) + 0.3, y0 = 0.28, y1 = 0.54;
+  let s = frame('FRAMES (our measurement, n=150, fair 18-step): accuracy vs cost per correct', 'All 4 models statistically indistinguishable — 95% Wilson CIs overlap; cheap matches gpt-5.2 (0.427) at 5–16× lower cost');
+  const yticks = []; for (const v of [0.30, 0.40, 0.50]) yticks.push({ y: sy(v, y0, y1), label: v.toFixed(2) });
   const xticks = []; for (const c of [0.05, 0.1, 0.27, 0.5, 0.87]) { const v = Math.log10(c); if (v >= x0 && v <= x1) xticks.push({ x: sx(v, x0, x1), label: '$' + c }); }
   s += axes('Cost per correct answer (USD, log scale)', 'FRAMES EM accuracy', xticks, yticks);
   for (const r of rows) {
     const x = sx(Math.log10(r.cpc), x0, x1), y = sy(r.em, y0, y1);
-    s += `<circle cx="${x}" cy="${y}" r="7" fill="${r.tier === 'cheap' ? C.cheap : C.frontier}"/>`;
-    s += `<text x="${x}" y="${y - 12}" text-anchor="middle" font-family="system-ui,sans-serif" font-size="10" font-weight="600" fill="${C.text}">${esc(r.m)}</text>`;
+    const col = r.tier === 'cheap' ? C.cheap : C.frontier;
+    const yl = sy(r.ci[0], y0, y1), yh = sy(r.ci[1], y0, y1);
+    s += `<line x1="${x}" y1="${yh}" x2="${x}" y2="${yl}" stroke="${col}" stroke-width="1.5" opacity="0.7"/><line x1="${x - 4}" y1="${yh}" x2="${x + 4}" y2="${yh}" stroke="${col}" stroke-width="1.5"/><line x1="${x - 4}" y1="${yl}" x2="${x + 4}" y2="${yl}" stroke="${col}" stroke-width="1.5"/>`;
+    s += `<circle cx="${x}" cy="${y}" r="6" fill="${col}"/>`;
+    s += `<text x="${x}" y="${yh - 6}" text-anchor="middle" font-family="system-ui,sans-serif" font-size="10" font-weight="600" fill="${C.text}">${esc(r.m)}</text>`;
   }
-  s += legend([{ color: C.cheap, label: 'Cheap (DeepSeek/GLM)' }, { color: C.frontier, label: 'Older-frontier (GPT/Opus)' }]);
+  s += legend([{ color: C.cheap, label: 'Cheap (DeepSeek/GLM)' }, { color: C.frontier, label: 'Older-frontier (GPT/Opus)' }, { color: C.sub, label: 'whiskers = 95% Wilson CI' }]);
   return svg(s);
 }
 
 // ---- Chart 5: BFCL tool-use (our measurement) ----
 function chart5() {
   const rows = [
-    { m: 'DeepSeek-V4-Pro', tier: 'cheap', acc: 0.96, cpt: 0.00071 },
-    { m: 'GLM-5.2', tier: 'cheap', acc: 0.88, cpt: 0.00082 },
-    { m: 'GPT-5.2', tier: 'frontier', acc: 0.833, cpt: 0.00154 },
-    { m: 'Opus-4.5 † artifact', tier: 'artifact', acc: 0.433, cpt: 0.00329 },
+    { m: 'DeepSeek-V4-Pro', tier: 'cheap', acc: 0.96, cpt: 0.00071, ci: [0.915, 0.982] },
+    { m: 'GLM-5.2', tier: 'cheap', acc: 0.88, cpt: 0.00082, ci: [0.818, 0.923] },
+    { m: 'GPT-5.2', tier: 'frontier', acc: 0.833, cpt: 0.00154, ci: [0.765, 0.884] },
+    { m: 'Opus-4.5 † artifact', tier: 'artifact', acc: 0.433, cpt: 0.00329, ci: [0.357, 0.513] },
   ];
   const lx = rows.map(r => Math.log10(r.cpt));
   const x0 = Math.min(...lx) - 0.25, x1 = Math.max(...lx) + 0.25, y0 = 0.35, y1 = 1.0;
-  let s = frame('BFCL tool-use / function-calling (our measurement, n=150): accuracy vs cost', 'Cheap deepseek 0.96 > gpt-5.2 0.833 (non-overlapping CI), glm 0.88 ≈ gpt, at ~2× lower cost. †Opus = harness format artifact (true ~79%, MCP-Atlas)');
+  let s = frame('BFCL tool-use / function-calling (our measurement, n=150): accuracy vs cost', 'Cheap deepseek 0.96 > gpt-5.2 0.833 (non-overlapping 95% CI), glm 0.88 ≈ gpt, ~2× cheaper. †Opus = harness format artifact (true ~79%, MCP-Atlas)');
   const yticks = []; for (const v of [0.4, 0.6, 0.8, 1.0]) yticks.push({ y: sy(v, y0, y1), label: v.toFixed(1) });
   const xticks = []; for (const c of [0.0007, 0.001, 0.0015, 0.003]) { const v = Math.log10(c); if (v >= x0 && v <= x1) xticks.push({ x: sx(v, x0, x1), label: '$' + c }); }
   s += axes('Cost per task (USD, log scale)', 'BFCL accuracy', xticks, yticks);
   for (const r of rows) {
     const x = sx(Math.log10(r.cpt), x0, x1), y = sy(r.acc, y0, y1);
     const col = r.tier === 'cheap' ? C.cheap : r.tier === 'artifact' ? C.sub : C.frontier;
-    s += `<circle cx="${x}" cy="${y}" r="7" fill="${col}"${r.tier === 'artifact' ? ' opacity="0.5"' : ''}/>`;
-    s += `<text x="${x}" y="${y - 12}" text-anchor="middle" font-family="system-ui,sans-serif" font-size="10" font-weight="600" fill="${C.text}">${esc(r.m)}</text>`;
+    const art = r.tier === 'artifact';
+    const yl = sy(r.ci[0], y0, y1), yh = sy(r.ci[1], y0, y1);
+    s += `<line x1="${x}" y1="${yh}" x2="${x}" y2="${yl}" stroke="${col}" stroke-width="1.5" opacity="${art ? 0.4 : 0.7}"/><line x1="${x - 4}" y1="${yh}" x2="${x + 4}" y2="${yh}" stroke="${col}" stroke-width="1.5" opacity="${art ? 0.4 : 1}"/><line x1="${x - 4}" y1="${yl}" x2="${x + 4}" y2="${yl}" stroke="${col}" stroke-width="1.5" opacity="${art ? 0.4 : 1}"/>`;
+    s += `<circle cx="${x}" cy="${y}" r="6" fill="${col}"${art ? ' opacity="0.5"' : ''}/>`;
+    s += `<text x="${x}" y="${yh - 6}" text-anchor="middle" font-family="system-ui,sans-serif" font-size="10" font-weight="600" fill="${C.text}">${esc(r.m)}</text>`;
   }
-  s += legend([{ color: C.cheap, label: 'Cheap (DeepSeek/GLM)' }, { color: C.frontier, label: 'Frontier (GPT-5.2)' }, { color: C.sub, label: 'Opus (harness artifact)' }]);
+  s += legend([{ color: C.cheap, label: 'Cheap (DeepSeek/GLM)' }, { color: C.frontier, label: 'Frontier (GPT-5.2)' }, { color: C.sub, label: 'Opus (harness artifact)' }, { color: C.sub, label: 'whiskers = 95% Wilson CI' }]);
   return svg(s);
 }
 

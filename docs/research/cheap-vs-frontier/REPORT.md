@@ -263,6 +263,25 @@ GPT-5)            pays 11–56× for 2–4% gain  the only layer that needs it
 
 ---
 
+## 5b. Harness-Artifact Classification (fair-baseline schema)
+
+A custom agentic harness can under-score a model for reasons that are *not* capability. To keep the cross-model baseline fair, every anomalous result is classified before it enters a comparison; **class A1–A3 results are excluded from capability claims** (kept in raw data, flagged), and the affected model is replaced by a clean comparator + published numbers.
+
+| Class | Artifact | Signature | Detection | Mitigation |
+|-------|----------|-----------|-----------|------------|
+| **A1** | **Budget-cap truncation** | Model exhausts step/turn/token budget → truncated non-answer scored 0. Pattern: high steps==cap, high cost, low score, **deep-search models hit hardest** | per-task: `steps==max && answer truncated`; raising cap lifts score | Equal, generous budget for all; re-run at higher cap; report cap-sensitivity |
+| **A2** | **Format / extraction mismatch** | Model's output (tool-call wrapper, answer prose) doesn't match the grader/parser → scored 0 despite correct content. Pattern: **relaxed-match ≫ strict-match**, or sole outlier far below peers + published level | `acc_relaxed − acc_strict` large; cross-check vs published; inspect raw preds | Semantic/relaxed grading; verify extraction per model family; cite published |
+| **A3** | **Protocol incompatibility** | Harness's interaction protocol (e.g. custom JSON tool-action) fails for a model's native style → loop errors/aborts | `(model error)` rows, abnormal token use, sole outlier | Use native API affordances; per-family adapters; exfil preds for post-mortem |
+| **B** | **Genuine capability gap** | Spread persists under fair budget, correct extraction, and matches published direction | survives A1–A3 checks | Report as real (this is the signal we keep) |
+
+**Observed this campaign (both Class-excluded, Opus-4.5):**
+- **A1 — FRAMES:** Opus 0.28 @12-step (sole low, 4/8 diag tasks hit cap) → fair 18-step lifted to **0.373**. Excluded the 0.28; reported 0.373 + used GPT-5.2 as comparator.
+- **A2 — BFCL:** Opus 0.433 (others 0.83–0.96; 4× tokens; published Opus tool-use ~79%) → tool-call format/extraction mismatch. Excluded; GPT-5.2 comparator + cited published.
+
+This schema operationalizes recommendation #3 (formalize artifact classification) and the standing lesson that **our custom harnesses systematically under-score Opus** — never publish a low custom-harness Opus number without an A1–A3 diagnostic.
+
+---
+
 ## 6. Citation Index
 
 [1] DeepSeek-V3 Technical Report — arXiv:2412.19437 — https://arxiv.org/pdf/2412.19437
@@ -294,11 +313,14 @@ GPT-5)            pays 11–56× for 2–4% gain  the only layer that needs it
 2. **Cost-Pareto (SWE-bench Lite n=300)** — `data/cost_pareto.json` — X=$/inst (log), Y=resolve%; "56×" arrow Performance($0.267)↔Brute-force($15+).
 3. **Lag-in-months over time** — `data/lag_in_months.json` — X=cheap release date, Y=lag(mo); 3 series (knowledge/tool-use/code); tool-use → 0.
 
-## Appendix: Empirical Slots (v2 — from our GCP harness runs)
-| Slot | Benchmark | Status |
-|------|-----------|--------|
-| GAIA L1-L3, Darwin scaffold, GLM-5.2 + V4-Pro | GAIA | empirical swarm running |
-| TAU-bench direct | tau-bench | queued |
-| Cheap vs older-frontier (Opus 4.5/GPT-5.x) on GAIA | GAIA | empirical swarm running |
+## Appendix: Empirical Runs (our GCP harness — COMPLETE)
+| Run | Benchmark | n | Status | Result |
+|-----|-----------|---|--------|--------|
+| General-assistant QA | FRAMES (GAIA-class) | 150 | ✅ done | cheap = gpt-5.2 0.427 (parity, overlapping CI); `empirical/FRAMES-RESULTS.md` |
+| Tool-use / function-calling | BFCL v3 | 150 | ✅ done | cheap deepseek 0.96 > gpt-5.2 0.833 (non-overlap); `empirical/TOOLUSE-RESULTS.md` |
+| Multi-turn agentic (tool-agent-user) | tau-bench | — | deferred | env/cost; BFCL covers the function-calling primitive |
+| Opus fair-budget reruns | FRAMES/BFCL | — | ✅ done | A1/A2 artifacts diagnosed + excluded (§5b) |
+
+Charts 04/05 render these with **95% Wilson CI whiskers**. Note: official GAIA is HF-gated (token-restricted) → FRAMES used as the open GAIA-class proxy.
 
 **Headline**: cost advantage **56×**; lag **7–11 mo** (knowledge) / **~0** (tool-use); everyday-work performance within **2–8 pts** of current frontier; hard frontier code/security **catastrophically below** (4% vs 60%+) — out of thesis scope. Core-claim confidence **B+**.
