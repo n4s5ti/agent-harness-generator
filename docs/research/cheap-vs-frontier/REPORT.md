@@ -25,6 +25,24 @@
 
 ---
 
+## Figures
+
+**Fig 1 — Cheap models track the frontier (MMLU-Pro over time).**
+![MMLU-Pro frontier vs cheap over time](charts/01-mmlu-score-over-time.svg)
+
+**Fig 2 — The lag is shrinking (tool-use → ~0).**
+![Time-lag shrinking](charts/02-lag-shrinking.svg)
+
+**Fig 3 — The ~56× cost axis (SWE-bench Lite cost-Pareto, n=300).**
+![Cost-performance Pareto SWE-bench Lite](charts/03-cost-pareto-swebench.svg)
+
+**Fig 4 — Our empirical measurement (FRAMES n=50): parity at far lower cost.**
+![FRAMES empirical accuracy vs cost](charts/04-frames-empirical-pareto.svg)
+
+*(SVGs render inline on GitHub; sources + regenerator in `charts/` and `make-charts.mjs`.)*
+
+---
+
 ## 1. Benchmark Scores Over Time
 
 ### MMLU-Pro (knowledge breadth)
