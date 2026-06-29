@@ -1,7 +1,7 @@
 # ADR-204 — "Unlimited"-feeling flat-rate subscriptions on Cognitum Fugu: business model + budget-defense architecture
 
-**Status:** Proposed
-**Date:** 2026-06-29
+**Status:** Proposed (rev 2)
+**Date:** 2026-06-29 — **rev 2** (peer review of the §5 Reserve-and-Commit design addressed: §5.2 multi-worker agent **sharding** + a **decoupled** account-headroom flag in place of an in-transaction subcollection scan, plus a new **§5.5** reservation-lease / recovery formalization; see the *Peer review addressed (rev 2)* changelog at the end). Status unchanged: **Proposed**.
 **Companion to:** ADR-203 (Cognitum Fugu — GCP-hosted metered, tiered Completions API). This ADR is the **business model + abuse-defense** layer on top of ADR-203's tiering/metering/streaming. It adds **no new serving primitive** — it adds *packaging* (flat-rate bundles) and *one new control plane mechanism* (atomic budget **Reserve-and-Commit**), and reuses ADR-203 §5.1 (progressive token accounting) and §5.3 (scatter-gather rate limiting) for two of the three structural dangers.
 **Related:** ADR-203 (tiered completions API — REQUIRED reading), ADR-201 (cheap-model lift / cheap-vs-frontier), ADR-150 ($0 local inference; removable-augmentation discipline), ADR-180 (GCP VM runner + Firestore store), cognitum-one/api ADR-092 (api.cognitum.one gateway, `cog_…` keys), AgentBBS ADR-0012 (emulator-first GCP).
 **Grounding artifacts (read, cited — not invented):**
@@ -302,46 +302,94 @@ cap — so an overspend is *impossible*: no reservation → no invoke. The Agent
 single-node `better-sqlite3` WAL transaction on one room-budget row (reserve and commit are
 WAL frames; a crash rolls back uncommitted frames). We re-derive it for Firestore.
 
-**Why the naive port fails — and the adaptation.** A single `subscriptions/{accountId}` budget
-doc, transactionally incremented per request, hits **exactly the ADR-203 §5.3 contention
+**Why the naive port fails — and the adaptation (rev 2).** A single `subscriptions/{accountId}`
+budget doc, transactionally incremented per request, hits **exactly the ADR-203 §5.3 contention
 wall** (~1 write/sec/doc) under a parallel-agent Autopilot account. *But* — unlike the §5.3
-rate limiter, which tolerates ≤1s **soft** over-admission — the budget deny boundary must be
+rate limiter, which tolerates ≤1s **soft** over-admission — the per-agent deny boundary must be
 **hard** (you cannot discover a runaway *after* it overspent). We resolve the tension by
-moving the transactional contention to where it is *desirable*:
+moving the transactional contention to where it is *desirable* — and, per the rev-2 peer review,
+by (a) **sharding** the per-agent doc so horizontal scaling does not re-create the wall, and
+(b) **decoupling** the account-wide check from the hot-path transaction so it cannot be poisoned
+by cross-account abort/retry storms.
 
-- **Per-agent / per-loop budget doc** `subscriptions/{accountId}/agents/{agentId}` is the
-  transactional unit. A single agent's invokes **serialize on its own doc** — which *is the
-  throttle we want* (a looping agent cannot fire faster than its own reservations commit).
-  Different agents / accounts use different docs → **no cross-contention**.
-- **Account rollup** `subscriptions/{accountId}` is updated **asynchronously** via the
-  ADR-203 §5.1 Pub/Sub fold (never on the hot path), and only **read** (cheaply, with a hard-
-  cap safety margin) in the reserve transaction. The account-wide outstanding spend is the
-  sum of `committedUsd` (folded) + per-agent `reservedUsd` (live). At enterprise scale,
-  Memorystore (Redis) is the scale-out counter, exactly as ADR-203 §5.3 notes — the serverless
-  default stays Firestore.
+- **Per-agent / per-loop budget, randomly sharded** across
+  `subscriptions/{accountId}/agents/{agentId}_{shard}` with `shard ∈ [0, K)`. *Peer-review fix 1:*
+  the rev-1 design used a single `agents/{agentId}` doc and called its serialization "the throttle
+  we want." That holds for a *single* worker — but a Support-Pod-style agent that **scales
+  horizontally to N parallel workers under the same `agentId`** puts all N back onto one doc →
+  straight back into the ~1 write/sec/doc wall → serialization failures + backoff → crippled
+  concurrency for a *legitimate* workload. The fix is **randomized agent sharding**: each worker
+  picks a shard (random or round-robin) at invoke time, so writes spread across K docs while the
+  budget stays **logically isolated per `agentId`**.
+  - **Choosing K.** Size K to the expected per-agent parallelism (worker count) —
+    `K ≈ ceil(expected_parallel_workers / writes_per_sec_per_doc)`. A solo `low`-tier agent uses
+    `K=1`; an Autopilot Support Pod fanning out uses `K` in the small-tens. K is a per-plan /
+    per-agent-class config, **not** a global constant, and is a tuning lever (raise K if shard
+    contention reappears under the live worker fan-out).
+  - **Per-shard sub-cap.** The per-agent runaway cap is split across shards —
+    `perShardCapUsd = perAgentCapUsd / K` — so the *sum* of the K shard caps equals the per-agent
+    cap. The synchronous deny on a single shard therefore still bounds that shard hard; the
+    **headroom rollup sums `reservedUsd + committedUsd` across the agent's K shards** to enforce the
+    true per-`agentId` cap (and to catch load skewed onto one shard).
+  - Net: a single *logical* agent still cannot run away, but the horizontal-scaling contention the
+    naive single-doc design re-introduced is gone.
+
+- **Account-wide check, decoupled from the hot path.** *Peer-review fix 2:* the rev-1 RESERVE
+  computed `outstanding = committedUsd + sumReserved(acct)` by **reading the reservations
+  subcollection inside the hot-path transaction**. That is a trap — every doc a transaction reads
+  joins its validation/mutation footprint, so *any* concurrent commit elsewhere in the account
+  aborts and retries this transaction → an **exponential failure rate** under load **and** a
+  Firestore **ops-bill blow-up** (each retry re-scans the whole subcollection). We decouple the
+  global budget verification from the synchronous write:
+  - The async **`aggregateUsage` rollup** (ADR-203 §5.1 Pub/Sub fold, on its few-second cadence)
+    computes the account buffer `committedUsd + reservedUsd` and flips a single boolean
+    **`headroomExhausted: true|false`** (alongside `status`) on the **single account doc**
+    `subscriptions/{accountId}`. No hot-path reader ever scans the subcollection.
+  - The hot-path **RESERVE** transaction now reads **only** (a) the account doc — a cheap field
+    check `if (status !== 'active' || headroomExhausted) deny(402)` — and (b) the **agent-shard**
+    doc for the synchronous per-agent / per-loop cap. **No subcollection scan, no cross-agent read
+    locks**, so a commit on one agent's shard can never abort a reserve on another's.
+  - **The trade, stated plainly.** `headroomExhausted` is **eventually consistent — a few seconds
+    stale** (it lags the rollup cadence). So a **brief, bounded over-admission** is possible in the
+    window between rollups when many agents reserve at once just before the flag flips. This is the
+    *same accepted soft-limit trade* as the §5.3 rate limiter's ≤1s over-admission, and it is
+    acceptable **here** only because the **per-agent-shard cap is the synchronous hard backstop**:
+    the account flag is the *global, eventually-consistent* guard, the per-agent-shard cap is the
+    *local, synchronous* one. A genuine runaway is still capped — the per-agent cap denies it within
+    one transaction and the account flag flips within seconds — so the worst case is a small,
+    bounded slice of extra `low`/`mid` spend, **never** an unbounded `high`-tier runaway.
+  - At enterprise scale, Memorystore (Redis) is the scale-out account counter, exactly as ADR-203
+    §5.3 notes — the serverless default stays Firestore.
 
 **Data model.**
 
 ```
 subscriptions/{accountId}                         # account budget rollup (read-hot, write-cold)
-  plan            : "solopreneur" | "autopilot"
+  plan             : "solopreneur" | "autopilot"
   periodStart, periodEnd
-  servingBudgetUsd: number        # SOFT cap — the fair-use ceiling for the period (from plan)
-  hardCapUsd      : number        # ABSOLUTE ceiling (e.g. 1.25× soft) → deny-all beyond
-  committedUsd    : number        # folded actuals (async, via §5.1 Pub/Sub aggregateUsage)
-  status          : "active" | "throttled" | "suspended"
+  servingBudgetUsd : number       # SOFT cap — the fair-use ceiling for the period (from plan)
+  hardCapUsd       : number       # ABSOLUTE ceiling (e.g. 1.25× soft) → deny-all beyond
+  committedUsd     : number       # folded actuals (async, via §5.1 Pub/Sub aggregateUsage)
+  reservedUsd      : number       # rev 2: Σ active (non-expired) reservations, folded by the rollup
+  headroomExhausted: boolean      # rev 2: set by aggregateUsage when committed+reserved ≥ hardCap
+  status           : "active" | "throttled" | "suspended"
 
-subscriptions/{accountId}/agents/{agentId}        # per-agent / per-loop tracker (txn unit)
-  reservedUsd     : number        # outstanding reservations not yet committed
-  committedUsd    : number        # actuals committed by THIS agent
-  perAgentCapUsd  : number        # the per-agent / per-loop runaway cap (ADR-203 §3.5)
-  invokeCount     : number        # rolling-window invoke count → loop-rate detection
+subscriptions/{accountId}/agents/{agentId}_{shard}   # rev 2: per-agent SHARDED tracker (txn unit, shard∈[0,K))
+  reservedUsd     : number        # outstanding reservations on THIS shard not yet committed
+  committedUsd    : number        # actuals committed on THIS shard
+  perShardCapUsd  : number        # perAgentCapUsd / K — the per-agent runaway cap split across K shards
+  invokeCount     : number        # rolling-window invoke count → loop-rate detection (per shard)
   windowStart     : timestamp
+  # the true per-agentId cap = Σ (reservedUsd+committedUsd) over the agent's K shards (folded by the rollup)
 
-subscriptions/{accountId}/reservations/{reservationId}   # ephemeral, TTL'd (WAL-frame analog)
-  agentId, estimateUsd, ceilingTier, ts
-  state           : "open" | "committed" | "expired"
-  actualUsd?      : number
+subscriptions/{accountId}/reservations/{resId}    # rev 2: reservation LEASE (WAL-frame analog; see §5.5)
+  accountId, agentId, shard
+  amountUsd       : number        # worst-case estimate at ceilingTier (the headroom this lease holds)
+  ceilingTier     : "low" | "mid" | "high"
+  createdAt       : timestamp
+  expiresAt       : timestamp     # LOGICAL lease deadline the headroom rollup RESPECTS (§5.5)
+  state           : "active" | "committed" | "expired"
+  actualUsd?      : number        # set at COMMIT
 ```
 
 **Estimate function (worst-case, never under-reserves).** For ceiling tier = the request's
@@ -359,47 +407,52 @@ request we couldn't afford at its worst case).
 **RESERVE (atomic, pre-invoke) — the deny boundary:**
 
 ```
-firestore.runTransaction:
-  agent = get(subscriptions/{acct}/agents/{agentId})         # create-if-absent
-  acct  = get(subscriptions/{acct})                          # cheap read of the rollup
+shard = pick_shard(agentId, K)                               # rev 2: random / round-robin per worker
+firestore.runTransaction:                                    # reads only TWO single docs — NO subcollection scan
+  acct     = get(subscriptions/{acct})                       # cheap field read of the rollup
+  shardDoc = get(subscriptions/{acct}/agents/{agentId}_{shard})   # create-if-absent
 
-  # (1) per-agent / per-loop runaway cap  ── the NEW Darwin-Runaway defense
-  if agent.reservedUsd + agent.committedUsd + estimate > agent.perAgentCapUsd:
-        DENY 402  { code: "agent_budget_exhausted" }          # a single agent cannot run away
-  if rate(agent.invokeCount, agent.windowStart) > maxLoopRate:
+  # (1) account-wide guard ── DECOUPLED, eventually-consistent (rev 2 fix 2)
+  if acct.status != "active" or acct.headroomExhausted:      # boolean set by async aggregateUsage
+        DENY 402  { code: "account_budget_exhausted" }        # NO sumReserved() scan on the hot path
+  #   (the servingBudget soft-cap warning is likewise raised by the rollup and surfaced as
+  #    x_cognitum.fair_use_warning — it is not computed synchronously here)
+
+  # (2) per-agent-SHARD runaway cap ── SYNCHRONOUS hard backstop (rev 2 fix 1)
+  if shardDoc.reservedUsd + shardDoc.committedUsd + estimate > shardDoc.perShardCapUsd:
+        DENY 402  { code: "agent_budget_exhausted" }          # this shard of a single agent cannot run away
+  if rate(shardDoc.invokeCount, shardDoc.windowStart) > maxLoopRate/K:   # loop-rate, per shard
         DENY 429  { code: "loop_detected" }                   # cross-ref ADR-203 §3.5 terminate
 
-  # (2) account hard cap  ── the fair-use ceiling
-  outstanding = acct.committedUsd + sumReserved(acct)         # folded actuals + live reservations
-  if outstanding + estimate > acct.hardCapUsd:
-        DENY 402  { code: "account_budget_exhausted" }        # → status:"throttled"
-  if outstanding + estimate > acct.servingBudgetUsd:
-        flag soft_cap (allow, surface x_cognitum.fair_use_warning) # soft cap = warn, hard cap = deny
-
-  # (3) commit the reservation (the WAL-frame write)
-  agent.reservedUsd += estimate ; agent.invokeCount += 1
-  write reservations/{rid} = { open, estimate, ceilingTier }
+  # (3) write the reservation lease (the WAL-frame write)
+  shardDoc.reservedUsd += estimate ; shardDoc.invokeCount += 1
+  write reservations/{resId} = { state:"active", amountUsd:estimate, ceilingTier,
+                                 agentId, shard, createdAt:now, expiresAt: now + lease(reqType) }
 COMMIT TXN  →  only now is the provider call invoked
 ```
 
 **COMMIT (atomic, post-invoke) — actual known:**
 
 ```
-firestore.runTransaction:
-  res = get(reservations/{rid})
-  agent.reservedUsd  -= res.estimate            # release the reservation
-  agent.committedUsd += actualUsd               # record what was really spent
+firestore.runTransaction:                         # rev 2: idempotent on resId (ADR-203 §5.3 Idempotency-Key)
+  res = get(reservations/{resId})
+  if res.state == "committed": return             # replay / already-committed → no double-charge
+  shardDoc = get(subscriptions/{acct}/agents/{agentId}_{res.shard})
+  shardDoc.reservedUsd  -= res.amountUsd          # release the lease (even if it already lapsed)
+  shardDoc.committedUsd += actualUsd              # record what was really spent
   res.state = "committed" ; res.actualUsd = actualUsd
 COMMIT TXN
-publish(usageRecord)  →  §5.1 Pub/Sub fold updates acct.committedUsd async
+publish(usageRecord)  →  §5.1 Pub/Sub fold updates acct.{committedUsd, reservedUsd, headroomExhausted} async
 ```
 
 **Crash / timeout safety (the WAL-recovery analog).** A reservation that is never committed
-(agent crashed, stream dropped, timeout) is an **open WAL frame**: a Firestore **TTL policy**
-on `reservations` expires it, and the extended `aggregateUsage` reconciler **rolls it back**
-(reclaims `estimate` from `agent.reservedUsd`) so a dead agent never permanently locks budget.
-The §5.1 progressive counter still bills any tokens that *were* generated before the drop
-(`truncated:true`) — so a dropped stream is **both** un-locked **and** correctly billed.
+(agent crashed, stream dropped, timeout) is an **open WAL frame**. Recovery does **not** depend on
+physical deletion: each lease carries an `expiresAt` that the headroom rollup **respects** as a
+*logical* lease, so the reservation stops consuming budget at lease expiry — *before* Firestore's
+(best-effort) native TTL physically deletes the row. The full lease / reconciliation / idempotent-
+commit semantics are formalized in **§5.5**. The §5.1 progressive counter still bills any tokens
+that *were* generated before the drop (`truncated:true`) — so a dropped stream is **both** un-locked
+**and** correctly billed.
 
 ### 5.3 How the pieces compose against the dangers
 
@@ -411,9 +464,11 @@ The §5.1 progressive counter still bills any tokens that *were* generated befor
   worst-case *up front*, so it is denied *before* the first expensive token.
 - **Stream-Shaving** → unchanged ADR-203 §5.1: progressive family-correct local token counter
   writes a `truncated:true` floor record on disconnect; the COMMIT path bills it.
-- **Lock-contention** → per-agent transactional docs (contention only where it throttles a
-  single agent, by design) + async account fold (ADR-203 §5.1 Pub/Sub) + read-only account
-  check on the hot path. No single hot budget doc.
+- **Lock-contention** → per-agent **sharded** transactional docs `agents/{agentId}_{shard}` (rev 2:
+  contention spread across K shards, never re-collapsing onto one doc even when a single `agentId`
+  scales to N parallel workers — §5.2 fix 1) + async account fold (ADR-203 §5.1 Pub/Sub) + a
+  **read-only, decoupled** account check on the hot path (the `headroomExhausted` flag — §5.2 fix 2,
+  **no in-transaction subcollection scan**). No single hot budget doc, no `sumReserved()` read lock.
 
 ### 5.4 Rate limiting & idempotency (reused, unchanged)
 
@@ -421,7 +476,69 @@ The ADR-203 §5.3 scatter-gather rate limiter (per-key/per-tier TTL'd `usage_tic
 debounced `COUNT()`) and §5.3 idempotency (`Idempotency-Key` → cached, non-re-billed replay)
 apply as-is. Reserve-and-Commit sits **above** rate limiting: rate limit answers "too many
 requests?", the budget layer answers "too much spend?". A replayed idempotent request
-**reuses its original reservation** (no double-reserve).
+**reuses its original reservation** (no double-reserve). The reservation-lifetime semantics this
+idempotent replay relies on are formalized in §5.5.
+
+### 5.5 Reservation TTL, leases & recovery (rev 2)
+
+The rev-2 peer review asked us to **formalize reservation lifetime** — what an outstanding
+reservation costs, *when* it stops counting, and *how* a crashed agent's budget is recovered. The
+mechanism is a **logical lease**, **not** Firestore's native TTL.
+
+**Reservation lease doc** `reservations/{resId}` (same shape as the §5.2 data model):
+
+```
+accountId, agentId, shard
+amountUsd   : number      # worst-case estimate at ceilingTier (the headroom this lease holds)
+ceilingTier : "low" | "mid" | "high"
+createdAt   : timestamp
+expiresAt   : timestamp   # the LOGICAL lease deadline (see below)
+state       : "active" | "committed" | "expired"
+actualUsd?  : number      # set at COMMIT
+```
+
+**`expiresAt` is a logical lease the headroom rollup RESPECTS — not a delete timer.** The
+`aggregateUsage` rollup computes the live reservation buffer as:
+
+```
+reservedUsd = Σ amountUsd  WHERE state == "active" AND expiresAt > now
+```
+
+so an **orphaned / crashed reservation stops consuming headroom at `expiresAt`** — *before* any
+physical row is removed. **This `expiresAt > now` predicate is the budget-recovery mechanism.**
+
+> **Be explicit:** Firestore **native TTL is best-effort and can lag by hours** — it is **only
+> eventual garbage collection of the dead row, NOT the budget-recovery path.** If we relied on
+> native TTL to free headroom, a crashed agent could lock its reservation for hours. We do not: the
+> rollup excludes a lapsed lease the moment `expiresAt` passes; native TTL just sweeps the row later.
+
+**Lease window is per request TYPE, derived from the request timeout — not a flat constant.** The
+lease must be `max-legitimate-request-duration-for-the-ceiling-tier + margin`:
+- **short (~60s)** for a normal synchronous completion;
+- **long (matching the ADR-203 step-cap, ~20 min)** for buffered / agentic / streaming requests that
+  legitimately run long.
+
+It is derived from the *same timeout that bounds the request*, so a valid-but-slow request stays
+covered. **Hazard, called out:** a lease set **shorter than a slow-but-valid request** lapses while
+that request is still running → its headroom is reclaimed early → **under-reservation / over-
+admission** (the account looks like it has more headroom than it truly does). Mitigation: tie the
+lease to the *request type's* timeout (long for streaming/agentic), never one global constant — and
+keep COMMIT idempotent (below) so a late finish still books correctly.
+
+**Reconciler rides the `aggregateUsage` cadence** (no separate cron job):
+1. recompute `reservedUsd` excluding expired leases (the `expiresAt > now` predicate);
+2. recompute `committedUsd + reservedUsd` and flip `headroomExhausted` on the account doc (§5.2);
+3. mark lapsed leases `state = "expired"`; Firestore native TTL deletes them later (cosmetic GC).
+
+**COMMIT is idempotent on `resId`** (the ADR-203 §5.3 `Idempotency-Key` discipline). A request that
+runs **past its lease** still records its actual spend on COMMIT **without double-charging**: the
+commit keys on `resId`, releases whatever `reservedUsd` is still attributed to that lease, and books
+`actualUsd` exactly once. An expired lease the rollup already excluded is therefore **not
+double-counted** when its late COMMIT lands.
+
+**Crash safety, end to end:** reserve → crash (no COMMIT) → `expiresAt` passes → the **next rollup**
+drops the lease from `reservedUsd` and re-opens that headroom → **no permanent lock**. A dead agent
+costs at most one lease-window of phantom-reserved headroom, itself bounded by the per-shard cap.
 
 ---
 
@@ -459,7 +576,10 @@ requests?", the budget layer answers "too much spend?". A replayed idempotent re
 | Reserve-and-Commit adds hot-path latency | Per-agent uncontended doc; coarse session-level reservation for `low`-tier; reserve/commit are small single-doc txns |
 | Crashed agent locks budget via never-committed reservation | TTL on `reservations` + reconciler rollback (WAL-recovery analog, §5.2) |
 | Stream-shaving free inference | ADR-203 §5.1 progressive family-correct local token floor (unchanged) |
-| Budget-doc contention under parallel agents | Per-agent txn docs + async account fold (ADR-203 §5.1/§5.3 discipline); Memorystore at scale |
+| Budget-doc contention under parallel agents | **rev 2:** per-agent doc **sharded** `agents/{agentId}_{shard}` (K-way) + async account fold (ADR-203 §5.1/§5.3 discipline); Memorystore at scale (§5.2) |
+| **rev 2 — Multi-worker `agentId` contention** (a Support Pod scales to N workers under one `agentId` → all serialize on one doc → ~1 write/sec/doc wall → crippled concurrency) | **Randomized agent sharding** `agents/{agentId}_{shard}`, K sized to expected per-agent parallelism; per-shard sub-cap `perAgentCapUsd/K`; headroom rollup sums `reserved+committed` across the agent's K shards (§5.2 fix 1) |
+| **rev 2 — Stale-flag over-admission** (eventually-consistent `headroomExhausted` lags the rollup → brief over-admit in the window between folds) | **Bounded & accepted** — same soft-limit trade as §5.3's ≤1s over-admission; the **synchronous per-agent-shard cap is the hard backstop** and the flag flips within seconds → worst case is a small `low`/`mid` slice, never an unbounded `high`-tier runaway (§5.2 fix 2) |
+| **rev 2 — Lease too short → under-reservation** (a lease shorter than a slow-but-valid request reclaims its headroom early → over-admission) | Lease = **per-request-type** max-duration + margin (≈60s sync, ≈20 min streaming/agentic), derived from the request timeout — never a flat constant; idempotent COMMIT books a late finish without double-charge (§5.5) |
 | "Unlimited" mis-sold as literal-infinite | Marketing states fair-use / soft-cap plainly (§3.3); capability scoped everyday-vs-hard |
 | Over-claiming "80–85% of frontier" on hard tasks | Claim scoped to **everyday** work (measured tie); hard-task ceiling stated as structural (measured) — High tier exists *because* of it |
 
@@ -497,15 +617,25 @@ For this decision to be considered shipped (emulator-first, $0 — ADR-203 §7.3
 - **Reserve denies at the boundary.** A reservation that would breach `perAgentCapUsd` /
   `hardCapUsd` is denied (402) and **no provider call is invoked** (mock-provider call count
   unchanged). London-school: mock the provider, assert zero invocations on deny.
-- **Commit releases and reconciles.** After COMMIT, `agent.reservedUsd` returns to its
-  pre-reserve value plus nothing, `committedUsd` reflects the actual, and `estimate − actual`
-  headroom is reclaimed.
-- **Crash rollback.** An `open` reservation past TTL is rolled back by the reconciler;
-  `agent.reservedUsd` is reclaimed; any generated tokens are still billed (`truncated:true`).
+- **Commit releases and reconciles.** After COMMIT, the agent-shard `reservedUsd` returns to its
+  pre-reserve value, `committedUsd` reflects the actual, and `estimate − actual` headroom is
+  reclaimed.
+- **Logical-lease recovery (rev 2).** An `active` reservation whose `expiresAt` has passed is
+  **excluded from `reservedUsd` by the next rollup** (`expiresAt > now` predicate) — headroom is
+  recovered **before** any physical TTL delete; the reconciler then marks it `state:"expired"`. Any
+  tokens generated before the drop are still billed (`truncated:true`).
+- **Idempotent COMMIT past lease (rev 2).** A COMMIT landing after `expiresAt` books `actualUsd`
+  **exactly once** keyed on `resId`; an already-`committed` reservation re-COMMITted is a no-op
+  (no double-charge, no double-count against an already-excluded lease).
 - **No double-reserve on idempotent replay.** A replayed `Idempotency-Key` reuses the original
   reservation (ADR-203 §5.3) — reservation count unchanged.
-- **Per-agent contention isolation.** Parallel reservations across distinct `agentId`s do not
-  serialize (integration test against the Firestore emulator).
+- **Per-agent contention isolation (rev 2).** Parallel reservations across distinct `agentId`s do
+  not serialize, **and** N parallel workers under the *same* `agentId` spread across the K
+  `agents/{agentId}_{shard}` docs rather than collapsing onto one (integration test against the
+  Firestore emulator), while their summed per-shard caps still enforce the per-`agentId` cap.
+- **No subcollection scan on the hot path (rev 2).** The RESERVE transaction reads exactly two docs
+  (account + agent-shard); asserting it never reads the `reservations` subcollection guards against
+  the `sumReserved()` abort-storm regression.
 - **Blended-cost / break-even calculator** (the §4 formula) is a pure unit under test with the
   assumed inputs producing $1.06/1M and 188M-token break-even — and **fails loudly if the
   inputs are still the placeholders** at launch-config time (a guard that the §4.4 calibration
@@ -528,3 +658,59 @@ For this decision to be considered shipped (emulator-first, $0 — ADR-203 §7.3
 - **AgentBBS** `BbsRoomBudgetTracker` / better-sqlite3-WAL reserve-and-commit (conceptual prior
   art for per-room spend reservation; re-derived for Firestore in §5.2).
 - **cognitum-one/api** ADR-092 (`cog_…` keys, gateway); **AgentBBS** ADR-0012 (emulator-first GCP).
+
+---
+
+## Peer review addressed (rev 2)
+
+This revision answers a peer review of the §5 Reserve-and-Commit design. **No business-model,
+pricing, or measured-vs-assumed claim changed** — the §4 financial model, the PLACEMENT grounding,
+and the measured-vs-assumed table are untouched. The fixes are confined to the **distributed budget
+mechanism** (§5.2, §5.5) and its risk register. Status remains **Proposed**.
+
+> **Section-numbering note.** This ADR's risk register lives in **§6 (Consequences → Risks)**, not a
+> standalone "§10" — the three new risks below were added there.
+
+1. **Multi-worker `agentId` contention (§5.2 fix 1).** The rev-1 claim that a single
+   `agents/{agentId}` doc's serialization is "the throttle we want" **breaks under horizontal
+   scaling**: a Support Pod fanning out to N parallel workers under one `agentId` puts all N back
+   onto one doc → Firestore's ~1 write/sec/doc wall → serialization failures + backoff → crippled
+   concurrency for a *legitimate* workload. **Fix:** randomized agent **sharding**
+   `agents/{agentId}_{shard}`, `shard ∈ [0,K)`, K sized to expected parallelism; per-shard sub-cap
+   `perAgentCapUsd / K`; the headroom rollup sums `reserved+committed` across the agent's K shards to
+   enforce the true per-`agentId` cap. Budget stays logically isolated per `agentId`; choosing K and
+   the per-shard sub-cap are documented.
+
+2. **The `sumReserved(acct)` in-transaction read trap (§5.2 fix 2).** Rev 1 computed
+   `outstanding = committedUsd + sumReserved(acct)` by reading the reservations subcollection
+   **inside the hot-path transaction**. Every read joins the transaction's footprint, so any
+   concurrent commit in the account aborts+retries this transaction → an **exponential failure rate**
+   **and** a Firestore **ops-bill blow-up** (each retry re-scans the subcollection). **Fix:** decouple
+   the global budget verification from the hot-path write. The async `aggregateUsage` rollup (ADR-203
+   §5.1 Pub/Sub cadence, every few seconds) folds `committedUsd + reservedUsd` and flips a boolean
+   **`headroomExhausted`** (+ `status`) on the single account doc `subscriptions/{accountId}`. The
+   RESERVE transaction now reads **only** the account doc (cheap `status/headroomExhausted` check) and
+   the **agent-shard** doc (synchronous per-agent/per-loop cap) — **no subcollection scan, no
+   cross-agent read locks.** **Trade, stated plainly:** the account flag is eventually-consistent (a
+   few seconds stale) → brief, bounded over-admission is possible between rollups (the same accepted
+   soft-limit trade as the §5.3 rate limiter); the **per-agent-shard cap is the synchronous hard
+   backstop**, the account flag the global eventually-consistent guard — so a runaway is still capped
+   (per-agent cap synchronous + flag flips within seconds).
+
+3. **Reservation TTL, leases & recovery — new §5.5.** Formalizes reservation lifetime. Each
+   `reservations/{resId}` carries `accountId, agentId, shard, amountUsd (worst-case at ceilingTier),
+   createdAt, expiresAt, state(active|committed|expired)`. **`expiresAt` is a logical lease the
+   headroom rollup respects** (`reservedUsd = Σ active WHERE expiresAt > now`), so a crashed
+   reservation stops consuming headroom at lease expiry — **Firestore native TTL is best-effort (can
+   lag hours) and is only eventual GC, never the budget-recovery path.** The lease window is **per
+   request type**, derived from the request timeout (≈60s sync; ≈20 min, matching the ADR-203
+   step-cap, for buffered/agentic/streaming), with the **lease-too-short → under-reservation /
+   over-admission** hazard called out. The reconciler rides the `aggregateUsage` cadence; **COMMIT is
+   idempotent on `resId`** so a request past its lease still books actuals without double-charging;
+   crash → no commit → `expiresAt` passes → next rollup recovers headroom (no permanent lock).
+
+4. **Risk register updated (§6).** Three rows added — multi-worker contention, stale-flag
+   over-admission, lease-too-short under-reservation — each with its mitigation; the existing
+   "budget-doc contention" row now reflects sharding. Companion consistency edits landed in §5.3
+   (compose-against-dangers) and §8 (test contract: shard-isolation, no-subcollection-scan,
+   logical-lease recovery, idempotent late-COMMIT).
