@@ -1,12 +1,19 @@
 # ADR-203 — Cognitum Fugu: a GCP-hosted, metered, tiered Completions API on MetaHarness
 
-**Status:** Proposed (rev 2 — peer review addressed; ready for Approved)
+**Status:** Proposed (rev 3 — peer review addressed; ready for Approved)
 **Date:** 2026-06-29
-**Rev 2 note:** This revision addresses the peer review — Firestore counter
+**Rev 3 note:** This revision addresses a third peer-review round — the
+**streaming-escalation paradox** (post-generation τ escalation is incompatible with
+`stream:true`), **tokenizer drift across model families** (an OpenAI tokenizer cannot
+count non-OpenAI model output), and the **Firestore `COUNT()` aggregation cost** at
+scale. The streaming-vs-escalation question is now decided (§3.3, §6.5): streams route
+**once, up front, on the intrinsic input signal**; only the non-streaming path runs
+post-generation τ escalation. The one remaining open integration dependency is
+unchanged: the `accountId` field on cognitum-one/api `api_keys` (§6, §10).
+**Rev 2 note:** Rev 2 addressed the peer review — Firestore counter
 throughput (hot-spotting on single-doc transactional increments), stream-truncation
 billing leakage, the auto-route scope-mismatch UX (silent downgrade), the pricing
-formula, and the τ escalation-threshold design. The one remaining open integration
-dependency is unchanged: the `accountId` field on cognitum-one/api `api_keys` (§6, §10).
+formula, and the τ escalation-threshold design.
 **Related:** ADR-180 (GCP VM runner + Firestore results store), ADR-201 (cheap-model lift / cheap-vs-frontier), ADR-150 ($0 local inference), cognitum-one/api ADR-092 (api.cognitum.one gateway), AgentBBS ADR-0012 (emulator-first GCP)
 **Grounding artifacts (read, cited — not invented):**
 - `docs/research/SAKANA_FUGU_REVERSE_ENGINEERING.md` — what Fugu is and what we do / don't replicate.
@@ -134,7 +141,9 @@ alternative.
                 model from the tier pool. (auto mode only)
    e. INFER     Call provider (OpenRouter / direct) with the resolved model.
                 Stream SSE chunks back to the client (OpenAI-compatible).
-   f. ESCALATE  (auto + opt-in) verifier confidence < τ → re-answer at next tier (once).
+   f. ESCALATE  (auto + opt-in, NON-STREAM / buffered only) verifier confidence < τ →
+                re-answer at next tier (once). Streams route once up front (§3.3) — no
+                post-gen re-answer; the input signal alone picks the streamed tier.
    g. METER     On completion publish a usage event to Pub/Sub completions-usage;
                 write usage_ledger doc; bump per-key/per-account counters.
 6. Response   SSE stream (or single JSON if stream=false) flows back up unchanged;
@@ -170,14 +179,48 @@ starting tier. This is exactly the **task-difficulty-aware routing** validated i
 `PLACEMENT.md §7` (intrinsic signal, ~33% escalation, killed all timeouts), applied at
 *request* rather than *campaign* granularity.
 
-**Confidence-driven escalation (opt-in).** If a `low`/`mid` answer's verifier
-self-confidence falls below the internal threshold **τ**, the harness re-answers **once**
-at the next tier (capped by the key's scopes and the request's `max_tier`). This maps
-loosely to Fugu's **Verifier** role — but it is a heuristic check, not a learned head.
-**τ is an internal, adaptive, MetaHarness-owned mechanism, never a public input** — its
-design and the reasons it is *not* exposed as a raw float are in §6.5. Escalation is
-**always billed transparently** at the tier actually used and surfaced in the response
-(`x_cognitum.escalated`, `x_cognitum.resolved_tier`, optional `x_cognitum.routing_reason`).
+**Confidence-driven escalation (opt-in) — non-streaming only.** If a `low`/`mid`
+answer's verifier self-confidence falls below the internal threshold **τ**, the harness
+re-answers **once** at the next tier (capped by the key's scopes and the request's
+`max_tier`). This maps loosely to Fugu's **Verifier** role — but it is a heuristic check,
+not a learned head. **τ is an internal, adaptive, MetaHarness-owned mechanism, never a
+public input** — its design and the reasons it is *not* exposed as a raw float are in
+§6.5. Escalation is **always billed transparently** at the tier actually used and
+surfaced in the response (`x_cognitum.escalated`, `x_cognitum.resolved_tier`, optional
+`x_cognitum.routing_reason`).
+
+**Streaming vs. escalation — the paradox, and the decision.** Post-generation τ
+escalation is **fundamentally incompatible with `stream:true`**: by the time a verifier
+could judge a `low` answer, its tokens have **already been sent to the client**. We
+cannot un-send them, and we cannot switch to a higher-tier model mid-stream without
+corrupting the OpenAI event-stream format (the SDK has already parsed `low`-tier deltas
+into the assistant message). There is therefore **no post-generation τ re-answer for
+streams.** Instead:
+
+- **`stream:true` → one-shot routing decided *before* generation** on the **intrinsic
+  INPUT difficulty signal** (the same pre-solve PLACEMENT §7 mechanism used for the
+  starting-tier decision). This is **not capped to `low`**: if the input signal predicts
+  a hard request, it routes to `high` **up front** and streams from `high` directly. The
+  routing decision is made once, before the first token, and the entire stream comes from
+  that one resolved tier. (`min_tier`/`max_tier` still bound it; scope rules still apply.)
+- **`stream:false` → full post-generation τ escalation** is available: the response is
+  buffered server-side, so re-answering at a higher tier is clean and invisible to the
+  client (it only ever sees the final, possibly-escalated answer).
+- **Opt-in Option A — `escalation:"buffered"`** lets a client get verifier-gated
+  escalation *and* a streamed-shaped response: `apicompletions` **buffers the full
+  response, runs the verifier (escalating once if τ fires), then flushes the final answer
+  as an accelerated pseudo-stream**. This **explicitly trades time-to-first-token (TTFT)**
+  — the client waits for the whole generation (plus a possible escalation pass) before the
+  first byte arrives — so it is **never the default**; the TTFT cost is documented and
+  must be opted into. Defaults: `escalation:"stream_oneshot"` for streams,
+  `escalation:"post_hoc"` for non-streaming.
+- **Rejected — Option C (speculative-stream-then-error).** Streaming the `low` answer
+  optimistically and, if the verifier later rejects it, emitting an error/restart was
+  **rejected**: it corrupts the SSE event-stream contract (the client has already
+  committed `low` deltas to the assistant message), forces every SDK into a retry path
+  that most clients do not implement, and **double-bills** — the discarded `low`-tier
+  tokens were generated and metered, then thrown away. The contract breakage and the
+  wasted spend make it strictly worse than deciding up front.
 
 **Scope-mismatch handling (auto mode).** When the request's intrinsic difficulty needs a
 tier the key does **not** hold (e.g. difficulty → `high`, key holds only
@@ -208,6 +251,12 @@ The key must hold the matching scope.
   - `min_tier`: `low|mid|high` — **quality floor** (never route below this tier).
   - `max_tier`: `low|mid|high` — **cost cap** (never escalate above this tier, even if τ
     fires). These are the **semantic** controls that replace exposing τ directly (§6.5).
+  - `escalation`: `stream_oneshot` (default for `stream:true`) | `post_hoc` (default for
+    `stream:false`) | `buffered` — chooses the escalation strategy (§3.3). `stream_oneshot`
+    decides the tier once on the input signal and never re-answers; `post_hoc` runs the
+    verifier-gated re-answer on a buffered non-stream response; `buffered` opts a streaming
+    client into verifier-gated escalation at the **cost of TTFT** (buffer → verify →
+    pseudo-stream the final answer).
 - **Model field** is the routing dial: `cognitum-auto` | `cognitum-low` | `cognitum-mid`
   | `cognitum-high` | `cognitum-<tier>-agent` (bounded-ReAct agentic mode). Raw vendor
   model ids are **rejected** (404 `model_not_found`) — customers buy *tiers*, not models,
@@ -231,6 +280,7 @@ The key must hold the matching scope.
 | **in**    | `fallback_policy` / `X-Cognitum-Fallback-Policy` | `fail_fast` (auto default) · `best_effort` | scope-mismatch behaviour (§6.2) |
 | **in**    | `min_tier` / `X-Cognitum-Min-Tier`       | `low|mid|high`             | quality floor |
 | **in**    | `max_tier` / `X-Cognitum-Max-Tier`       | `low|mid|high`             | cost cap (caps τ escalation) |
+| **in**    | `escalation` / `X-Cognitum-Escalation`   | `stream_oneshot` (stream default) · `post_hoc` (non-stream default) · `buffered` | escalation strategy (§3.3); `buffered` trades TTFT for verifier-gated escalation on a streaming-shaped response |
 | **out**   | `x_cognitum.resolved_tier` / `X-Cognitum-Resolved-Tier` | `low|mid|high` | tier that actually executed (the billed tier) |
 | **out**   | `x_cognitum.cap_degraded` / `X-Cognitum-Cap-Degraded` | `true|false` | `best_effort` ran below the difficulty-implied tier |
 | **out**   | `x_cognitum.routing_reason` / `X-Cognitum-Routing-Reason` | string (optional) | human-readable why-this-tier (τ effect, not τ value) |
@@ -321,14 +371,30 @@ the provider's final SSE `usage` frame alone is a billing exploit: a client can 
 N tokens of `cognitum-high` output and then **drop the TCP connection before the final
 frame arrives** → usage is never recorded → free inference. Mitigation: `apicompletions`
 **tokenizes every outbound delta chunk locally and incrementally** — each delta is run
-through an inline tokenizer (`js-tiktoken`, or a lightweight WASM tokenizer port) and a
-running local `completion_tokens` counter is maintained as bytes stream out (prompt
-tokens are known up front). On the response `close` / client-disconnect signal, the
-service **assembles a partial usage record from the local counter** and writes it to
-`usage_ledger` (flagged `truncated:true`), so a dropped stream is still billed for what
-was actually generated. The provider's authoritative final count is **preferred when it
-does arrive** (it reconciles the ledger row); the local counter is the **floor /
-fallback**, never silently discarded.
+through an inline tokenizer and a running local `completion_tokens` counter is maintained
+as bytes stream out (prompt tokens are known up front). On the response `close` /
+client-disconnect signal, the service **assembles a partial usage record from the local
+counter** and writes it to `usage_ledger` (flagged `truncated:true`), so a dropped stream
+is still billed for what was actually generated. The provider's authoritative final count
+is **preferred when it does arrive** (it reconciles the ledger row); the local counter is
+the **floor / fallback**, never silently discarded.
+
+**Tokenizer must match the resolved model's family — never count non-OpenAI output with
+an OpenAI tokenizer.** `js-tiktoken` only models OpenAI encodings (`cl100k_base`,
+`o200k_base`). The `low` tier's `deepseek-v4-pro` / `glm-5.2` use **different BPE schemes
+and larger vocabularies**; running their output through an OpenAI profile produces a
+**15–30 % local token-count drift**, which (because the local counter is the
+truncation/disconnect billing floor) would systematically mis-bill the cheap tier. Fix:
+the progressive local tokenizer is **dynamically selected by the `resolved_model`
+family** — load the matching tokenizer (DeepSeek / GLM / OpenAI-encoding / etc.) for the
+model that actually served the request. If shipping multiple WASM tokenizer bundles is
+too heavy for the Cloud Run image, fall back to a **conservative, model-family-specific
+byte→token ratio safety factor** applied to the streamed byte length as the **billing
+floor** (per-family ratios, not a single global constant). In all cases the **provider's
+authoritative final count is preferred when it arrives**; the correct-family local
+estimate is only the floor / disconnect-fallback (the same reconciliation rule as the
+stream-truncation fix above). Concretely: **an OpenAI tokenizer must not be used to count
+the output of a non-OpenAI model** — the family must be resolved first.
 
 ### 5.2 Pricing computation
 
@@ -367,6 +433,26 @@ Price_USD = Input_tokens × Rate_In[resolved_tier] + Output_tokens × Rate_Out[r
   per-instance `Map` under-enforcement) **without** re-introducing a hot-spot. Per-tier
   limits are unchanged (§4.2). Monthly token quota per account stays enforced from the
   rollup.
+- **`COUNT()` aggregation cost — debounce + bucket (cost ceiling at scale).** Firestore
+  bills a `COUNT()` aggregation at **~1 read per 1,000 index entries matched**, so a
+  high-volume key — checked on *every* request — would otherwise scan its whole window
+  each time and run up a **steep Firestore read bill at scale**. Two mitigations keep the
+  serverless default cheap:
+  - **Short in-memory, instance-local cache** (≈500 ms–1 s TTL) on the per-key `COUNT()`
+    result. Repeated window lookups within a Cloud Run instance are **debounced** to the
+    cached value, bounding aggregation reads to **~1–2/sec/instance/key regardless of
+    request rate** instead of one read per request.
+  - **Bucket ticks into 1-minute docs/keys** — group `usage_ticks` into per-minute bucket
+    docs so the window scan touches a **bounded set of index entries** (count the handful
+    of minute-buckets in the window, not every individual tick), keeping each `COUNT()`
+    cheap as volume grows.
+  At massive enterprise scale, **Memorystore (Redis)** is the natural counter store, noted
+  as the scale-out option — but the **pure-serverless default stays in-memory debounce +
+  bucketed ticks** (no extra always-on infra). The debounce makes the limiter slightly
+  **soft**: a key can briefly **over-admit within the cache window** (a burst arriving
+  inside the ≤1 s TTL is admitted against a stale count). This is an **acceptable,
+  documented trade** — the cost and auth-hot-path-latency win outweighs ≤1 s of bounded
+  over-admission, and the per-tier burst allowance (§4.2) already absorbs it.
 - **Idempotency**: optional `Idempotency-Key` header → `idempotency/{key}` doc with the
   cached response + status for a 24 h window; replays return the stored result (and are
   **not** re-billed). Critical for streaming retries.
@@ -442,6 +528,17 @@ self-confidence threshold below which `cognitum-auto` re-answers once at the nex
 (§3.3). It is **calibrated from `usage_ledger` / PLACEMENT data** so that the cheap tier
 absorbs the everyday-work mass and only the genuinely hard tail escalates (the §4.1
 finding: cheap is frontier-class on everyday work, the gap is real only on hard requests).
+
+**τ governs only the non-streaming (post-generation) path.** Because a streamed answer's
+tokens are already on the wire before any verifier could judge them, **τ does not apply to
+`stream:true`** (§3.3): streams are routed **once, before generation, on the intrinsic
+INPUT difficulty signal** — which can itself select `high` up front if the input predicts
+a hard request. τ therefore drives escalation only for `escalation:"post_hoc"`
+(non-streaming, buffered response) and the opt-in `escalation:"buffered"` pseudo-stream;
+the streaming default `escalation:"stream_oneshot"` makes a single pre-gen tier decision
+and never re-answers. This keeps τ's "internal mechanism, semantic controls only" contract
+intact across both paths — the pre-gen input signal and post-gen τ are the same
+difficulty machinery applied at different points in the request lifecycle.
 
 **Why τ is not a public knob** — the same reasons raw vendor model ids are banned (§3.4):
 
@@ -585,6 +682,9 @@ path is 3→4→6→8. Step 7 gates 8 (no deploy without green offline tests).
 | Streaming exceeds Cloud Run timeout / drops mid-stream | 300 s timeout, heartbeat comments, idempotency-keyed resume, client retry guidance |
 | **Client drops the stream before the final `usage` frame → free inference (billing exploit)** | Progressive local tokenization on every delta; on close/disconnect write a `truncated:true` partial usage record from the local counter (§5.1); provider final count preferred when it arrives, local counter is the floor |
 | Rate limiter hot-spots / under-enforces | Scatter-gather TTL'd `usage_ticks` + `COUNT()` aggregation (§5.3) — global (fixes sec-review §1 per-instance bug) **and** dodges the ~1 write/sec/doc single-counter contention wall |
+| **Post-gen τ escalation is impossible mid-stream (tokens already sent; can't switch model without corrupting the SSE contract)** | `stream:true` routes **once up front on the intrinsic input signal** (can pick `high` directly) — no post-gen re-answer; `stream:false` keeps full τ escalation on the buffered response; opt-in `escalation:"buffered"` trades TTFT for verifier-gated streaming. Speculative-stream-then-error (Option C) rejected — contract breakage + double-bill (§3.3, §6.5) |
+| **Tokenizer-family drift — OpenAI tokenizer mis-counts non-OpenAI (deepseek/glm) output by 15–30%** | Progressive tokenizer **selected by `resolved_model` family**; if multi-bundle WASM too heavy, a conservative **per-family byte→token ratio** as billing floor; provider's authoritative count always preferred; OpenAI encodings never used for non-OpenAI output (§5.1) |
+| **Firestore `COUNT()` read cost (~1 read/1,000 entries) on a hot key checked every request** | Instance-local **≈500 ms–1 s debounce** of the per-key COUNT (~1–2 reads/sec/instance/key) + **1-minute bucketed ticks** (bounded scan); Memorystore the scale-out option; debounce accepted as a slightly-soft limiter (bounded ≤1 s over-admission) (§5.3) |
 | Auto-route silently downgrades a hard request the key can't afford | `fallback_policy`: `fail_fast` default → 403 with a clear scope message; `best_effort` runs capped + flags `x_cognitum.cap_degraded` (§6, item 2) — never a silent wrong answer |
 | Provider outage changes billed tier silently | Per-tier fallback chain (commit `de512bd`) stays *within* tier; tier never silently upgrades; escalation is explicit + surfaced |
 | Token-count / price drift vs provider `usage` | Reconcile ledger against provider invoices; same tokenizer for routing + fallback counting |
@@ -626,7 +726,61 @@ path is 3→4→6→8. Step 7 gates 8 (no deploy without green offline tests).
   recovers — PLACEMENT §7's 33% escalation is the prior). The threshold **τ itself is
   decided** (§6.5): internal + adaptive, calibrated from `usage_ledger`/PLACEMENT, never a
   public input — only the verifier's mechanics and initial calibration window remain open.
+  **The streaming-vs-escalation question is now decided** (rev 3, §3.3/§6.5): `stream:true`
+  routes once up front on the intrinsic input signal, post-gen τ escalation is
+  non-streaming-only, and `escalation:"buffered"` is the opt-in TTFT-trading bridge — no
+  longer open.
 - Region expansion beyond `us-central1` (latency for non-NA customers).
+
+---
+
+## Peer review addressed (rev 3)
+
+This revision resolves a third peer-review round (three items); the design is otherwise
+unchanged in intent. Status stays **Proposed** but is now **ready for Approved**.
+
+1. **Streaming escalation paradox (§3.1-step f, §3.3, §3.4, §6.5, §10).** Post-generation τ
+   escalation is **incompatible with `stream:true`** — the tokens are already sent, can't be
+   un-sent, and the model can't be switched mid-stream without corrupting the OpenAI
+   event-stream format. **Decision:** `stream:true` is **routed once, before generation, on
+   the intrinsic INPUT difficulty signal** (the pre-solve PLACEMENT §7 mechanism) — and this
+   is **not capped to `low`**: if the input predicts a hard request it routes to `high`
+   up front and streams from `high`. There is **no post-gen τ re-answer for streams**.
+   `stream:false` keeps the **full post-generation τ escalation** (buffered response →
+   clean re-answer). Added the opt-in **`escalation:"buffered"`** (default
+   `"stream_oneshot"` for streams / `"post_hoc"` for non-stream): buffer the full response,
+   run the verifier, then flush as an accelerated pseudo-stream — **explicitly trades TTFT,
+   never the default**, TTFT cost documented. **Rejected Option C** (speculative-stream-then
+   -error): corrupts the event-stream contract, forces SDK retries, and double-bills
+   discarded low-tier tokens. §6.5 now scopes τ to the non-streaming post-gen path; the
+   request schema + header table (§3.4) carry the new `escalation` control.
+
+2. **Tokenizer drift across model families (§5.1, §10).** `js-tiktoken` only models OpenAI
+   encodings (`cl100k`/`o200k`); the `low` tier's `deepseek-v4-pro` / `glm-5.2` use different
+   BPE schemes + larger vocabularies → **15–30 % local-count drift** if billed with an OpenAI
+   profile (and the local counter is the truncation/disconnect billing floor). **Fix:** the
+   progressive local tokenizer is **dynamically selected by the `resolved_model` family**;
+   if multi-bundle WASM is too heavy for the Cloud Run image, fall back to a **conservative,
+   model-family-specific byte→token ratio** as the billing floor. Provider's authoritative
+   final count always preferred; the correct-family local estimate is the floor/disconnect
+   fallback. Made explicit: **an OpenAI tokenizer must NOT be used to count non-OpenAI model
+   output.**
+
+3. **Firestore `COUNT()` aggregation cost (§5.3, §10).** `COUNT()` is billed ~**1 read per
+   1,000 index entries matched**; a hot key checked on every request → steep read cost at
+   scale. **Fix:** a **short in-memory, instance-local cache (≈500 ms–1 s)** debounces the
+   per-key COUNT (bounds reads to ~1–2/sec/instance/key regardless of request rate), and
+   ticks are grouped into **1-minute bucket docs** so the window scan touches bounded index
+   entries (count buckets, not every tick). **Memorystore (Redis)** noted as the
+   at-massive-scale option, but the **pure-serverless default is the in-memory debounce +
+   bucketed ticks**. Acknowledged the debounce makes the limiter slightly **soft** (brief,
+   bounded ≤1 s over-admission within the cache window) — an acceptable, documented trade.
+
+§12 updated: the **streaming-vs-escalation question is now decided** (no longer open). Status
+note bumped to **rev 3**.
+
+**Remaining open dependency (unchanged):** the `accountId` field on cognitum-one/api
+`api_keys` docs (§6, §10).
 
 ---
 
