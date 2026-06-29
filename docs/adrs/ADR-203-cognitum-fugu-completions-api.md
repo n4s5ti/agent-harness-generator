@@ -1,7 +1,17 @@
 # ADR-203 — Cognitum Fugu: a GCP-hosted, metered, tiered Completions API on MetaHarness
 
-**Status:** Proposed (rev 3 — peer review addressed; ready for Approved)
+**Status:** Proposed (rev 4 — optional midstream inflight-streaming upgrade; ready for Approved)
 **Date:** 2026-06-29
+**Rev 4 note:** This revision adds an **OPTIONAL, firewalled** integration of
+`ruvnet/midstream` for **inflight streaming escalation** (new §3.5 + a §10 risk row +
+the `escalation:"inflight"` schema opt-in). It is **purely additive**: the rev-3
+decision stands unchanged — **Option B (`stream_oneshot`, one-shot up-front routing on
+the intrinsic INPUT signal) remains the default and the safe path**, and is the mandatory
+degraded-mode fallback. midstream is a *removable augmentation* (ADR-150). Because the
+`@midstream/wasm` package is **NOT published on npm today (404 verified)**, the
+optional-dependency firewall **always degrades to Option B right now**; inflight
+escalation is a *future-enabled* upgrade, off until the WASM is vendored from the repo or
+published upstream.
 **Rev 3 note:** This revision addresses a third peer-review round — the
 **streaming-escalation paradox** (post-generation τ escalation is incompatible with
 `stream:true`), **tokenizer drift across model families** (an OpenAI tokenizer cannot
@@ -287,6 +297,115 @@ The key must hold the matching scope.
 
 τ itself is **never** an input or an output value — only its *effect* is observable via
 `resolved_tier` / `routing_reason` (§6.5).
+
+### 3.5 Inflight streaming via `ruvnet/midstream` — optional, firewalled
+
+**Status of this subsection: OPTIONAL, additive, currently degraded to Option B.** It
+*extends* — never replaces — the rev-3 streaming decision (§3.3). rev-3 stands:
+**`escalation:"stream_oneshot"` (Option B — one-shot routing decided up front on the
+intrinsic INPUT difficulty signal) is the default and the safe path.** Everything below
+is a *firewalled optional upgrade* that is inert unless `ruvnet/midstream` is present at
+runtime — and as of today it is *not* (item 2), so the system runs Option B.
+
+**1. What it enables — a better Option C′ (inflight escalation).** rev-3 §3.3 *rejected*
+Option C (speculative-stream-then-error) because, with no inflight analysis, the only way
+to recover from a bad streamed `low` answer was to corrupt the SSE contract and force a
+restart. `ruvnet/midstream` — a **real** Rust/WASM real-time inflight LLM-stream-analysis
+toolkit (repo `ruvnet/midstream`, ~126★, actively developed: pushed 2026-06-29; layout
+has `crates/`, `npm/`, `npm-wasm/`, `wasm/`, `wasm-bindings/`) — is the right *category*
+of tool to change that calculus: it can **scan the streaming output as it is generated**
+and, on an **early failure signal**, **escalate mid-stream without killing TTFT** (the
+first tokens already flowed to the client). This **supersedes the rev-3 rejection of
+Option C *only when midstream is present*** — call it **Option C′**. When midstream is
+absent, the rev-3 rejection of Option C stands and **Option B remains both the default and
+the fallback**.
+
+**2. Optional-dependency firewall (ADR-150 removable-augmentation).** midstream is wired as
+an `optionalDependency` behind a dynamic-import firewall — exactly the ADR-150 pattern of a
+clever mechanism that is a *removable* augmentation, never a required runtime dep:
+
+```js
+let midstream = null;
+try { midstream = await import('@midstream/wasm'); }   // future-enabled
+catch { midstream = null; }                            // → degrade to Option B
+// the inflight path runs ONLY if midstream !== null; otherwise escalation:"inflight"
+// silently behaves as escalation:"stream_oneshot" (Option B).
+```
+
+**Degraded mode === Option B, fully operational without midstream — and this is the
+*current* operative state.** `@midstream/wasm` is **NOT published on npm (404 verified,
+2026-06-29)**, so the dynamic import above **fails today** and the service **always falls
+back to Option B**. Enabling Option C′ therefore first requires *either* building the WASM
+bundle from the repo's `npm-wasm/` / `wasm/` directory and vendoring it, *or* awaiting an
+upstream npm publish. Until then the firewall is doing its job: inflight escalation is
+dark and Option B (rev-3) serves every stream.
+
+**3. SDK-safe truncation protocol (the mid-stream handoff).** When midstream's inflight
+scan fires an escalation, we must hand off to the higher tier **without** leaving
+third-party SDKs in a broken parse state (the `Unexpected end of JSON input` failure mode).
+Protocol:
+
+1. Emit **one OpenAI-event-stream-conformant terminal chunk** on the low-tier stream with
+   `choices[].finish_reason: "content_filter"` (or `"length"` where more apt) — a value
+   existing SDKs already treat as a clean stop.
+2. Attach a **namespaced** block on that terminal chunk:
+   `x_cognitum: { escalated: true, resolved_tier: "<higher>", next_context: "<continuation handle>" }`.
+3. Send `data: [DONE]` so the SDK **closes its stream loop gracefully** — no dangling JSON.
+4. The **higher tier then continues** the answer (the client reconnects on `next_context`,
+   or the service bridges to a fresh higher-tier stream under the same `request_id`).
+
+**Double-billing consideration (honest).** Only the **discarded early low-tier tokens** are
+wasted spend — and inflight detection *minimizes* exactly that prefix (the earlier the
+signal, the fewer tokens thrown away), which is precisely the advantage of doing this
+inflight rather than post-hoc. Billing follows the rev-2 pricing rule: **bill the
+resolved/escalated tier** for the delivered answer, and **record the discarded low-tier
+prefix honestly** in `usage_ledger` (`escalated:true`, plus a `discarded_prefix_tokens`
+field counted with the §5.1 family-correct progressive tokenizer). No capability
+laundering, no hidden charge: the wasted prefix is visible in the ledger.
+
+**4. Complementary uses (cross-ref rev-3; framed as "can", not "required").** midstream's
+zero-copy byte matching and in-memory scheduling overlap two rev-3 mechanisms. In both
+cases midstream *can* serve the role but is **not** required:
+
+- **§5.1 billing floor.** midstream's zero-copy byte matching **can** supply the
+  per-model-family **byte→token ratio** that rev-3 already calls for as the
+  tokenizer-drift safety factor — i.e. an inflight, family-aware byte counter feeding the
+  disconnect/truncation billing floor.
+- **§5.3 `COUNT()`-debounce cache.** midstream's in-memory scheduler / priority-queue
+  **can** back the instance-local debounce cache rev-3 specifies for the per-key `COUNT()`
+  rate check.
+
+Neither replaces the rev-3 serverless default; they are offered as *if-present* substrates.
+
+**5. Phasing + scope discipline (HONEST — measured, not assumed).**
+
+- **Phase 1 — only the concrete/verifiable uses:** (a) **billing-floor token tracking**,
+  and (b) **basic inflight pattern detection** — loops, explicit refusals, and obvious /
+  structural errors — as the early SDK-safe-truncation trigger. These are *early-detectable
+  failure modes*, observable from the byte/token stream without a model of answer quality.
+- **Phase 3 — deferred until validated on real `usage_ledger` data:** the exotic
+  dynamical-systems crates **and** the "early confidence score from the first 20–30 tokens"
+  claim. Per this project's own measured findings — **cognition-evolve null, memory null,
+  scaffolding backfire** (see `[[retort-doe-benchmark]]` / ADR-201) — **clever mechanisms
+  must be *measured*, not assumed.** Phase 1 is therefore scoped to *early-detectable
+  failure modes only*, **not a confidence-threshold magic number**: we do not ship a
+  "first-N-tokens confidence" gate until `usage_ledger` data shows it actually predicts
+  escalation outcomes.
+
+**6. Crate names are illustrative / to-be-confirmed.** The proposal's crate names —
+`temporal-compare`, `midstreamer-scheduler`, `midstreamer-attractor`, `strange-loop` — are
+**unverified** against midstream's published API. This integration is written **against
+midstream's *actual* API as a contract** (inflight scan → escalation signal → SDK-safe
+truncation → higher-tier continuation); the specific crate names above are *illustrative*
+and must be confirmed against the repo before any wiring.
+
+**7. Schema opt-in.** A fourth `escalation` value is added (extending the rev-3 §3.4 enum
+`stream_oneshot | post_hoc | buffered`):
+
+- **`escalation:"inflight"` (midstream-only).** Opt into inflight scan + mid-stream
+  Option C′ escalation. **Silently falls back to `stream_oneshot` (Option B) when midstream
+  is absent** (the current default state, per item 2). It is **never** the default; the
+  default for `stream:true` remains `stream_oneshot`.
 
 ---
 
@@ -690,6 +809,7 @@ path is 3→4→6→8. Step 7 gates 8 (no deploy without green offline tests).
 | Token-count / price drift vs provider `usage` | Reconcile ledger against provider invoices; same tokenizer for routing + fallback counting |
 | Prompt-injection / abuse over a public LLM endpoint | aidefence scan on inbound, per-key quotas, audit_log, leaked-`cog_`-key GitHub scanner (already run) |
 | Escalation double-bills opaquely | Billed at *resolved* tier only; `x_cognitum.escalated` + ledger make it auditable |
+| **Optional midstream inflight upgrade depends on an unpublished package + an unverified API** | `@midstream/wasm` is **not on npm (404 verified)** and the proposal's crate names are unverified — so the `optionalDependency` firewall **always degrades to Option B** (rev-3 default) until the WASM is vendored from the repo's `npm-wasm/`/`wasm/` dir or published; written against midstream's *actual* API as a contract; graceful-degradation is the default state, not an error path. Phase 1 limited to early-detectable failure modes; confidence-score claims deferred to Phase 3 pending `usage_ledger` validation (§3.5) |
 | `accountId` missing on `api_keys` docs | Single named integration dependency on cognitum-one/api (§6) |
 
 ---
@@ -731,6 +851,63 @@ path is 3→4→6→8. Step 7 gates 8 (no deploy without green offline tests).
   non-streaming-only, and `escalation:"buffered"` is the opt-in TTFT-trading bridge — no
   longer open.
 - Region expansion beyond `us-central1` (latency for non-NA customers).
+
+---
+
+## Peer review addressed (rev 4)
+
+This revision is **purely additive** — it adds an **OPTIONAL, firewalled** integration of
+`ruvnet/midstream` for inflight streaming escalation and **changes none of the rev-3
+decisions**. **Option B (`stream_oneshot`, one-shot up-front routing on the intrinsic INPUT
+signal) remains the default and the safe path**, and is also the mandatory degraded-mode
+fallback. Status stays **Proposed (rev 4)**.
+
+1. **Inflight streaming via `ruvnet/midstream` — optional, firewalled (new §3.5; §10 row;
+   §3.4 schema opt-in).** `ruvnet/midstream` is a **real** Rust/WASM inflight LLM-stream-
+   analysis toolkit (~126★, actively developed, repo has `crates/`/`npm/`/`npm-wasm/`/
+   `wasm/`/`wasm-bindings/`) — the right *category* of tool for inflight escalation. It
+   enables a **better Option C′** than rev-3's rejected Option C: scan the streaming output
+   inflight and, on an early failure signal, **escalate mid-stream without killing TTFT**.
+   This supersedes the rev-3 Option-C rejection **only when midstream is present**; rev-3
+   Option B is the default *and* the fallback.
+
+2. **Honest dependency status: `@midstream/wasm` is NOT published on npm (404 verified).**
+   The blueprint's `import('@midstream/wasm')` fails today, so the `optionalDependency`
+   firewall (ADR-150 removable-augmentation) **always degrades to Option B right now**.
+   Enabling Option C′ first requires building the WASM from the repo's `npm-wasm/`/`wasm/`
+   dir and vendoring it, or awaiting an upstream publish. The crate names from the proposal
+   (`temporal-compare`, `midstreamer-scheduler`, `midstreamer-attractor`, `strange-loop`)
+   are **unverified** — the integration is written against midstream's *actual* API as a
+   contract, the crate names are illustrative/to-be-confirmed.
+
+3. **SDK-safe truncation protocol (§3.5 item 3).** Mid-stream escalation emits an
+   OpenAI-conformant terminal chunk (`finish_reason:"content_filter"`/`"length"`) +
+   `x_cognitum:{escalated,resolved_tier,next_context}` + `data: [DONE]` so third-party SDKs
+   close their loop cleanly (no `Unexpected end of JSON input`); the higher tier then
+   continues. **Double-billing:** only the discarded early low-tier prefix is wasted
+   (minimized by early detection); bill the resolved tier (rev-2 rule), record the discarded
+   prefix honestly in `usage_ledger`.
+
+4. **Measured-not-assumed scope discipline (§3.5 item 5).** **Phase 1** ships only the
+   concrete/verifiable uses — billing-floor token tracking + basic loop/refusal/obvious-error
+   inflight detection for early SDK-safe truncation. **Phase 3** defers the exotic
+   dynamical-systems crates **and** the "early confidence score from the first 20–30 tokens"
+   claim until validated on real `usage_ledger` data — per this project's measured findings
+   (cognition-evolve null, memory null, scaffolding backfire; `[[retort-doe-benchmark]]` /
+   ADR-201), clever mechanisms must be **measured, not assumed**. Phase 1 is scoped to
+   early-detectable failure modes only, not a confidence-threshold magic number.
+
+5. **Schema opt-in (§3.4 / §3.5 item 7).** Adds `escalation:"inflight"` (midstream-only) to
+   the rev-3 `stream_oneshot|post_hoc|buffered` enum; **silently falls back to
+   `stream_oneshot` (Option B) when midstream is absent.**
+
+**Complementary (if-present, not required):** midstream zero-copy byte matching *can* supply
+the §5.1 per-family byte→token ratio; its in-memory scheduler *can* back the §5.3
+`COUNT()`-debounce cache (§3.5 item 4).
+
+**Remaining open dependency:** unchanged — the `accountId` field on cognitum-one/api
+`api_keys` docs (§6, §10) — plus the new, firewalled midstream-publish/vendor dependency,
+which degrades safely to Option B until resolved.
 
 ---
 
