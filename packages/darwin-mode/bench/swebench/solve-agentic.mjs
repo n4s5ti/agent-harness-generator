@@ -14,7 +14,7 @@ import { execSync } from 'node:child_process';
 import { tmpdir } from 'node:os';
 import { join, dirname, isAbsolute } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { agenticSolve, chebTemp, buildAgenticSystem } from './agentic-loop.mjs';
+import { agenticSolve, agenticSolveNative, chebTemp, buildAgenticSystem } from './agentic-loop.mjs';
 import { runConformantTests } from './conformant-tests.mjs';
 import { langProfile } from './lang-profile.mjs';
 // ADR-195 Phase-2 capability stack (all opt-in; off by default — backward-compatible).
@@ -24,6 +24,8 @@ import { reviewerSolve, parseReview, buildReviewPrompt, reviseFeedbackBlock, REV
 import { buildReproTest, REPRO_PATH } from './test-critic.mjs';
 // ADR-196 — execution-trace localization (the §53 dynamic-localization lever; distinct from §52's naive semantic localize).
 import { traceLocalize, formatTraceSeedForAgent, buildPyTracer, TRACE_PATH } from './trace-localize.mjs';
+// ADR-205 — harness handoff: darwin as router, claude -p as hard-tail actuator (loop handoff, NOT model embedding).
+import { parseEscalateChain, acceptHop, solveViaClaudeP, escalationSignals, evaluateEscalation, buildReceipt, runEscalationChain, pickChainPatch } from './handoff-solver.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const args = process.argv.slice(2);
@@ -56,6 +58,46 @@ const LOCALIZE_K = +argv('--localize-k', 12);
 const GNN_RERANK = args.includes('--gnn-rerank');        // optional ruvector-gnn-rerank diffusion
 const REPRO_ROUNDS = +argv('--repro-rounds', 3);
 const REVIEW_REVISIONS = +argv('--review-revisions', 2);
+// ADR-197 — native OpenRouter/OpenAI function-calling path (opt-in; default OFF = the pre-existing
+// text-JSON tool protocol, byte-identical). See agentic-loop.mjs's agenticSolveNative for the loop and
+// NATIVE-TOOLUSE.md for the diagnosis that motivated it.
+const NATIVE_TOOLS = args.includes('--native-tools');
+// ADR-205 — `--escalate-to <chain>`: ordered, comma-separated escalation chain (aliases like
+// `claude-p-fable`, or generic `darwin:<model>` / `claude-p:<model>` rungs). When set, an instance
+// that FAILS darwin's cheap attempt is handed off rung-by-rung; the first ACCEPTED rung's patch
+// replaces darwin's. Absent ⇒ every path below is byte-identical to pre-ADR-205 behaviour.
+const ESCALATE_TO = argv('--escalate-to', null);
+const HANDOFF_CHAIN = ESCALATE_TO ? parseEscalateChain(ESCALATE_TO) : null;
+// ADR-205 — escalation POLICY. `two-of-n` (default) is the production cost-saver: escalate only when
+// ≥2 failure signals fire (right for MIXED workloads where the cheap base resolves the easy share).
+// `aggressive` escalates EVERY darwin miss (tests_failed OR empty_patch) — the proof policy for a
+// hard slice where the base resolves ~0 (2-of-N would under-escalate confident-but-wrong submits and
+// measure darwin's ceiling, not the handoff's). Validated eagerly so a typo fails fast.
+const ESCALATE_POLICY = argv('--escalate-policy', 'two-of-n');
+if (HANDOFF_CHAIN) evaluateEscalation({ tests_failed: false, empty_patch: false, no_submit: false, thrash_repeat: false, too_many_files: false }, ESCALATE_POLICY);
+const HANDOFF_MAX_TURNS = +argv('--handoff-max-turns', 40);
+const HANDOFF_TIMEOUT_MS = +argv('--handoff-timeout', 900) * 1000;
+// ADR-205 — the solver_receipt stream (one JSONL row per instance; plus one per chain hop when a
+// chain runs). This is the future MetaHarness router's training data: BOTH classes (escalated and
+// not) with real costs and real reasons. Only written when --escalate-to is set.
+const RECEIPTS = rel(argv('--receipts', 'handoff-receipts.jsonl'));
+const INITIAL_SOLVER = `darwin-${MODEL.split('/').pop()}`;
+// ADR-205 perf — concurrent escalations. The claude -p rung is an independent async subprocess, so
+// under `--concurrency N` the hard tail must NOT serialize behind one handoff at a time; a small
+// semaphore caps concurrent claude -p subprocesses (default 2, keep ≤3 — endpoint rate limits).
+// darwin-model rungs are ordinary LLM calls and stay governed by --concurrency alone.
+const HANDOFF_CONCURRENCY = Math.max(1, +argv('--handoff-concurrency', 2));
+let handoffActive = 0; const handoffWaiters = [];
+async function withHandoffSlot(fn) {
+  while (handoffActive >= HANDOFF_CONCURRENCY) await new Promise((r) => handoffWaiters.push(r));
+  handoffActive++;
+  try { return await fn(); } finally { handoffActive--; const r = handoffWaiters.shift(); if (r) r(); }
+}
+// ADR-205 perf — `--early-escalate` (flag-gated, DEFAULT OFF so benchmark arms measure the spec'd
+// behaviour; noted in the ADR as the measured-next-step): if darwin has burned half its step budget
+// without a single edit/line_edit attempt, the attempt is un-recoverable often enough that finishing
+// the budget is pure overhead — abort the loop and let the 2-of-N rules escalate immediately.
+const EARLY_ESCALATE = args.includes('--early-escalate');
 
 let manifest = JSON.parse(readFileSync(rel(argv('--manifest', 'pilot-sample-25.json')), 'utf8')).instances;
 if (onlyInstance) manifest = manifest.filter((i) => i.instance_id === onlyInstance);
@@ -109,11 +151,33 @@ function mkLlm(model) {
     throw lastErr ?? new Error('llm failed');
   };
 }
-const llm = mkLlm(MODEL);
+// ADR-197 — native tool-calling variant of mkLlm: sends the running `messages` array (already built by
+// agenticSolveNative) plus `tools`/`tool_choice: 'required'` and returns the assistant `message` object
+// (which may carry `tool_calls`) instead of a raw text string. Same retry/backoff shape as mkLlm.
+function mkLlmNative(model) {
+  return async function (messages, toolsSchema, temp) {
+    let lastErr;
+    for (let attempt = 0; attempt < 5; attempt++) {
+      if (attempt) await new Promise((r) => setTimeout(r, 2000 * 2 ** (attempt - 1)));
+      try {
+        const body = { model, messages, max_tokens: 4096, temperature: (temp ?? TEMP), tools: toolsSchema, tool_choice: 'required' };
+        const res = await fetch(CHAT_URL, { method: 'POST', headers: { Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+        if (!res.ok && (res.status === 429 || res.status >= 500)) { lastErr = new Error(`http ${res.status}`); continue; }
+        const j = await res.json();
+        return { message: j.choices?.[0]?.message ?? {}, cost: j.usage?.cost ?? 0 };
+      } catch (e) { lastErr = e; }
+    }
+    throw lastErr ?? new Error('llm failed');
+  };
+}
+const llm = NATIVE_TOOLS ? mkLlmNative(MODEL) : mkLlm(MODEL);
+// judgePick (below) always needs a plain-text {raw,cost} completion regardless of --native-tools —
+// kept as a separate instance so the native-tools loop llm's different return shape never leaks there.
+const llmJudge = mkLlm(MODEL);
 // ADR-182 — cost cascade: cheap tier-1; escalate ONLY instances whose patch fails the repo's own tests
 // (conformant gate). Tier-2 starts COLD (fresh work tree) to preserve trajectory diversity (the union ceiling).
 const ESCALATE = argv('--cascade', null);
-const llmEsc = ESCALATE ? mkLlm(ESCALATE) : null;
+const llmEsc = ESCALATE ? (NATIVE_TOOLS ? mkLlmNative(ESCALATE) : mkLlm(ESCALATE)) : null;
 function evalOne(instanceId, patch, runId) {
   const preds = `/tmp/agentic-${runId}.jsonl`;
   writeFileSync(preds, JSON.stringify({ instance_id: instanceId, model_name_or_path: 'darwin-agentic', model_patch: patch }) + '\n');
@@ -228,6 +292,7 @@ async function buildLocalizeHint(inst) {
 }
 
 writeFileSync(OUT, ''); const report = []; let totalCost = 0;
+if (HANDOFF_CHAIN) writeFileSync(RECEIPTS, ''); // truncate the receipt stream per run
 // One agentic attempt in a FRESH work tree (cold). Returns {res, work}; caller cleans up.
 // ADR-195: `opts.localizeHint` (string) is prepended to the problem surface; `opts.extraContext`
 // (string) is appended as additional turn-1 context (repro test / review critique). Both default
@@ -256,19 +321,26 @@ async function solveTier(inst, llmFn, opts = {}) {
     },
     MAX_OUT: 4000,
   };
-  const system = buildAgenticSystem(prof.exampleExt, defGlob);
   // ADR-195: assemble the problem surface — localization hint first (where to look), then the issue,
   // then any extra capability context (self-written repro / reviewer critique). All empty by default.
   // (Supersedes the worktree-a29099 probe's loadSeedBlock --localize-seed path; the standalone probe
   // tool ruvector-localize.mjs + LEARNINGS §52 record the empirical n=5 A/B that motivated this.)
   const problem = [opts.localizeHint, inst.problem_statement, opts.extraContext].filter(Boolean).join('\n\n');
-  const res = await agenticSolve({ problem, io, llm: llmFn, maxSteps: MAX_STEPS, system, tempSchedule: CHEB_TEMP ? ((s, n) => chebTemp(s, n, CHEB_HI)) : undefined });
+  const tempSchedule = CHEB_TEMP ? ((s, n) => chebTemp(s, n, CHEB_HI)) : undefined;
+  // ADR-197: --native-tools swaps the text-JSON ReAct core for the native function-calling one. The
+  // default path below (agenticSolve + buildAgenticSystem) is untouched and stays byte-identical.
+  // ADR-205: chain rungs may carry their own step budget (spec.maxSteps); default is the global.
+  // `opts.onStep` passes straight through to the loop (used by --early-escalate's abort hook).
+  const maxSteps = opts.maxSteps || MAX_STEPS;
+  const res = NATIVE_TOOLS
+    ? await agenticSolveNative({ problem, io, llm: llmFn, maxSteps, ext: prof.exampleExt, glob: defGlob, tempSchedule, onStep: opts.onStep })
+    : await agenticSolve({ problem, io, llm: llmFn, maxSteps, system: buildAgenticSystem(prof.exampleExt, defGlob), tempSchedule, onStep: opts.onStep });
   return { res, work, prof };
 }
 // Cascade tie-break: neither tier passed the repo gate — judge picks the likelier fix (cheap, conformant).
 async function judgePick(inst, pA, pB) {
   if (!pA.trim()) return pB; if (!pB.trim()) return pA;
-  try { const { raw, cost } = await llm(`A GitHub issue and TWO candidate patches, neither verified by tests. Pick the one more likely to correctly fix it.\n\nISSUE:\n${String(inst.problem_statement).slice(0, 4000)}\n\nPATCH A:\n${pA.slice(0, 5000)}\n\nPATCH B:\n${pB.slice(0, 5000)}\n\nReply ONLY 'A' or 'B'.`); totalCost += cost; return /^\s*B/i.test(raw) ? pB : pA; } catch { return pA; }
+  try { const { raw, cost } = await llmJudge(`A GitHub issue and TWO candidate patches, neither verified by tests. Pick the one more likely to correctly fix it.\n\nISSUE:\n${String(inst.problem_statement).slice(0, 4000)}\n\nPATCH A:\n${pA.slice(0, 5000)}\n\nPATCH B:\n${pB.slice(0, 5000)}\n\nReply ONLY 'A' or 'B'.`); totalCost += cost; return /^\s*B/i.test(raw) ? pB : pA; } catch { return pA; }
 }
 // ── ADR-195 Phase-2 #2: reproduction-first gate (wires the pure reproGateSolve to the real repro
 // writer + COLD agentic rounds + the conformant repro runner). Returns the reproGateSolve result. ──
@@ -353,6 +425,35 @@ async function runReviewer(inst, basePatch, llmFn, localizeHint) {
   return r;
 }
 
+// ── ADR-205 — the REAL rung runners injected into handoff-solver's pure runEscalationChain
+// traversal. 'darwin-model' rungs rerun darwin's OWN loop cold with a different model (cheap ladder
+// rungs); 'claude-p-model' rungs shell out to the claude -p subprocess solver (the loop handoff —
+// the whole point of ADR-205). Every rung's cost lands in totalCost so --max-cost gates the chain
+// BEFORE each rung launches (claude -p has no mid-run budget flag; this gate is the enforcement). ──
+async function runChainFor(inst, chain, { localizeHint, priorAttempts = [] } = {}) {
+  return runEscalationChain(chain, {
+    overBudget: () => totalCost >= MAX_COST,
+    priorAttempts,
+    runDarwinHop: async (spec) => {
+      const hopLlm = NATIVE_TOOLS ? mkLlmNative(spec.model) : mkLlm(spec.model);
+      const t0h = Date.now();
+      const { res, work } = await solveTier(inst, hopLlm, { localizeHint, maxSteps: spec.maxSteps });
+      try { rmSync(work, { recursive: true, force: true }); } catch { /**/ }
+      totalCost += res.cost || 0;
+      return { status: res.patch.trim() ? 'resolved' : 'failed', patch: res.patch, cost_usd: res.cost || 0, latency_ms: Date.now() - t0h, turns: res.steps, solver: spec.name, resolvedInLoop: !!res.resolvedInLoop, error: '' };
+    },
+    runClaudeP: async (spec, prior) => {
+      const result = await withHandoffSlot(() => solveViaClaudeP({
+        instanceId: inst.instance_id, repo: inst.repo, baseCommit: inst.base_commit, problemStatement: inst.problem_statement,
+        model: spec.model, maxTurns: HANDOFF_MAX_TURNS, timeoutMs: HANDOFF_TIMEOUT_MS || spec.timeoutMs, priorAttempts: prior,
+      }));
+      result.solver = spec.name;
+      totalCost += result.cost_usd || 0;
+      return result;
+    },
+  });
+}
+
 async function runInstance(inst) {
   const t0 = Date.now(); const row = { instance_id: inst.instance_id, repo: inst.repo, tier: 'T1', resolved: false };
   let patch = '';
@@ -366,12 +467,26 @@ async function runInstance(inst) {
     if (TRACE_LOCALIZE) row.traceLocalized = !!traceHint;
     const localizeHint = [traceHint, semanticHint].filter(Boolean).join('\n\n');
 
+    let t1res = null; // ADR-205: the cheap attempt's raw loop result — the escalation rules read it.
     if (REPRO_GATE) {
       // ADR-195 #2: reproduction-first path replaces the base solve (it owns the iterate loop).
       const rg = await runReproGate(inst, llm, localizeHint);
       patch = rg.patch; row.tier = 'repro'; row.reproValid = rg.reproValid; row.reproPassed = rg.reproPassed; row.reproRounds = rg.rounds; row.resolved = !!rg.reproPassed;
     } else {
-      const { res, work } = await solveTier(inst, llm, { localizeHint });
+      // ADR-205 perf (--early-escalate): abort the cheap attempt at half budget if it has not even
+      // ATTEMPTED an edit — the dominant unrecoverable signature (all-exploration, zero edits).
+      let earlyStopped = false;
+      let earlyOnStep;
+      if (HANDOFF_CHAIN && EARLY_ESCALATE) {
+        let edited = false;
+        earlyOnStep = (step, action) => {
+          if (action.tool === 'edit' || action.tool === 'line_edit') edited = true;
+          if (!edited && step >= Math.ceil(MAX_STEPS / 2)) { earlyStopped = true; return 'stop'; }
+        };
+      }
+      const { res, work } = await solveTier(inst, llm, { localizeHint, onStep: earlyOnStep });
+      t1res = res;
+      if (earlyStopped) row.earlyEscalated = true;
       patch = res.patch; totalCost += res.cost; row.steps = res.steps; row.submitted = res.submitted; row.resolvedInLoop = res.resolvedInLoop;
       try { rmSync(work, { recursive: true, force: true }); } catch { /**/ }
       if (ESCALATE && !res.resolvedInLoop) {                       // escalate ONLY the hard tail
@@ -383,6 +498,42 @@ async function runInstance(inst) {
         else { patch = await judgePick(inst, res.patch, r2.patch); row.tier = 'judge'; }
         row.resolved = !!(res.resolvedInLoop || r2.resolvedInLoop);
       } else row.resolved = !!res.resolvedInLoop;
+    }
+
+    // ADR-205 — harness handoff: when the cheap attempt FAILS the rule-based 2-of-N trigger (darwin
+    // stays the router), walk the escalation chain and let the first accepted rung's patch replace
+    // darwin's. Gated entirely on --escalate-to: absent ⇒ this block never runs ⇒ byte-identical
+    // output. NOTE: the trigger is the practical subset computable from what the loop ALREADY
+    // tracks — learned thresholds (confidence/complexity scores) over the receipt stream are
+    // explicitly future work, not invented here.
+    if (HANDOFF_CHAIN && t1res) {
+      const signals = escalationSignals({ resolvedInLoop: !!t1res.resolvedInLoop, submitted: !!t1res.submitted, thrash: t1res.thrash || 0, transcript: t1res.transcript, patch });
+      const { escalate, reasons } = evaluateEscalation(signals, ESCALATE_POLICY);
+      const darwinBase = { instanceId: inst.instance_id, initialSolver: INITIAL_SOLVER, darwinCostUsd: t1res.cost || 0, darwinSteps: t1res.steps ?? null, signals, escalatePolicy: ESCALATE_POLICY };
+      let hops = [];
+      if (escalate) {
+        row.handoffChain = HANDOFF_CHAIN.map((s) => s.name); row.escalationReasons = reasons;
+        hops = await runChainFor(inst, HANDOFF_CHAIN, {
+          localizeHint,
+          priorAttempts: [{ solver: INITIAL_SOLVER, failureReasons: reasons, steps: t1res.steps }],
+        });
+        row.handoffHops = hops.map((h) => ({ solver: h.spec.name, status: h.result?.status ?? (h.skipped ? `skipped:${h.skipped}` : 'unknown'), cost_usd: h.result?.cost_usd ?? 0, latency_ms: h.result?.latency_ms ?? 0, turns: h.result?.turns ?? 0, accepted: !!(h.result && acceptHop(h.result)) }));
+        const best = pickChainPatch(hops); // first ACCEPTED hop, else last non-empty-patch hop
+        if (best) { patch = best.hop.result.patch; row.tier = `handoff:${best.hop.spec.name}`; row.handoffAccepted = best.accepted; }
+      }
+      // Receipt stream: not escalated ⇒ one row (handoff_* null). Escalated ⇒ one row PER HOP
+      // (hop/hop_of/hop_accepted extras); a single-rung chain therefore emits exactly the spec'd
+      // one-escalated-row shape. diff stats on each row are the instance's FINAL patch.
+      if (!escalate) {
+        appendFileSync(RECEIPTS, JSON.stringify(buildReceipt({ ...darwinBase, escalated: false, escalationReasons: [], handoff: null, finalPatch: patch })) + '\n');
+      } else if (hops.length === 0) {
+        appendFileSync(RECEIPTS, JSON.stringify({ ...buildReceipt({ ...darwinBase, escalated: true, escalationReasons: reasons, handoff: null, finalPatch: patch }), handoff_skipped_reason: 'budget' }) + '\n');
+      } else {
+        hops.forEach((h, i) => {
+          const rec = buildReceipt({ ...darwinBase, escalated: true, escalationReasons: reasons, handoff: h.result ? { ...h.result, solver: h.spec.name } : null, finalPatch: patch });
+          appendFileSync(RECEIPTS, JSON.stringify({ ...rec, hop: i + 1, hop_of: hops.length, hop_accepted: !!(h.result && acceptHop(h.result)), ...(h.skipped ? { handoff_skipped_reason: h.skipped } : {}) }) + '\n');
+        });
+      }
     }
 
     // ADR-195 #3: reviewer refines the chosen patch (post-solve; off → no-op).
@@ -420,5 +571,11 @@ if (NO_ORACLE && usedOracleDuringSolve) console.error('⚠️ LEAKAGE: gold harn
 writeFileSync(REPORT, JSON.stringify({ model: MODEL, escalateModel: ESCALATE, cascade: !!ESCALATE, maxSteps: MAX_STEPS, n: report.length, resolvedInLoop: inloop, escalated, byTier, noTestOracle: NO_ORACLE, leaderboardConformant: conformant,
   // ADR-195 Phase-2 capability flags active for this run (all false → pre-Phase-2 behaviour).
   phase2: { localize: LOCALIZE, gnnRerank: GNN_RERANK, reproGate: REPRO_GATE, reviewer: REVIEWER, traceLocalize: TRACE_LOCALIZE },
+  // ADR-197 — native tool-calling flag active for this run (false → pre-existing text-JSON protocol).
+  nativeTools: NATIVE_TOOLS,
+  // ADR-205 — escalation chain active for this run (null → no handoff, pre-ADR-205 behaviour).
+  escalateTo: HANDOFF_CHAIN ? HANDOFF_CHAIN.map((s) => s.name) : null,
+  escalatePolicy: HANDOFF_CHAIN ? ESCALATE_POLICY : null,
+  escalationRate: HANDOFF_CHAIN ? +(report.filter((r) => r.handoffChain).length / (report.length || 1)).toFixed(3) : null,
   cappedAtInstance: cappedAt, maxCost: MAX_COST===Infinity?null:MAX_COST, totalCost_usd: Math.round(totalCost * 10000) / 10000, blendedCostPerInst_usd: report.length ? Math.round(totalCost / report.length * 1e5) / 1e5 : 0, instances: report }, null, 2));
-console.error(`\nDONE ${report.length} | in-loop ${inloop}/${report.length} | cascade=${!!ESCALATE} escalated=${escalated} tiers=${JSON.stringify(byTier)} | $${Math.round(totalCost * 10000) / 10000} (${report.length?(totalCost/report.length).toFixed(4):0}/inst) | preds → ${OUT}`);
+console.error(`\nDONE ${report.length} | in-loop ${inloop}/${report.length} | cascade=${!!ESCALATE} escalated=${escalated} tiers=${JSON.stringify(byTier)} | native-tools=${NATIVE_TOOLS} | $${Math.round(totalCost * 10000) / 10000} (${report.length?(totalCost/report.length).toFixed(4):0}/inst) | preds → ${OUT}`);
